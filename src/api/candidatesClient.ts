@@ -3,10 +3,15 @@ export type CandidateListRow = {
   name: string
   email: string
   phone: string
+  whatsappNumber: string
   department: string
   job: string
   jobTitle: string
   jobCode: string
+  /** Current application job id; null if the candidate has no current job link */
+  currentJobId: string | null
+  /** Total job applications for this candidate */
+  jobCount: number
   status: string
   applied: string
 }

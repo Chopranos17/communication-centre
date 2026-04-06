@@ -205,6 +205,7 @@ app.get("/api/candidates", async (_req, res) => {
           where: { is_current: true },
           include: { job: true },
         },
+        _count: { select: { jobs: true } },
       },
       orderBy: { name: "asc" },
     });
@@ -217,10 +218,13 @@ app.get("/api/candidates", async (_req, res) => {
         name: c.name,
         email: c.email,
         phone: c.phone ?? "",
+        whatsappNumber: c.whatsapp_number ?? "",
         department: job?.department ?? "—",
         job: job ? `${job.title} (${job.job_code})` : "—",
         jobTitle: job?.title ?? "—",
         jobCode: job?.job_code ?? "",
+        currentJobId: job?.id ?? null,
+        jobCount: c._count.jobs,
         status: formatStageLabel(c.current_stage),
         applied: formatDateDots(c.created_at),
       };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { fetchCandidateDetail, type CandidateDetail } from '../api/candidatesClient'
 import { CandidateDetailHeader } from '../components/candidate/CandidateDetailHeader'
 import { CandidateDetailSidebar } from '../components/candidate/CandidateDetailSidebar'
@@ -11,6 +11,14 @@ import { CommunicationsCurrentJobSection } from '../components/candidate/Communi
 import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
 import { HiringFlowPlaceholder } from '../components/candidate/HiringFlowPlaceholder'
 import { FilterTabs } from '../components/layout/FilterTabs'
+
+const TAB_QUERY_TO_MAIN: Record<string, CandidateMainTabId> = {
+  overview: 'overview',
+  application: 'application',
+  activity: 'activity',
+  communications: 'communications',
+  'other-apps': 'other-apps',
+}
 
 const APP_DETAIL_PILLS = [
   { id: 'snapshot', label: 'Application Snapshot' },
@@ -33,6 +41,7 @@ function TabPanelPlaceholder({ title }: { title: string }) {
 
 export function CandidateDetailPage() {
   const { candidateId } = useParams<{ candidateId: string }>()
+  const [searchParams] = useSearchParams()
   const [detail, setDetail] = useState<CandidateDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,6 +77,17 @@ export function CandidateDetailPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    setMainTab('overview')
+  }, [candidateId])
+
+  useEffect(() => {
+    const raw = searchParams.get('tab')
+    if (raw && TAB_QUERY_TO_MAIN[raw]) {
+      setMainTab(TAB_QUERY_TO_MAIN[raw])
+    }
+  }, [searchParams])
 
   const smsToDisplay = useMemo(() => {
     if (!detail) return ''

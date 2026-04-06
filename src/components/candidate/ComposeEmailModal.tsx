@@ -65,6 +65,9 @@ export type ComposeEmailRecipient = {
   candidateEmail: string;
   /** Total job applications; used for "multiple jobs" bulk filter */
   jobCount?: number;
+  /** When set (e.g. All Candidates list), used instead of the modal-level job for this recipient */
+  jobId?: string;
+  jobTitle?: string;
 };
 
 type ComposeEmailModalProps = {
@@ -329,9 +332,11 @@ export function ComposeEmailModal({
     for (let i = 0; i < list.length; i++) {
       const r = list[i];
       setSendProgress({ current: i + 1, total: list.length });
+      const recipientJobId = r.jobId?.trim() || jobId;
+      const recipientJobTitle = r.jobTitle?.trim() || jobTitle;
       const ctx: Partial<EmailTemplateVarContext> = {
         candidate_name: r.candidateName,
-        job_title: jobTitle,
+        job_title: recipientJobTitle,
         recruiter_name: "Recruiter",
         company_name: "Darwinbox",
         interview_date: new Date().toLocaleDateString(undefined, {
@@ -344,7 +349,7 @@ export function ComposeEmailModal({
       const resolvedBody = resolveEmailTemplateString(bodyHtml, ctx);
 
       const result = await composeSendEmail(r.candidateId, {
-        jobId,
+        jobId: recipientJobId,
         fromAddress: sendFrom,
         subject: resolvedSubject,
         htmlBody: resolvedBody,
