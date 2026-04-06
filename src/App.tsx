@@ -3,6 +3,7 @@ import { PersonaProvider } from './context/PersonaContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { JobOpeningsPage } from './pages/JobOpeningsPage'
 import { CandidatesPage } from './pages/CandidatesPage'
+import { CandidateDetailPage } from './pages/CandidateDetailPage'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/recruitment/job-openings" replace />} />
             <Route path="/recruitment/job-openings" element={<JobOpeningsPage />} />
             <Route path="/recruitment/candidates" element={<CandidatesPage />} />
+            <Route path="/recruitment/candidates/:candidateId" element={<CandidateDetailPage />} />
             <Route path="*" element={<Navigate to="/recruitment/job-openings" replace />} />
           </Route>
         </Routes>

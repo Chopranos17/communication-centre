@@ -8,6 +8,119 @@ const PORT = Number(process.env.PORT) || 3001;
 
 app.use(express.json());
 
+function formatDateDots(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}.${m}.${day}`;
+}
+
+function formatStageLabel(stage: string): string {
+  return stage
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function sourceTypeLabel(source: string): string {
+  const map: Record<string, string> = {
+    job_portal: "External Candidate",
+    IJP: "Internal Candidate",
+    referral: "Referral",
+    external_recruiter: "External Recruiter",
+    CRM: "CRM",
+  };
+  return map[source] ?? formatStageLabel(source);
+}
+
+app.get("/api/candidates", async (_req, res) => {
+  try {
+    const rows = await prisma.candidate.findMany({
+      include: {
+        jobs: {
+          where: { is_current: true },
+          include: { job: true },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    const candidates = rows.map((c) => {
+      const link = c.jobs[0];
+      const job = link?.job;
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone ?? "",
+        department: job?.department ?? "—",
+        job: job ? `${job.title} (${job.job_code})` : "—",
+        jobTitle: job?.title ?? "—",
+        jobCode: job?.job_code ?? "",
+        status: formatStageLabel(c.current_stage),
+        applied: formatDateDots(c.created_at),
+      };
+    });
+
+    res.json({ candidates });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.get("/api/candidates/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id },
+      include: {
+        jobs: { include: { job: true } },
+        _count: { select: { communications: true } },
+      },
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+
+    const currentLink = candidate.jobs.find((j) => j.is_current);
+    const otherLinks = candidate.jobs.filter((j) => !j.is_current);
+
+    res.json({
+      id: candidate.id,
+      name: candidate.name,
+      email: candidate.email,
+      phone: candidate.phone ?? "",
+      source: candidate.source,
+      sourceLabel: sourceTypeLabel(candidate.source),
+      createdAt: candidate.created_at.toISOString(),
+      appliedDateDisplay: formatDateDots(candidate.created_at),
+      currentStage: candidate.current_stage,
+      statusLabel: formatStageLabel(candidate.current_stage),
+      jobMatchScore: "Not Calculated",
+      currentJob: currentLink
+        ? {
+            id: currentLink.job.id,
+            title: currentLink.job.title,
+            jobCode: currentLink.job.job_code,
+          }
+        : null,
+      otherJobs: otherLinks.map((cj) => ({
+        id: cj.job.id,
+        title: cj.job.title,
+        jobCode: cj.job.job_code,
+        statusLabel: formatStageLabel(candidate.current_stage),
+        appliedOn: formatDateDots(candidate.created_at),
+      })),
+      communicationCount: candidate._count.communications,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
