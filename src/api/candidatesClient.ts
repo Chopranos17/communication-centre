@@ -47,3 +47,29 @@ export async function fetchCandidateDetail(id: string): Promise<CandidateDetail>
   if (!r.ok) throw new Error("Failed to load candidate")
   return r.json() as Promise<CandidateDetail>
 }
+
+export type CurrentJobEmailRow = {
+  id: string
+  senderType: string
+  senderLabel: string
+  filterBucket: "system" | "user"
+  subject: string | null
+  body: string
+  sentAt: string
+}
+
+export type CandidateCurrentJobEmails = {
+  currentJob: { id: string; title: string; jobCode: string } | null
+  emails: CurrentJobEmailRow[]
+}
+
+export async function fetchCandidateCurrentJobEmails(
+  candidateId: string,
+  jobId?: string,
+): Promise<CandidateCurrentJobEmails> {
+  const q = jobId ? `?jobId=${encodeURIComponent(jobId)}` : ""
+  const r = await fetch(`/api/candidates/${encodeURIComponent(candidateId)}/communications${q}`)
+  if (r.status === 404) throw new Error("NOT_FOUND")
+  if (!r.ok) throw new Error("Failed to load communications")
+  return r.json() as Promise<CandidateCurrentJobEmails>
+}

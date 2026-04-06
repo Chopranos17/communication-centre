@@ -7,6 +7,7 @@ import {
   CandidateDetailTabs,
   type CandidateMainTabId,
 } from '../components/candidate/CandidateDetailTabs'
+import { CommunicationsCurrentJobSection } from '../components/candidate/CommunicationsCurrentJobSection'
 import { HiringFlowPlaceholder } from '../components/candidate/HiringFlowPlaceholder'
 import { FilterTabs } from '../components/layout/FilterTabs'
 
@@ -190,23 +191,19 @@ export function CandidateDetailPage() {
             {mainTab === 'activity' ? <TabPanelPlaceholder title="Activity Log" /> : null}
 
             {mainTab === 'communications' ? (
-              <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--elevation-1)]">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2
                     className="text-[length:var(--title-xs)] font-bold text-[var(--text-title)]"
                     style={{ fontWeight: 'var(--font-weight-bold)' }}
                   >
                     Communications
                   </h2>
-                  <span className="rounded-full bg-[var(--blue-50)] px-2.5 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--blue-600)]">
-                    {detail.communicationCount} in database
+                  <span className="text-[length:var(--body-s)] text-[var(--text-label)]">
+                    {detail.communicationCount} total touchpoints (all channels)
                   </span>
                 </div>
-                <p className="text-[length:var(--body-m)] text-[var(--text-body)]">
-                  Email, SMS, WhatsApp, and meeting activity for this candidate will appear here. Use{' '}
-                  <strong className="font-medium text-[var(--text-title)]">+ New Email</strong> in the next task to
-                  compose messages.
-                </p>
+                <CommunicationsCurrentJobSection candidateId={detail.id} />
               </div>
             ) : null}
 

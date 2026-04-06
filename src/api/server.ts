@@ -33,6 +33,97 @@ function sourceTypeLabel(source: string): string {
   return map[source] ?? formatStageLabel(source);
 }
 
+function senderLabelForTimeline(
+  senderType: string,
+  senderName: string | null,
+): { senderLabel: string; filterBucket: "system" | "user"; senderType: string } {
+  if (senderType === "system") {
+    return { senderType, senderLabel: "System", filterBucket: "system" };
+  }
+  if (senderType === "CRM") {
+    return { senderType, senderLabel: "CRM", filterBucket: "system" };
+  }
+  if (senderType === "candidate") {
+    const label = senderName?.trim() || "Candidate";
+    return { senderType, senderLabel: label, filterBucket: "user" };
+  }
+  if (senderType === "recruiter" || senderType === "hiring_lead") {
+    const label = senderName?.trim() || "Employee";
+    return { senderType, senderLabel: label, filterBucket: "user" };
+  }
+  const label = senderName?.trim() || "Employee";
+  return { senderType, senderLabel: label, filterBucket: "user" };
+}
+
+/** Task 6: email timeline for Current Job (channel = email only). */
+app.get("/api/candidates/:candidateId/communications", async (req, res) => {
+  const { candidateId } = req.params;
+  const jobIdParam =
+    typeof req.query.jobId === "string" ? req.query.jobId.trim() : "";
+
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: {
+        jobs: { include: { job: true } },
+      },
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+
+    const currentLink = candidate.jobs.find((j) => j.is_current);
+    const jobId = jobIdParam || currentLink?.job_id;
+
+    if (!jobId) {
+      return res.json({
+        currentJob: null,
+        emails: [],
+      });
+    }
+
+    const jobRow = candidate.jobs.find((j) => j.job_id === jobId)?.job;
+    if (!jobRow) {
+      return res.status(400).json({ error: "Invalid jobId for this candidate" });
+    }
+
+    const rows = await prisma.communication.findMany({
+      where: {
+        candidate_id: candidateId,
+        job_id: jobId,
+        channel: "email",
+      },
+      orderBy: { sent_at: "desc" },
+    });
+
+    const emails = rows.map((row) => {
+      const mapped = senderLabelForTimeline(row.sender_type, row.sender_name);
+      return {
+        id: row.id,
+        senderType: mapped.senderType,
+        senderLabel: mapped.senderLabel,
+        filterBucket: mapped.filterBucket,
+        subject: row.subject,
+        body: row.body,
+        sentAt: row.sent_at.toISOString(),
+      };
+    });
+
+    res.json({
+      currentJob: {
+        id: jobRow.id,
+        title: jobRow.title,
+        jobCode: jobRow.job_code,
+      },
+      emails,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
 app.get("/api/candidates", async (_req, res) => {
   try {
     const rows = await prisma.candidate.findMany({
