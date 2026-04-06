@@ -10,8 +10,15 @@ import type { ComposeEmailRecipient } from "./ComposeEmailModal";
 import { EmailDetailModal } from "./EmailDetailModal";
 import { FollowUpEmailModal } from "./FollowUpEmailModal";
 import { ReplyThreadModal } from "./ReplyThreadModal";
+import { ScheduleMeetingModal } from "./ScheduleMeetingModal";
 
 const EMPTY_EMAILS: CurrentJobEmailRow[] = [];
+
+/** Default recruiter row for 1:1 participants (aligned with `/api/employees` seed). */
+const DEFAULT_RECRUITER_PARTICIPANT = {
+  name: "Atharva M",
+  email: "atharva.m@darwinbox.in",
+};
 
 export function CommunicationsCurrentJobSection({
   candidateId,
@@ -47,6 +54,7 @@ export function CommunicationsCurrentJobSection({
   const [loading, setLoading] = useState(true);
   const [detailEmail, setDetailEmail] = useState<CurrentJobEmailRow | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
   const [followUpRows, setFollowUpRows] = useState<CurrentJobEmailRow[] | null>(
     null,
   );
@@ -90,6 +98,7 @@ export function CommunicationsCurrentJobSection({
   const canCompose = Boolean(
     composeJob && candidateEmail.trim().length > 0,
   );
+  const canScheduleMeeting = canCompose;
 
   const openFollowUp = (rows: CurrentJobEmailRow[], job: { id: string; title: string }) => {
     setReplyRows(null);
@@ -157,6 +166,20 @@ export function CommunicationsCurrentJobSection({
           onSent={() => void load()}
         />
       ) : null}
+      {composeJob ? (
+        <ScheduleMeetingModal
+          open={meetingOpen}
+          onClose={() => setMeetingOpen(false)}
+          candidateId={candidateId}
+          candidateName={candidateName}
+          candidateEmail={candidateEmail}
+          jobId={composeJob.id}
+          jobTitle={composeJob.title}
+          recruiterParticipant={DEFAULT_RECRUITER_PARTICIPANT}
+          senderName={DEFAULT_RECRUITER_PARTICIPANT.name}
+          onSent={() => void load()}
+        />
+      ) : null}
       <CommunicationsJobEmailSection
         defaultSectionOpen
         jobTitle={jobTitle}
@@ -185,10 +208,17 @@ export function CommunicationsCurrentJobSection({
         }
         onSendSms={onSendSms}
         onSendWhatsApp={onSendWhatsApp}
+        onScheduleMeeting={() => setMeetingOpen(true)}
         smsDisabled={smsDisabled}
         whatsappDisabled={whatsappDisabled}
+        scheduleMeetingDisabled={!canScheduleMeeting}
         smsDisabledTitle={smsDisabledTitle}
         whatsappDisabledTitle={whatsappDisabledTitle}
+        scheduleMeetingDisabledTitle={
+          !candidateEmail.trim()
+            ? "Candidate has no email address."
+            : "No current job is linked to this candidate."
+        }
         candidateName={candidateName}
         onFollowUp={(rows) => {
           const j = data?.currentJob ?? currentJob;

@@ -1,19 +1,14 @@
-import { Fragment, useMemo, useState, useEffect } from "react";
+import { Fragment, useMemo, useState, useEffect, useRef } from "react";
 import type { CurrentJobEmailRow } from "../../api/candidatesClient";
 import {
   buildTimelineMessagePreview,
   buildTimelineThreadGroups,
   formatTimelineTime,
   getContactThreadActions,
+  meetingStatusBadgeLabel,
   threadSenderColumnLabel,
 } from "../../utils/communicationTimeline";
-import {
-  IconFollowUp,
-  IconNewEmail,
-  IconReply,
-  IconSms,
-  IconWhatsApp,
-} from "./CommunicationToolbarIcons";
+import { IconFollowUp, IconMoreVertical, IconReply } from "./CommunicationToolbarIcons";
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 export type EmailTypeFilter = "all" | "system" | "user";
@@ -69,10 +64,13 @@ type CommunicationsJobEmailSectionProps = {
   /** Optional — same actions as Candidate header ⋮ menu (Current Job section only). */
   onSendSms?: () => void;
   onSendWhatsApp?: () => void;
+  onScheduleMeeting?: () => void;
   smsDisabled?: boolean;
   whatsappDisabled?: boolean;
+  scheduleMeetingDisabled?: boolean;
   smsDisabledTitle?: string;
   whatsappDisabledTitle?: string;
+  scheduleMeetingDisabledTitle?: string;
   /** Used for "{Candidate Name} (N)" on threads with a candidate reply (PRD §4.5). */
   candidateName?: string;
   /** Task 13: contact@ threads without candidate reply. */
@@ -101,10 +99,13 @@ export function CommunicationsJobEmailSection({
   newEmailDisabledTitle,
   onSendSms,
   onSendWhatsApp,
+  onScheduleMeeting,
   smsDisabled = false,
   whatsappDisabled = false,
+  scheduleMeetingDisabled = false,
   smsDisabledTitle,
   whatsappDisabledTitle,
+  scheduleMeetingDisabledTitle,
   candidateName = "",
   onFollowUp,
   onReply,
@@ -115,6 +116,8 @@ export function CommunicationsJobEmailSection({
   const [expandedThreadKeys, setExpandedThreadKeys] = useState<
     Record<string, boolean>
   >({});
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const splitCommActionsRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(
     () => (emails.length ? filterEmails(emails, emailFilter) : []),
@@ -135,6 +138,25 @@ export function CommunicationsJobEmailSection({
   useEffect(() => {
     onInvalidateDetail?.();
   }, [emailFilter, emailListKey, onInvalidateDetail]);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const el = splitCommActionsRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreMenuOpen]);
 
   const threadGroups = useMemo(
     () => buildTimelineThreadGroups(filtered),
@@ -221,75 +243,98 @@ export function CommunicationsJobEmailSection({
               </div>
             </div>
             {showNewEmailButton ? (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => onNewEmail?.()}
-                  disabled={newEmailDisabled || !onNewEmail}
-                  title={
-                    newEmailDisabled
-                      ? (newEmailDisabledTitle ?? "")
-                      : "Compose new email"
-                  }
-                  aria-label={
-                    newEmailDisabled
-                      ? (newEmailDisabledTitle ?? "Compose new email unavailable")
-                      : "Compose new email"
-                  }
-                  className={[
-                    "inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--charcoal-100)] text-[var(--charcoal-700)]",
-                    newEmailDisabled || !onNewEmail
-                      ? "cursor-not-allowed bg-[var(--yellow-500)] opacity-60"
-                      : "bg-[var(--yellow-500)] hover:opacity-95",
-                  ].join(" ")}
-                >
-                  <IconNewEmail />
-                </button>
-                {onSendSms ? (
+              <div
+                ref={splitCommActionsRef}
+                className="relative flex flex-wrap items-center justify-end"
+              >
+                <div className="inline-flex overflow-hidden rounded-md border border-black bg-black shadow-sm">
                   <button
                     type="button"
-                    onClick={() => onSendSms()}
-                    disabled={smsDisabled}
-                    title={smsDisabled ? smsDisabledTitle : "Send SMS to candidate"}
-                    aria-label={
-                      smsDisabled
-                        ? (smsDisabledTitle ?? "Send SMS unavailable")
-                        : "Send SMS to candidate"
-                    }
-                    className={[
-                      "inline-flex h-8 w-8 items-center justify-center rounded border",
-                      smsDisabled
-                        ? "cursor-not-allowed border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-label)] opacity-50"
-                        : "border-[var(--charcoal-200)] bg-[var(--bg-surface)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)]",
-                    ].join(" ")}
-                  >
-                    <IconSms />
-                  </button>
-                ) : null}
-                {onSendWhatsApp ? (
-                  <button
-                    type="button"
-                    onClick={() => onSendWhatsApp()}
-                    disabled={whatsappDisabled}
+                    className="inline-flex h-9 items-center gap-1 border-r border-white/25 px-3 text-[length:var(--body-s)] font-semibold text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-500)] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={Boolean(newEmailDisabled || !onNewEmail)}
                     title={
-                      whatsappDisabled
-                        ? whatsappDisabledTitle
-                        : "Send WhatsApp to candidate"
+                      newEmailDisabled ? (newEmailDisabledTitle ?? "") : "Email"
                     }
-                    aria-label={
-                      whatsappDisabled
-                        ? (whatsappDisabledTitle ?? "Send WhatsApp unavailable")
-                        : "Send WhatsApp to candidate"
-                    }
-                    className={[
-                      "inline-flex h-8 w-8 items-center justify-center rounded border",
-                      whatsappDisabled
-                        ? "cursor-not-allowed border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-label)] opacity-50"
-                        : "border-[var(--green-500)] bg-[var(--bg-surface)] text-[var(--green-500)] hover:bg-[var(--green-50)]",
-                    ].join(" ")}
+                    onClick={() => onNewEmail?.()}
                   >
-                    <IconWhatsApp />
+                    <span
+                      className="text-[1.125rem] font-medium leading-none"
+                      aria-hidden
+                    >
+                      +
+                    </span>
+                    <span>Email</span>
                   </button>
+                  <button
+                    type="button"
+                    id="comm-actions-more-trigger"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-500)]"
+                    aria-expanded={moreMenuOpen}
+                    aria-haspopup="menu"
+                    aria-controls="comm-actions-more-menu"
+                    aria-label="More communication actions"
+                    onClick={() => setMoreMenuOpen((o) => !o)}
+                  >
+                    <IconMoreVertical className="h-4 w-4 text-white" />
+                  </button>
+                </div>
+                {moreMenuOpen ? (
+                  <div
+                    id="comm-actions-more-menu"
+                    role="menu"
+                    aria-labelledby="comm-actions-more-trigger"
+                    className="absolute left-0 top-full z-[60] mt-1 min-w-[12rem] rounded-md border border-[var(--border-default)] bg-white py-1 shadow-[var(--elevation-3)]"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full px-4 py-2.5 text-left text-[length:var(--body-m)] font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={Boolean(smsDisabled || !onSendSms)}
+                      title={smsDisabled ? smsDisabledTitle : undefined}
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        if (!smsDisabled && onSendSms) onSendSms();
+                      }}
+                    >
+                      SMS
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full px-4 py-2.5 text-left text-[length:var(--body-m)] font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={Boolean(whatsappDisabled || !onSendWhatsApp)}
+                      title={whatsappDisabled ? whatsappDisabledTitle : undefined}
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        if (!whatsappDisabled && onSendWhatsApp) {
+                          onSendWhatsApp();
+                        }
+                      }}
+                    >
+                      Whatsapp
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full px-4 py-2.5 text-left text-[length:var(--body-m)] font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={Boolean(
+                        scheduleMeetingDisabled || !onScheduleMeeting,
+                      )}
+                      title={
+                        scheduleMeetingDisabled
+                          ? scheduleMeetingDisabledTitle
+                          : undefined
+                      }
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        if (!scheduleMeetingDisabled && onScheduleMeeting) {
+                          onScheduleMeeting();
+                        }
+                      }}
+                    >
+                      1:1 Meeting
+                    </button>
+                  </div>
                 ) : null}
               </div>
             ) : (
@@ -409,6 +454,14 @@ export function CommunicationsJobEmailSection({
                                   <strong className="font-bold">{subjectPart}</strong>
                                 ) : null}
                                 {bodyPart}
+                                {latest.channel === "meeting" && latest.meeting ? (
+                                  <span
+                                    className="ml-1.5 inline-flex align-middle rounded bg-[var(--blue-50)] px-1.5 py-0.5 text-[length:10px] font-bold uppercase tracking-wide text-[var(--blue-700)]"
+                                    title="Meeting status"
+                                  >
+                                    {meetingStatusBadgeLabel(latest.meeting.status)}
+                                  </span>
+                                ) : null}
                               </span>
                             </td>
                             <td className="align-top py-3 text-[length:var(--body-s)] font-light text-[var(--text-label)] sm:text-right">

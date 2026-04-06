@@ -116,7 +116,10 @@ export function buildEmailPreviewLine(
  * Message column preview: email uses subject + body; SMS/WhatsApp use body only (channel icon shown separately).
  */
 export function buildTimelineMessagePreview(
-  row: Pick<CurrentJobEmailRow, "channel" | "subject" | "body">,
+  row: Pick<
+    CurrentJobEmailRow,
+    "channel" | "subject" | "body" | "meeting"
+  >,
   max = 75,
 ): { subjectPart: string; bodyPart: string } {
   if (row.channel === "sms" || row.channel === "whatsapp") {
@@ -126,7 +129,54 @@ export function buildTimelineMessagePreview(
     }
     return { subjectPart: "", bodyPart: plain.slice(0, max) };
   }
+  if (row.channel === "meeting") {
+    const sub = row.subject?.trim() || "1:1 Meeting";
+    const mtg = row.meeting;
+    const tail = mtg
+      ? ` · ${new Date(mtg.scheduledAt).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })}`
+      : "";
+    const full = `${sub}${tail}`.replace(/\s+/g, " ").trim();
+    if (full.length <= max) {
+      return { subjectPart: sub, bodyPart: tail };
+    }
+    if (sub.length >= max) {
+      return { subjectPart: sub.slice(0, max), bodyPart: "" };
+    }
+    const take = max - sub.length;
+    return {
+      subjectPart: sub,
+      bodyPart: tail.trim().slice(0, Math.max(0, take)),
+    };
+  }
   return buildEmailPreviewLine(row.subject, row.body, max);
+}
+
+/** Badge label for 1:1 meeting status (Task 14). */
+export function meetingStatusBadgeLabel(status: string): string {
+  const m: Record<string, string> = {
+    scheduled: "Scheduled",
+    rescheduled: "Rescheduled",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  };
+  return m[status] ?? status;
+}
+
+/** Human label for meeting channel key (schema / API). */
+export function meetingChannelLabel(ch: string): string {
+  const m: Record<string, string> = {
+    google_meet: "Google Meet",
+    ms_teams: "Microsoft Teams",
+    zoom: "Zoom",
+    darwinbox_meet: "Darwinbox Meet",
+    in_person: "In person",
+  };
+  return m[ch] ?? ch;
 }
 
 /** "Today" / "Yesterday" / short date for timeline Time column (PRD §4.4). */

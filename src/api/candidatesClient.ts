@@ -52,7 +52,15 @@ export async function fetchCandidateDetail(id: string): Promise<CandidateDetail>
 
 export type EmailDeliveryStatus = "pending" | "sent" | "delivered" | "failed"
 
-export type TimelineChannel = "email" | "sms" | "whatsapp"
+export type TimelineChannel = "email" | "sms" | "whatsapp" | "meeting"
+
+export type MeetingTimelineMeta = {
+  status: string
+  scheduledAt: string
+  durationMinutes: number
+  meetingChannel: string
+  meetingLink: string | null
+}
 
 export type CurrentJobEmailRow = {
   id: string
@@ -68,6 +76,8 @@ export type CurrentJobEmailRow = {
   deliveryStatus: EmailDeliveryStatus
   /** Same id for all messages in an email thread; null for standalone email or non-email channels. */
   threadId: string | null
+  /** Populated when channel === "meeting". */
+  meeting?: MeetingTimelineMeta | null
 }
 
 export type OtherJobEmailSection = {
@@ -210,6 +220,49 @@ export async function composeSendWhatsApp(
     return {
       success: false,
       error: data.error ?? "Failed to send WhatsApp message",
+    }
+  }
+  return data
+}
+
+export type ScheduleMeetingPayload = {
+  jobId: string
+  title: string
+  description: string
+  durationMinutes: 15 | 30 | 45 | 60
+  scheduledAt: string
+  channel:
+    | "google_meet"
+    | "ms_teams"
+    | "zoom"
+    | "darwinbox_meet"
+    | "in_person"
+  participants: { name: string; email: string }[]
+  senderName?: string
+}
+
+export type ScheduleMeetingResult = ComposeEmailResult & {
+  meetingId?: string
+  messageIds?: string[]
+}
+
+export async function scheduleMeeting(
+  candidateId: string,
+  payload: ScheduleMeetingPayload,
+): Promise<ScheduleMeetingResult> {
+  const r = await fetch(
+    `/api/candidates/${encodeURIComponent(candidateId)}/schedule-meeting`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  )
+  const data = (await r.json()) as ScheduleMeetingResult & { error?: string }
+  if (!r.ok) {
+    return {
+      success: false,
+      error: data.error ?? "Failed to schedule meeting",
     }
   }
   return data

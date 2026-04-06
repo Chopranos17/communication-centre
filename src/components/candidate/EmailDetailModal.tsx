@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import type { CurrentJobEmailRow } from "../../api/candidatesClient";
 import {
   formatEmailDetailDateTime,
+  meetingChannelLabel,
+  meetingStatusBadgeLabel,
   stripHtml,
 } from "../../utils/communicationTimeline";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
@@ -37,12 +39,15 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
 
   const ch = email.channel ?? "email";
   const isEmail = ch === "email";
+  const isMeeting = ch === "meeting";
   const detailTitle =
     ch === "sms"
       ? "SMS details"
       : ch === "whatsapp"
         ? "WhatsApp details"
-        : "Email details";
+        : ch === "meeting"
+          ? "1:1 Meeting details"
+          : "Email details";
   const subjectLine = email.subject?.trim() || "(No subject)";
   const bodyDisplay = stripHtml(email.body);
 
@@ -97,11 +102,54 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
                 {email.toAddress || "—"}
               </dd>
             </div>
-            {isEmail ? (
+            {isEmail || isMeeting ? (
               <div>
                 <dt className="mb-1 font-medium text-[var(--text-label)]">Subject</dt>
                 <dd className="break-words font-light text-[var(--text-body)]">{subjectLine}</dd>
               </div>
+            ) : null}
+            {isMeeting && email.meeting ? (
+              <>
+                <div>
+                  <dt className="mb-1 font-medium text-[var(--text-label)]">Status</dt>
+                  <dd className="font-light text-[var(--text-body)]">
+                    {meetingStatusBadgeLabel(email.meeting.status)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="mb-1 font-medium text-[var(--text-label)]">Scheduled for</dt>
+                  <dd className="font-light text-[var(--text-body)]">
+                    {formatEmailDetailDateTime(email.meeting.scheduledAt)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="mb-1 font-medium text-[var(--text-label)]">Duration</dt>
+                  <dd className="font-light text-[var(--text-body)]">
+                    {email.meeting.durationMinutes} minutes
+                  </dd>
+                </div>
+                <div>
+                  <dt className="mb-1 font-medium text-[var(--text-label)]">Channel</dt>
+                  <dd className="font-light text-[var(--text-body)]">
+                    {meetingChannelLabel(email.meeting.meetingChannel)}
+                  </dd>
+                </div>
+                {email.meeting.meetingLink ? (
+                  <div>
+                    <dt className="mb-1 font-medium text-[var(--text-label)]">Link</dt>
+                    <dd className="break-all font-light text-[var(--text-body)]">
+                      <a
+                        href={email.meeting.meetingLink}
+                        className="text-[var(--blue-600)] hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {email.meeting.meetingLink}
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
+              </>
             ) : null}
             <div>
               <dt className="mb-1 font-medium text-[var(--text-label)]">Time</dt>

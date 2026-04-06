@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import { prisma } from "./db";
-import { sendMessage } from "./services/message-sender";
+import { sendEmail, sendMessage } from "./services/message-sender";
 
 function normalizeSmsToE164(raw: string): string {
   const t = raw.trim().replace(/\s/g, "");
@@ -63,7 +63,7 @@ function senderLabelForTimeline(
   return { senderType, senderLabel: label, filterBucket: "user" };
 }
 
-const TIMELINE_CHANNELS = ["email", "sms", "whatsapp"] as const;
+const TIMELINE_CHANNELS = ["email", "sms", "whatsapp", "meeting"] as const;
 
 /** Task 6 + Task 11: timeline for Current Job (email, SMS, WhatsApp). */
 app.get("/api/candidates/:candidateId/communications", async (req, res) => {
@@ -105,14 +105,20 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         job_id: jobId,
         channel: { in: [...TIMELINE_CHANNELS] },
       },
+      include: { meeting_detail: true },
       orderBy: { sent_at: "desc" },
     });
 
     const mapTimelineRow = (row: (typeof rows)[number]) => {
       const mapped = senderLabelForTimeline(row.sender_type, row.sender_name);
       const ch = row.channel;
-      const channel =
-        ch === "sms" || ch === "whatsapp" ? ch : "email";
+      const channel: "email" | "sms" | "whatsapp" | "meeting" =
+        ch === "sms" || ch === "whatsapp"
+          ? ch
+          : ch === "meeting"
+            ? "meeting"
+            : "email";
+      const mtg = row.meeting_detail;
       return {
         id: row.id,
         channel,
@@ -127,6 +133,16 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         deliveryStatus: row.delivery_status,
         threadId:
           channel === "email" && row.thread_id ? row.thread_id : null,
+        meeting:
+          channel === "meeting" && mtg
+            ? {
+                status: mtg.status,
+                scheduledAt: mtg.scheduled_at.toISOString(),
+                durationMinutes: mtg.duration_minutes,
+                meetingChannel: mtg.channel,
+                meetingLink: mtg.meeting_link,
+              }
+            : null,
       };
     };
 
@@ -141,6 +157,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
             job_id: link.job_id,
             channel: { in: [...TIMELINE_CHANNELS] },
           },
+          include: { meeting_detail: true },
           orderBy: { sent_at: "desc" },
         });
         if (otherRows.length === 0) return null;
@@ -699,6 +716,279 @@ app.post("/api/candidates/:candidateId/compose-whatsapp", async (req, res) => {
       messageId: result.messageId,
       error: result.error,
       communicationId: result.communicationId,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+const MEETING_CHANNELS = new Set([
+  "google_meet",
+  "ms_teams",
+  "zoom",
+  "darwinbox_meet",
+  "in_person",
+]);
+
+type MeetingChannelKey =
+  | "google_meet"
+  | "ms_teams"
+  | "zoom"
+  | "darwinbox_meet"
+  | "in_person";
+
+function meetingPlaceholderLink(ch: MeetingChannelKey): string | null {
+  switch (ch) {
+    case "google_meet":
+      return "https://meet.google.com/lookup/mock-1x1-placeholder";
+    case "zoom":
+      return "https://zoom.us/j/00000000000";
+    case "ms_teams":
+      return "https://teams.microsoft.com/l/meetup-join/mock-placeholder";
+    case "darwinbox_meet":
+      return "https://meet.darwinbox.in/mock-session";
+    default:
+      return null;
+  }
+}
+
+function meetingChannelLabel(ch: string): string {
+  const map: Record<string, string> = {
+    google_meet: "Google Meet",
+    ms_teams: "Microsoft Teams",
+    zoom: "Zoom",
+    darwinbox_meet: "Darwinbox Meet",
+    in_person: "In person",
+  };
+  return map[ch] ?? ch;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildMeetingInviteHtml(params: {
+  title: string;
+  scheduledAt: Date;
+  durationMinutes: number;
+  channelLabel: string;
+  description: string;
+  meetingLink: string | null;
+  organizerName: string;
+}): string {
+  const when = params.scheduledAt.toLocaleString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  const desc = params.description.trim()
+    ? `<p>${escapeHtml(params.description).replace(/\n/g, "<br/>")}</p>`
+    : "";
+  const linkBlock = params.meetingLink
+    ? `<p><strong>Join link:</strong> <a href="${escapeHtml(params.meetingLink)}">${escapeHtml(params.meetingLink)}</a></p>`
+    : "<p><em>This is an in-person meeting — no video link.</em></p>";
+  return `
+<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;line-height:1.5">
+  <h2 style="margin:0 0 12px">${escapeHtml(params.title)}</h2>
+  <p>You are invited to a 1:1 meeting on Darwinbox Communication Centre.</p>
+  <ul style="padding-left:20px;margin:8px 0">
+    <li><strong>When:</strong> ${escapeHtml(when)}</li>
+    <li><strong>Duration:</strong> ${params.durationMinutes} minutes</li>
+    <li><strong>Channel:</strong> ${escapeHtml(params.channelLabel)}</li>
+    <li><strong>Organizer:</strong> ${escapeHtml(params.organizerName)}</li>
+  </ul>
+  ${desc}
+  ${linkBlock}
+  <p style="color:#666;font-size:13px;margin-top:24px">This message was sent by Communication Centre (prototype).</p>
+</body></html>`;
+}
+
+/** Task 14: schedule 1:1 meeting + send real invite emails via Resend. */
+app.post("/api/candidates/:candidateId/schedule-meeting", async (req, res) => {
+  const { candidateId } = req.params;
+  const body = req.body as {
+    jobId?: string;
+    title?: string;
+    description?: string;
+    durationMinutes?: number;
+    scheduledAt?: string;
+    channel?: string;
+    participants?: { name?: string; email?: string }[];
+    senderName?: string;
+  };
+
+  const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const description =
+    typeof body.description === "string" ? body.description : "";
+  const durationRaw = body.durationMinutes;
+  const scheduledAtRaw =
+    typeof body.scheduledAt === "string" ? body.scheduledAt.trim() : "";
+  const channelRaw = typeof body.channel === "string" ? body.channel.trim() : "";
+  const senderName =
+    typeof body.senderName === "string" && body.senderName.trim()
+      ? body.senderName.trim()
+      : "Recruiter";
+
+  if (!jobId) {
+    return res.status(400).json({ error: "jobId is required" });
+  }
+  if (!title) {
+    return res.status(400).json({ error: "title is required" });
+  }
+  if (!MEETING_CHANNELS.has(channelRaw)) {
+    return res.status(400).json({
+      error:
+        "channel must be one of: google_meet, ms_teams, zoom, darwinbox_meet, in_person",
+    });
+  }
+  const channel = channelRaw as MeetingChannelKey;
+
+  const durationMinutes =
+    typeof durationRaw === "number" && Number.isFinite(durationRaw)
+      ? Math.round(durationRaw)
+      : 0;
+  if (![15, 30, 45, 60].includes(durationMinutes)) {
+    return res.status(400).json({
+      error: "durationMinutes must be 15, 30, 45, or 60",
+    });
+  }
+
+  const scheduledAt = new Date(scheduledAtRaw);
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return res.status(400).json({ error: "scheduledAt must be a valid ISO date" });
+  }
+
+  const partRaw = Array.isArray(body.participants) ? body.participants : [];
+  const participantByEmail = new Map<string, { name: string; email: string }>();
+  for (const p of partRaw) {
+    const name = typeof p?.name === "string" ? p.name.trim() : "";
+    const email = typeof p?.email === "string" ? p.email.trim() : "";
+    if (!email) continue;
+    const key = email.toLowerCase();
+    if (!participantByEmail.has(key)) {
+      participantByEmail.set(key, { name: name || email, email });
+    }
+  }
+  const participantsList = [...participantByEmail.values()];
+  const participantEmails = participantsList.map((p) => p.email);
+  if (participantEmails.length === 0) {
+    return res.status(400).json({ error: "At least one participant email is required" });
+  }
+
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: { jobs: true },
+    });
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+    const hasJob = candidate.jobs.some((j) => j.job_id === jobId);
+    if (!hasJob) {
+      return res.status(400).json({ error: "jobId is not linked to this candidate" });
+    }
+
+    const meetingLink = meetingPlaceholderLink(channel);
+    const participantsJson = JSON.stringify(participantsList);
+
+    const subject = `1:1 — ${title}`;
+    const summaryBody =
+      description.trim() ||
+      `1:1 meeting — ${meetingChannelLabel(channel)} — ${durationMinutes} min.`;
+
+    const { comm, meetingRow } = await prisma.$transaction(async (tx) => {
+      const c = await tx.communication.create({
+        data: {
+          candidate_id: candidateId,
+          job_id: jobId,
+          channel: "meeting",
+          direction: "outbound",
+          sender_type: "recruiter",
+          sender_name: senderName,
+          from_address: "contact@darwinbox.in",
+          to_address: candidate.email.trim() || participantEmails[0],
+          subject,
+          body: summaryBody,
+          delivery_status: "pending",
+        },
+      });
+      const m = await tx.meeting.create({
+        data: {
+          candidate_id: candidateId,
+          job_id: jobId,
+          communication_id: c.id,
+          title,
+          description: description.trim() || null,
+          organizer_id: "emp-rec-001",
+          participants: participantsJson,
+          duration_minutes: durationMinutes,
+          scheduled_at: scheduledAt,
+          channel,
+          meeting_link: meetingLink,
+          status: "scheduled",
+        },
+      });
+      return { comm: c, meetingRow: m };
+    });
+
+    const apiFrom = resendFromForDisplay("contact@darwinbox.in");
+    const html = buildMeetingInviteHtml({
+      title,
+      scheduledAt,
+      durationMinutes,
+      channelLabel: meetingChannelLabel(channel),
+      description,
+      meetingLink,
+      organizerName: senderName,
+    });
+
+    const messageIds: string[] = [];
+    let anyFailed = false;
+    let lastError: string | undefined;
+
+    for (const to of participantEmails) {
+      const result = await sendEmail({
+        from: apiFrom,
+        to,
+        subject: `[Invitation] ${subject}`,
+        htmlBody: html,
+      });
+      if (result.success && result.messageId) {
+        messageIds.push(result.messageId);
+      } else {
+        anyFailed = true;
+        lastError = result.error;
+      }
+    }
+
+    const deliveryStatus = anyFailed ? "failed" : "sent";
+    const vendorId =
+      messageIds.length > 0 ? messageIds.join(",").slice(0, 500) : null;
+
+    await prisma.communication.update({
+      where: { id: comm.id },
+      data: {
+        delivery_status: deliveryStatus,
+        vendor_message_id: vendorId,
+      },
+    });
+
+    return res.json({
+      success: !anyFailed,
+      error: anyFailed ? lastError : undefined,
+      communicationId: comm.id,
+      meetingId: meetingRow.id,
+      messageIds,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
