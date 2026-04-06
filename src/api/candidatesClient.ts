@@ -58,9 +58,16 @@ export type CurrentJobEmailRow = {
   sentAt: string
 }
 
+export type OtherJobEmailSection = {
+  job: { id: string; title: string; jobCode: string }
+  emails: CurrentJobEmailRow[]
+}
+
 export type CandidateCurrentJobEmails = {
   currentJob: { id: string; title: string; jobCode: string } | null
   emails: CurrentJobEmailRow[]
+  /** Jobs other than the current application with at least one email; collapsed in UI by default. */
+  otherJobEmailSections: OtherJobEmailSection[]
 }
 
 export async function fetchCandidateCurrentJobEmails(

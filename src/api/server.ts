@@ -80,6 +80,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
       return res.json({
         currentJob: null,
         emails: [],
+        otherJobEmailSections: [],
       });
     }
 
@@ -97,7 +98,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
       orderBy: { sent_at: "desc" },
     });
 
-    const emails = rows.map((row) => {
+    const mapEmailRow = (row: (typeof rows)[number]) => {
       const mapped = senderLabelForTimeline(row.sender_type, row.sender_name);
       return {
         id: row.id,
@@ -108,7 +109,41 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         body: row.body,
         sentAt: row.sent_at.toISOString(),
       };
-    });
+    };
+
+    const emails = rows.map(mapEmailRow);
+
+    const otherJobLinks = candidate.jobs.filter((j) => j.job_id !== jobId);
+    const otherJobEmailSectionsRaw = await Promise.all(
+      otherJobLinks.map(async (link) => {
+        const otherRows = await prisma.communication.findMany({
+          where: {
+            candidate_id: candidateId,
+            job_id: link.job_id,
+            channel: "email",
+          },
+          orderBy: { sent_at: "desc" },
+        });
+        if (otherRows.length === 0) return null;
+        return {
+          job: {
+            id: link.job.id,
+            title: link.job.title,
+            jobCode: link.job.job_code,
+          },
+          emails: otherRows.map(mapEmailRow),
+        };
+      }),
+    );
+
+    const otherJobEmailSections = otherJobEmailSectionsRaw.filter(
+      (x): x is NonNullable<typeof x> => x != null,
+    );
+    otherJobEmailSections.sort(
+      (a, b) =>
+        new Date(b.emails[0].sentAt).getTime() -
+        new Date(a.emails[0].sentAt).getTime(),
+    );
 
     res.json({
       currentJob: {
@@ -117,6 +152,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         jobCode: jobRow.job_code,
       },
       emails,
+      otherJobEmailSections,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
