@@ -1,0 +1,16 @@
+---
+description: How to approach tasks
+globs: "**/*"
+---
+
+# Workflow Rules
+- Before implementing anything, explain your plan in 3-5 bullet points. Wait for my confirmation.
+- Work on ONE task at a time. Do not jump ahead to the next task.
+- If you encounter an error, paste the FULL error message and explain what you think went wrong before attempting a fix.
+- After completing each task, summarize what was built and what's next.
+- Do NOT refactor or reorganize existing code unless I specifically ask.
+- When suggesting a complex approach, always offer a simpler alternative first.
+- If a task seems too large, break it into sub-tasks and confirm the breakdown with me.
+- When building UI, reference the wireframes and field specs in @docs/prd.md for exact field names, types, and behaviors.
+- Always seed the database with realistic sample data after creating models (10+ candidates, 3-4 jobs, 30+ communications across channels).
+- Use the candidate pipeline stages from @docs/platform-context.md (Application → Shortlisting → Screening → Assessment → Interview → Pre-Offer → Offer → Hired/Rejected).

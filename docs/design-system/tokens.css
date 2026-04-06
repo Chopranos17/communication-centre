@@ -1,0 +1,176 @@
+/* =============================================================
+   SAPIEN DESIGN SYSTEM — Design Tokens for Cursor
+   Darwinbox Communication Centre Prototype
+   
+   Source: Sapien Design System (official Darwinbox design system)
+   Font: Darwin Sans (fallback: Segoe UI, SF Pro, Roboto)
+   ============================================================= */
+
+:root {
+  /* ─── TYPOGRAPHY ─────────────────────────────────────────── */
+  /* Font Family: Darwin Sans is proprietary. For prototype, use Outfit 
+     (the open-source font Darwin Sans was adapted from) */
+  --font-family: 'Outfit', 'Segoe UI', 'SF Pro', 'Roboto', sans-serif;
+  
+  /* Font Weights */
+  --font-weight-book: 300;     /* Default body text */
+  --font-weight-medium: 500;   /* Subheadings, section labels */
+  --font-weight-bold: 700;     /* Page titles, important labels, CTAs */
+
+  /* Type Scale — Large Screen (1024+) */
+  --title-l: 40px;       /* Line height: 48px — Primary page heading */
+  --title-m: 32px;       /* Line height: 40px — Section headers, module titles */
+  --title-s: 24px;       /* Line height: 32px — Subsection headers */
+  --title-xs: 20px;      /* Line height: 28px — Form section headings */
+  --title-xxs: 16px;     /* Line height: 24px — Small group labels */
+  --body-l: 16px;        /* Line height: 24px — Main body text */
+  --body-m: 14px;        /* Line height: 20px — Supporting text, instructions */
+  --body-s: 12px;        /* Line height: 16px — Captions, metadata */
+  --caption: 10px;       /* Line height: 14px — Timestamps, footnotes */
+
+  /* ─── BRAND COLOURS (Neutral) ───────────────────────────── */
+  /* Charcoal — Primary neutrals for text, backgrounds, borders */
+  --charcoal-700: #131313;    /* Darkest — used for titles (text-neutral-title) */
+  --charcoal-600: #1A1A1A;
+  --charcoal-500: #202020;    /* Primary text body (text-neutral-body) */
+  --charcoal-400: #4D4D4D;    /* Labels, default icons (text-neutral-label) */
+  --charcoal-300: #797979;    /* Lighter labels (text-neutral-labelLighter) */
+  --charcoal-200: #A6A6A6;    /* Ghost text, disabled (text-neutral-ghost) */
+  --charcoal-100: #D2D2D2;    /* Default borders, primary bg */
+  --charcoal-50: #E9E9E9;     /* Subtle borders, disabled bg */
+  --charcoal-20: #F2F2F2;     /* Light backgrounds */
+  --charcoal-10: #F6F6F6;     /* Page backgrounds (bg-neutralGrey-light2) */
+  --charcoal-5: #FAFAFA;      /* Lightest background */
+
+  /* White */
+  --white: #FFFFFF;
+
+  /* ─── BRAND COLOURS (Blue) ──────────────────────────────── */
+  /* Blue — Primary interactive/theme colour */
+  --blue-900: #00182E;
+  --blue-800: #01376B;
+  --blue-700: #014F99;        /* Link hover, active hover (text-link-hover) */
+  --blue-600: #0169CC;
+  --blue-500: #0183FF;        /* PRIMARY BLUE — links, active states, buttons (text-link-default) */
+  --blue-400: #349CFF;
+  --blue-300: #67B5FF;
+  --blue-200: #99CDFF;        /* Secondary default bg, link disabled */
+  --blue-100: #CCE6FF;        /* Secondary lighter bg */
+  --blue-50: #E6F3FF;         /* Info low bg, hover states */
+  --blue-20: #F0F8FF;         /* Neutral blue default bg */
+  --blue-10: #F5FAFF;         /* Lightest blue bg */
+
+  /* ─── BRAND COLOURS (Semantic) ──────────────────────────── */
+  /* Green — Success */
+  --green-500: #00A251;       /* Success high (bg-feedback-successHigh) */
+  --green-200: #99DAB9;       /* Success mid */
+  --green-50: #E5F6EE;        /* Success low bg */
+
+  /* Red — Error */
+  --red-500: #FF2323;         /* Error high (bg-feedback-errorHigh, text-feedback-error) */
+  --red-200: #FFA7A7;         /* Error mid */
+  --red-50: #FFE9E9;          /* Error low bg */
+
+  /* Yellow — Warning */
+  --yellow-500: #FFAD0D;      /* Warning high (bg-feedback-warningHigh) */
+  --yellow-200: #FFDF9E;      /* Warning mid */
+  --yellow-50: #FFF7E5;       /* Warning low bg */
+
+  /* ─── ALIAS TOKENS (Semantic Shortcuts) ─────────────────── */
+  
+  /* Text */
+  --text-title: var(--charcoal-700);         /* Page titles, headings */
+  --text-body: var(--charcoal-500);          /* Body text */
+  --text-label: var(--charcoal-400);         /* Form labels, secondary text */
+  --text-label-lighter: var(--charcoal-300); /* Tertiary text */
+  --text-ghost: var(--charcoal-200);         /* Placeholder text */
+  --text-disabled: var(--charcoal-200);      /* Disabled text */
+  --text-link: var(--blue-500);              /* Links — candidate names, navigation */
+  --text-link-hover: var(--blue-700);        /* Link hover state */
+  --text-negative: var(--white);             /* Text on dark backgrounds */
+  --text-error: var(--red-500);              /* Error messages */
+
+  /* Backgrounds */
+  --bg-page: var(--charcoal-10);             /* F6F6F6 — main page background */
+  --bg-surface: var(--white);                /* White — cards, modals, content areas */
+  --bg-surface-hover: var(--charcoal-50);    /* Table row hover */
+  --bg-surface-selected: var(--blue-50);     /* Selected row (light blue) */
+  --bg-disabled: var(--charcoal-50);         /* Disabled backgrounds */
+  --bg-overlay: rgba(32, 32, 32, 0.48);     /* Modal overlay blanket */
+  --bg-blue-active: var(--blue-500);         /* Active tabs, filled badges */
+  --bg-blue-light: var(--blue-20);           /* Neutral blue bg */
+  --bg-success-low: var(--green-50);         /* Success banner bg */
+  --bg-error-low: var(--red-50);             /* Error banner bg */
+  --bg-warning-low: var(--yellow-50);        /* Warning banner bg */
+  --bg-info-low: var(--blue-50);             /* Info banner bg */
+
+  /* Borders */
+  --border-default: var(--charcoal-200);     /* D2D2D2 — standard borders */
+  --border-subtle: var(--charcoal-50);       /* Lighter borders */
+  --border-hover: var(--charcoal-400);       /* Border on hover */
+  --border-active: var(--blue-500);          /* Active/focused input borders */
+  --border-disabled: var(--charcoal-50);     /* Disabled borders */
+  --border-error: var(--red-500);            /* Error state borders */
+
+  /* Icons */
+  --icon-default: var(--charcoal-400);       /* Default icon color */
+  --icon-hover: var(--charcoal-500);         /* Icon hover */
+  --icon-subtle: var(--charcoal-200);        /* Subtle/disabled icons */
+  --icon-active: var(--blue-500);            /* Active/selected icons */
+  --icon-error: var(--red-500);
+  --icon-success: var(--green-500);
+  --icon-warning: var(--yellow-500);
+
+  /* Elevation (Shadows) */
+  --elevation-1: 0 2px 8px rgba(32, 32, 32, 0.08);   /* Subtle — cards */
+  --elevation-2: 0 4px 16px rgba(32, 32, 32, 0.16);   /* Medium — dropdowns */
+  --elevation-3: 0 8px 32px rgba(32, 32, 32, 0.48);   /* Heavy — modals */
+
+  /* ─── COMPONENT-SPECIFIC TOKENS ─────────────────────────── */
+  
+  /* Status Badge Colours (from screenshots) */
+  --status-open: var(--green-500);           /* Green bracket badge */
+  --status-draft: var(--charcoal-400);       /* Gray bracket badge */
+  --status-shortlisting: var(--yellow-500);  /* Yellow/amber bracket badge */
+  --status-process-ongoing: var(--blue-500); /* Blue bracket badge */
+  --status-pending: var(--charcoal-300);     /* Gray "Pending" text */
+
+  /* Candidate Detail Page Header */
+  --header-banner-bg: var(--blue-500);       /* Blue banner on candidate detail */
+  
+  /* Tab Bar */
+  --tab-active-border: var(--charcoal-700);  /* Active tab underline (dark) */
+  --tab-inactive-text: var(--charcoal-400);  /* Inactive tab text */
+  
+  /* Stage Filter Pills (Job Detail Page) */
+  --pill-active-bg: var(--blue-500);         /* "Total Candidates" filled pill */
+  --pill-active-text: var(--white);
+  --pill-inactive-bg: transparent;
+  --pill-inactive-border: var(--charcoal-200);
+  
+  /* CTA Button ("+CREATE JOB" style) */
+  --btn-cta-bg: var(--yellow-500);           /* Gold/yellow primary CTA */
+  --btn-cta-text: var(--charcoal-700);       /* Dark text on yellow */
+  
+  /* Spacing Scale (8px grid observed from screenshots) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  
+  /* Border Radius */
+  --radius-sm: 4px;     /* Small — inputs, badges */
+  --radius-md: 8px;     /* Medium — cards, modals */
+  --radius-lg: 12px;    /* Large — larger cards */
+  --radius-full: 9999px; /* Full — avatars, pills */
+}
+
+/* ─── GOOGLE FONTS IMPORT (Outfit = Darwin Sans open-source base) ─── */
+/* Add to your HTML <head>:
+   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+*/

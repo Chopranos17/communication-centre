@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Environment (never commit secrets)
+.env
+
+# SQLite
+*.db
+*.db-journal
+
+# Logs & caches
+*.log
+npm-debug.log*
+.DS_Store
+node_modules/.tmp/
+
+# Editor
+.idea/
+.vscode/
+
+# Prisma
+# Keep migrations when added in later tasks; ignore generated client cache if any

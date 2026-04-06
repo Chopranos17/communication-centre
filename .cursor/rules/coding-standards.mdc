@@ -1,0 +1,20 @@
+---
+description: Coding standards and patterns
+globs: "**/*.{ts,tsx,js,jsx}"
+---
+
+# Coding Standards
+- Keep components small and focused — one component per file
+- Use TypeScript interfaces for ALL data models (define in /types/ directory)
+- Name files in kebab-case, components in PascalCase
+- Place all API routes under /api/ directory
+- Use meaningful variable names — no abbreviations
+- Add comments explaining "why", not "what"
+- When creating UI components, match the Darwinbox design patterns described in @docs/platform-context.md
+- Do NOT install unnecessary packages. Justify every npm install.
+- Write simple, readable code. Prefer clarity over cleverness.
+- Use Tailwind CSS for styling. Do NOT create separate CSS files unless absolutely necessary.
+- For right-side modal panels: use a consistent SlideOver component pattern
+- For tables: use the Sender | Message | Time columnar pattern described in the PRD
+- For filters: use dropdown or toggle button pattern above tables
+- After implementing a feature, verify it renders correctly in the browser

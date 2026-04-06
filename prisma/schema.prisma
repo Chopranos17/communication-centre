@@ -1,0 +1,13 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Task 2 replaces this with Candidate, Job, Communication, etc. (see docs/tasks.md)
+model ScaffoldPlaceholder {
+  id Int @id @default(autoincrement())
+}

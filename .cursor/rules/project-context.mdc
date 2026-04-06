@@ -1,0 +1,79 @@
+---
+description: Project context and constraints for the Recruitment Communication Centre
+globs: "**/*"
+---
+
+# Project Context
+You are building a prototype for a "Communication Centre" within the Recruitment module of Darwinbox, an enterprise HRMS platform. This is a prototype that will be handed off to an engineering team to make production-grade.
+
+## What We're Building
+A centralized communication hub on the Candidate Detail Page that:
+- Shows all communications (email, SMS, WhatsApp, meetings) in a unified timeline
+- Lets recruiters compose and send ad-hoc emails (individual + bulk)
+- Lets recruiters send WhatsApp and SMS messages
+- Lets recruiters schedule 1:1 meetings with candidates
+- Supports email threading with candidate replies (two-way communication)
+- Organizes communication by job (current job vs other jobs the candidate applied to)
+
+## Key Constraints
+- This is a PROTOTYPE. Prioritize working features over production hardening.
+- Use a mock database (SQLite or JSON files) — no real HRMS database.
+- Email, SMS, and WhatsApp messages are ACTUALLY SENT via vendor APIs (see Vendor Integration below).
+- No real calendar integration — mock meeting creation.
+- No authentication — use a role switcher (Recruiter / Hiring Lead / Candidate view).
+- The PRD with full specifications is at @docs/prd.md
+- Platform context (how Darwinbox works) is at @docs/platform-context.md
+
+## Tech Stack
+- Frontend: React + TypeScript + Tailwind CSS
+- Backend: Node.js + Express (lightweight)
+- Database: SQLite with Prisma ORM (easy to swap for PostgreSQL later)
+- Real-time: Socket.io for simulating live message updates
+- Rich text editor: TipTap or React-Quill (for email compose)
+- Email delivery: Resend (Node SDK: `resend`)
+- SMS + WhatsApp delivery: Twilio (Node SDK: `twilio`)
+
+## Vendor Integration
+This prototype sends REAL messages via vendor APIs. All API keys are stored in `.env` (never hardcoded).
+
+### Email — Resend
+- SDK: `npm install resend`
+- API key in `.env` as `RESEND_API_KEY`
+- Send via: `resend.emails.send({ from, to, subject, html })`
+- From address: Use Resend's test domain `onboarding@resend.dev` for testing, or a verified custom domain
+- Free tier: 3,000 emails/month, 100/day
+
+### SMS — Twilio
+- SDK: `npm install twilio`
+- Credentials in `.env`: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
+- Send via: `client.messages.create({ body, from: twilioNumber, to: candidatePhone })`
+- Free trial gives ~$15 credits (enough for hundreds of SMS)
+
+### WhatsApp — Twilio Sandbox
+- Same Twilio SDK and credentials as SMS
+- Sandbox number in `.env`: `TWILIO_WHATSAPP_NUMBER` (format: `whatsapp:+14155238886`)
+- Send via: `client.messages.create({ body, from: 'whatsapp:+14155238886', to: 'whatsapp:+91...' })`
+- IMPORTANT: Recipients must first opt-in by sending "join {sandbox-code}" to the sandbox number
+- Free trial: 50 WhatsApp messages/day
+- Only pre-approved templates work for business-initiated messages. For free-form messages, recipient must have messaged the sandbox first (opens a 24-hour window).
+
+### Send Service Pattern
+Create a unified send service at `/api/services/message-sender.ts`:
+1. Call the vendor API (Resend or Twilio)
+2. Save the message to the local database with status "sent" or "failed"
+3. Return success/failure to the frontend
+4. If vendor API fails, still save to DB with status "failed" and surface the error to the user
+
+### .env Template
+```
+RESEND_API_KEY=re_xxxxxxxxxx
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxx
+TWILIO_PHONE_NUMBER=+1xxxxxxxxxx
+TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+```
+
+## Personas (use in role switcher)
+- Recruiter: Full access to send/receive, view, reply
+- Hiring Lead (HL): Same as Recruiter
+- Candidate: Read-only view of received messages (simplified)
