@@ -127,6 +127,8 @@ export type ComposeEmailPayload = {
   cc?: string[]
   templateId?: string | null
   senderName?: string
+  /** Task 13: existing thread key or root message id for follow-up / reply. */
+  threadId?: string | null
 }
 
 export type ComposeEmailResult = {

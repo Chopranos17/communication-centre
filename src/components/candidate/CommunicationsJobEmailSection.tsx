@@ -4,8 +4,16 @@ import {
   buildTimelineMessagePreview,
   buildTimelineThreadGroups,
   formatTimelineTime,
+  getContactThreadActions,
   threadSenderColumnLabel,
 } from "../../utils/communicationTimeline";
+import {
+  IconFollowUp,
+  IconNewEmail,
+  IconReply,
+  IconSms,
+  IconWhatsApp,
+} from "./CommunicationToolbarIcons";
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 export type EmailTypeFilter = "all" | "system" | "user";
@@ -35,6 +43,8 @@ type CommunicationsJobEmailSectionProps = {
   defaultSectionOpen: boolean;
   /** Job title in header */
   jobTitle: string;
+  /** Required for Task 13 follow-up / reply compose. */
+  jobId: string;
   jobCode?: string | null;
   /** e.g. " (Current Job)" — omit for other jobs */
   titleSuffix?: string | null;
@@ -65,11 +75,16 @@ type CommunicationsJobEmailSectionProps = {
   whatsappDisabledTitle?: string;
   /** Used for "{Candidate Name} (N)" on threads with a candidate reply (PRD §4.5). */
   candidateName?: string;
+  /** Task 13: contact@ threads without candidate reply. */
+  onFollowUp?: (threadRows: CurrentJobEmailRow[]) => void;
+  /** Task 13: contact@ threads with candidate reply. */
+  onReply?: (threadRows: CurrentJobEmailRow[]) => void;
 };
 
 export function CommunicationsJobEmailSection({
   defaultSectionOpen,
   jobTitle,
+  jobId,
   jobCode,
   titleSuffix,
   showNewEmailButton,
@@ -91,6 +106,8 @@ export function CommunicationsJobEmailSection({
   smsDisabledTitle,
   whatsappDisabledTitle,
   candidateName = "",
+  onFollowUp,
+  onReply,
 }: CommunicationsJobEmailSectionProps) {
   const [sectionOpen, setSectionOpen] = useState(defaultSectionOpen);
   const [emailFilter, setEmailFilter] = useState<EmailTypeFilter>("all");
@@ -134,6 +151,10 @@ export function CommunicationsJobEmailSection({
   const tableScroll = expandedList && threadGroups.length > EXPANDED_CAP;
 
   const showBody = missingJobMessage == null;
+
+  const showThreadActions = Boolean(
+    jobId.trim() && (onFollowUp || onReply),
+  );
 
   const openDetail = onSelectEmail ?? (() => {});
 
@@ -205,15 +226,24 @@ export function CommunicationsJobEmailSection({
                   type="button"
                   onClick={() => onNewEmail?.()}
                   disabled={newEmailDisabled || !onNewEmail}
-                  title={newEmailDisabled ? newEmailDisabledTitle : undefined}
+                  title={
+                    newEmailDisabled
+                      ? (newEmailDisabledTitle ?? "")
+                      : "Compose new email"
+                  }
+                  aria-label={
+                    newEmailDisabled
+                      ? (newEmailDisabledTitle ?? "Compose new email unavailable")
+                      : "Compose new email"
+                  }
                   className={[
-                    "rounded border border-[var(--charcoal-100)] px-4 py-2 text-[length:var(--body-s)] font-bold uppercase tracking-wide text-[var(--charcoal-700)]",
+                    "inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--charcoal-100)] text-[var(--charcoal-700)]",
                     newEmailDisabled || !onNewEmail
                       ? "cursor-not-allowed bg-[var(--yellow-500)] opacity-60"
                       : "bg-[var(--yellow-500)] hover:opacity-95",
                   ].join(" ")}
                 >
-                  + New Email
+                  <IconNewEmail />
                 </button>
                 {onSendSms ? (
                   <button
@@ -221,14 +251,19 @@ export function CommunicationsJobEmailSection({
                     onClick={() => onSendSms()}
                     disabled={smsDisabled}
                     title={smsDisabled ? smsDisabledTitle : "Send SMS to candidate"}
+                    aria-label={
+                      smsDisabled
+                        ? (smsDisabledTitle ?? "Send SMS unavailable")
+                        : "Send SMS to candidate"
+                    }
                     className={[
-                      "rounded border px-4 py-2 text-[length:var(--body-s)] font-semibold",
+                      "inline-flex h-8 w-8 items-center justify-center rounded border",
                       smsDisabled
                         ? "cursor-not-allowed border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-label)] opacity-50"
                         : "border-[var(--charcoal-200)] bg-[var(--bg-surface)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)]",
                     ].join(" ")}
                   >
-                    SMS
+                    <IconSms />
                   </button>
                 ) : null}
                 {onSendWhatsApp ? (
@@ -241,14 +276,19 @@ export function CommunicationsJobEmailSection({
                         ? whatsappDisabledTitle
                         : "Send WhatsApp to candidate"
                     }
+                    aria-label={
+                      whatsappDisabled
+                        ? (whatsappDisabledTitle ?? "Send WhatsApp unavailable")
+                        : "Send WhatsApp to candidate"
+                    }
                     className={[
-                      "rounded border px-4 py-2 text-[length:var(--body-s)] font-semibold",
+                      "inline-flex h-8 w-8 items-center justify-center rounded border",
                       whatsappDisabled
                         ? "cursor-not-allowed border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-label)] opacity-50"
                         : "border-[var(--green-500)] bg-[var(--bg-surface)] text-[var(--green-500)] hover:bg-[var(--green-50)]",
                     ].join(" ")}
                   >
-                    WhatsApp
+                    <IconWhatsApp />
                   </button>
                 ) : null}
               </div>
@@ -294,6 +334,11 @@ export function CommunicationsJobEmailSection({
                       <th className="pb-3 pr-4 font-medium sm:w-[22%]">Sender</th>
                       <th className="pb-3 pr-4 font-medium">Message</th>
                       <th className="pb-3 font-medium sm:w-[18%] sm:text-right">Time</th>
+                      {showThreadActions ? (
+                        <th className="pb-3 w-11 text-right font-medium sm:w-12">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -313,6 +358,12 @@ export function CommunicationsJobEmailSection({
                       const senderCol = isThread
                         ? threadSenderColumnLabel(rows, nameForThread)
                         : latest.senderLabel;
+
+                      const threadActions = getContactThreadActions(rows);
+                      const canThreadAct =
+                        showThreadActions &&
+                        threadActions.eligible &&
+                        (latest.channel ?? "email") === "email";
 
                       return (
                         <Fragment key={group.key}>
@@ -368,6 +419,38 @@ export function CommunicationsJobEmailSection({
                                 />
                               </span>
                             </td>
+                            {showThreadActions ? (
+                              <td
+                                className="align-top py-3 text-right"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                              >
+                                <span className="inline-flex justify-end">
+                                  {canThreadAct && threadActions.followUp ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => onFollowUp?.(rows)}
+                                      title="Follow up"
+                                      aria-label="Follow up on this thread"
+                                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--bg-surface)] text-[var(--blue-600)] hover:bg-[var(--blue-50)]"
+                                    >
+                                      <IconFollowUp />
+                                    </button>
+                                  ) : null}
+                                  {canThreadAct && threadActions.reply ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => onReply?.(rows)}
+                                      title="Reply"
+                                      aria-label="Reply in thread"
+                                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--blue-500)] text-white hover:bg-[var(--blue-600)]"
+                                    >
+                                      <IconReply />
+                                    </button>
+                                  ) : null}
+                                </span>
+                              </td>
+                            ) : null}
                           </tr>
                           {isThread && expanded
                             ? rows.map((row) => {
@@ -391,7 +474,7 @@ export function CommunicationsJobEmailSection({
                                     className="cursor-pointer border-0 bg-[var(--charcoal-10)]/80 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
                                   >
                                     <td
-                                      colSpan={3}
+                                      colSpan={showThreadActions ? 4 : 3}
                                       className="py-2 pl-10 pr-4 text-[length:var(--body-s)] text-[var(--text-body)]"
                                     >
                                       <div className="border-l-2 border-[var(--charcoal-100)] pl-3">

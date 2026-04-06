@@ -8,6 +8,8 @@ import { CommunicationsJobEmailSection } from "./CommunicationsJobEmailSection";
 import { ComposeEmailModal } from "./ComposeEmailModal";
 import type { ComposeEmailRecipient } from "./ComposeEmailModal";
 import { EmailDetailModal } from "./EmailDetailModal";
+import { FollowUpEmailModal } from "./FollowUpEmailModal";
+import { ReplyThreadModal } from "./ReplyThreadModal";
 
 const EMPTY_EMAILS: CurrentJobEmailRow[] = [];
 
@@ -45,6 +47,14 @@ export function CommunicationsCurrentJobSection({
   const [loading, setLoading] = useState(true);
   const [detailEmail, setDetailEmail] = useState<CurrentJobEmailRow | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [followUpRows, setFollowUpRows] = useState<CurrentJobEmailRow[] | null>(
+    null,
+  );
+  const [replyRows, setReplyRows] = useState<CurrentJobEmailRow[] | null>(null);
+  const [actionJob, setActionJob] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,9 +91,53 @@ export function CommunicationsCurrentJobSection({
     composeJob && candidateEmail.trim().length > 0,
   );
 
+  const openFollowUp = (rows: CurrentJobEmailRow[], job: { id: string; title: string }) => {
+    setReplyRows(null);
+    setActionJob(job);
+    setFollowUpRows(rows);
+  };
+
+  const openReply = (rows: CurrentJobEmailRow[], job: { id: string; title: string }) => {
+    setFollowUpRows(null);
+    setActionJob(job);
+    setReplyRows(rows);
+  };
+
   return (
     <div className="space-y-4">
       <EmailDetailModal email={detailEmail} onClose={() => setDetailEmail(null)} />
+      {actionJob && followUpRows ? (
+        <FollowUpEmailModal
+          open
+          onClose={() => {
+            setFollowUpRows(null);
+            setActionJob(null);
+          }}
+          candidateId={candidateId}
+          candidateName={candidateName}
+          candidateEmail={candidateEmail}
+          jobId={actionJob.id}
+          jobTitle={actionJob.title}
+          threadRows={followUpRows}
+          onSent={() => void load()}
+        />
+      ) : null}
+      {actionJob && replyRows ? (
+        <ReplyThreadModal
+          open
+          onClose={() => {
+            setReplyRows(null);
+            setActionJob(null);
+          }}
+          candidateId={candidateId}
+          candidateName={candidateName}
+          candidateEmail={candidateEmail}
+          jobId={actionJob.id}
+          jobTitle={actionJob.title}
+          threadRows={replyRows}
+          onSent={() => void load()}
+        />
+      ) : null}
       {composeJob ? (
         <ComposeEmailModal
           open={composeOpen}
@@ -106,6 +160,7 @@ export function CommunicationsCurrentJobSection({
       <CommunicationsJobEmailSection
         defaultSectionOpen
         jobTitle={jobTitle}
+        jobId={data?.currentJob?.id ?? currentJob?.id ?? ""}
         jobCode={jobCode}
         titleSuffix=" (Current Job)"
         showNewEmailButton
@@ -135,6 +190,16 @@ export function CommunicationsCurrentJobSection({
         smsDisabledTitle={smsDisabledTitle}
         whatsappDisabledTitle={whatsappDisabledTitle}
         candidateName={candidateName}
+        onFollowUp={(rows) => {
+          const j = data?.currentJob ?? currentJob;
+          if (!j) return;
+          openFollowUp(rows, { id: j.id, title: j.title });
+        }}
+        onReply={(rows) => {
+          const j = data?.currentJob ?? currentJob;
+          if (!j) return;
+          openReply(rows, { id: j.id, title: j.title });
+        }}
       />
 
       {otherSections.map((section) => (
@@ -142,6 +207,7 @@ export function CommunicationsCurrentJobSection({
           key={section.job.id}
           defaultSectionOpen={false}
           jobTitle={section.job.title}
+          jobId={section.job.id}
           jobCode={section.job.jobCode}
           showNewEmailButton={false}
           emails={section.emails}
@@ -149,6 +215,18 @@ export function CommunicationsCurrentJobSection({
           onSelectEmail={setDetailEmail}
           onInvalidateDetail={clearDetailEmail}
           candidateName={candidateName}
+          onFollowUp={(rows) =>
+            openFollowUp(rows, {
+              id: section.job.id,
+              title: section.job.title,
+            })
+          }
+          onReply={(rows) =>
+            openReply(rows, {
+              id: section.job.id,
+              title: section.job.title,
+            })
+          }
         />
       ))}
     </div>

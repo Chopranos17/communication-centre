@@ -43,6 +43,8 @@ export interface SendMessageParams {
   senderType?: string;
   senderName?: string;
   templateId?: string | null;
+  /** PRD §4.5 / Task 13: link outbound email to an existing thread. */
+  threadId?: string | null;
 }
 
 export interface SendMessageResult extends VendorSendResult {
@@ -217,6 +219,10 @@ export async function sendMessage(
       direction: "outbound",
       sender_type: params.senderType ?? "recruiter",
       sender_name: params.senderName ?? null,
+      thread_id:
+        channel === "email" && params.threadId?.trim()
+          ? params.threadId.trim()
+          : null,
       from_address: fromStored,
       to_address: toStored,
       cc_addresses:

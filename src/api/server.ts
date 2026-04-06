@@ -385,6 +385,11 @@ function uniqEmails(emails: string[]): string[] {
   return out;
 }
 
+/** PRD §4.5: threading / reply eligibility uses contact@ (not no-reply@). */
+function isContactDarwinboxFrom(addr: string | null | undefined): boolean {
+  return (addr ?? "").toLowerCase().includes("contact@darwinbox.in");
+}
+
 app.get("/api/email-templates", async (_req, res) => {
   try {
     const rows = await prisma.emailTemplate.findMany({
@@ -430,6 +435,8 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
     cc?: string[];
     templateId?: string | null;
     senderName?: string;
+    /** Existing thread id or root communication id (Task 13). */
+    threadId?: string | null;
   };
 
   const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
@@ -443,6 +450,10 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
     typeof body.senderName === "string" && body.senderName.trim()
       ? body.senderName.trim()
       : "Recruiter";
+  const threadIdParam =
+    typeof body.threadId === "string" && body.threadId.trim()
+      ? body.threadId.trim()
+      : "";
 
   if (!jobId) {
     return res.status(400).json({ error: "jobId is required" });
@@ -485,6 +496,54 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
       return res.status(400).json({ error: "Candidate has no email address" });
     }
 
+    let resolvedThreadId: string | null = null;
+    if (threadIdParam) {
+      const anchor = await prisma.communication.findFirst({
+        where: {
+          candidate_id: candidateId,
+          job_id: jobId,
+          channel: "email",
+          OR: [{ id: threadIdParam }, { thread_id: threadIdParam }],
+        },
+      });
+      if (!anchor) {
+        return res.status(400).json({
+          error: "Invalid threadId for this candidate and job",
+        });
+      }
+      const canonical = anchor.thread_id?.trim() || anchor.id;
+      const threadEmails = await prisma.communication.findMany({
+        where: {
+          candidate_id: candidateId,
+          job_id: jobId,
+          channel: "email",
+          OR: [{ thread_id: canonical }, { id: canonical }],
+        },
+      });
+      const hasContactOutbound = threadEmails.some(
+        (r) =>
+          r.sender_type !== "candidate" &&
+          isContactDarwinboxFrom(r.from_address),
+      );
+      if (!hasContactOutbound) {
+        return res.status(400).json({
+          error:
+            "This thread is not eligible for follow-up or reply (need a contact@darwinbox.in message).",
+        });
+      }
+      if (fromAddress !== "contact@darwinbox.in") {
+        return res.status(400).json({
+          error:
+            "fromAddress must be contact@darwinbox.in for follow-up and reply.",
+        });
+      }
+      resolvedThreadId = canonical;
+      await prisma.communication.updateMany({
+        where: { id: canonical, thread_id: null },
+        data: { thread_id: canonical },
+      });
+    }
+
     const apiFrom = resendFromForDisplay(fromAddress);
 
     const result = await sendMessage({
@@ -500,6 +559,7 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
       senderType: "recruiter",
       senderName,
       templateId,
+      threadId: resolvedThreadId,
     });
 
     return res.json({

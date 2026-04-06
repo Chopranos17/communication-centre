@@ -191,9 +191,9 @@ async function main() {
     },
     {
       name: "Arjun Mehta",
-      email: demo2,
-      phone: "+919811122233",
-      whatsapp_number: "+919811122233",
+      email: "akshat.c@darwinbox.in",
+      phone: "+919650064864",
+      whatsapp_number: "+919650064864",
       stage: "assessment",
       source: "referral",
       recruiter_id: "emp-rec-001",

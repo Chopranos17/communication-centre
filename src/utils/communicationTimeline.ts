@@ -168,3 +168,64 @@ export function formatEmailDetailDateTime(iso: string): string {
     timeZoneName: "short",
   });
 }
+
+/** PRD §4.5: only threads involving contact@darwinbox.in support Reply / Follow Up. */
+export function isContactDarwinboxDisplay(fromAddress: string): boolean {
+  return fromAddress.toLowerCase().includes("contact@darwinbox.in");
+}
+
+/**
+ * Task 13: whether to show Follow Up vs Reply on a timeline email group.
+ * `rows` must be one thread or one standalone email (all `channel === "email"`).
+ */
+export function getContactThreadActions(rows: CurrentJobEmailRow[]): {
+  eligible: boolean;
+  followUp: boolean;
+  reply: boolean;
+} {
+  if (!rows.length) {
+    return { eligible: false, followUp: false, reply: false };
+  }
+  if (rows.some((r) => r.channel !== "email")) {
+    return { eligible: false, followUp: false, reply: false };
+  }
+  const hasContactOutbound = rows.some(
+    (r) =>
+      r.senderType !== "candidate" &&
+      isContactDarwinboxDisplay(r.fromAddress),
+  );
+  if (!hasContactOutbound) {
+    return { eligible: false, followUp: false, reply: false };
+  }
+  const hasCandidate = rows.some((r) => r.senderType === "candidate");
+  return {
+    eligible: true,
+    followUp: !hasCandidate,
+    reply: hasCandidate,
+  };
+}
+
+/** API `threadId` for compose: shared thread key, or root communication id when not yet threaded. */
+export function getThreadComposeKey(rows: CurrentJobEmailRow[]): string | null {
+  if (!rows.length || rows.some((r) => r.channel !== "email")) return null;
+  return rows[0].threadId ?? rows[0].id;
+}
+
+/** Chronological order (oldest first) for thread UIs. */
+export function sortEmailRowsChronological(
+  rows: CurrentJobEmailRow[],
+): CurrentJobEmailRow[] {
+  return [...rows].sort(
+    (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+  );
+}
+
+/** Subject line for Re: replies (Task 13). */
+export function replySubjectFromThread(rows: CurrentJobEmailRow[]): string {
+  const sorted = sortEmailRowsChronological(rows);
+  const sub =
+    sorted.map((r) => r.subject?.trim()).find((s) => s && s.length > 0) ??
+    "(No subject)";
+  if (/^re:\s*/i.test(sub)) return sub;
+  return `Re: ${sub}`;
+}
