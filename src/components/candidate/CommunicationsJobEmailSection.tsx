@@ -10,6 +10,7 @@ import {
 } from "../../utils/communicationTimeline";
 import { IconFollowUp, IconMoreVertical, IconReply } from "./CommunicationToolbarIcons";
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
+import { ChannelTypeBadge } from "./ChannelTypeBadge";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 export type EmailTypeFilter = "all" | "system" | "user";
 
@@ -408,7 +409,7 @@ export function CommunicationsJobEmailSection({
                       const canThreadAct =
                         showThreadActions &&
                         threadActions.eligible &&
-                        (latest.channel ?? "email") === "email";
+                        latest.channel === "email";
 
                       return (
                         <Fragment key={group.key}>
@@ -430,7 +431,7 @@ export function CommunicationsJobEmailSection({
                             className="group cursor-pointer border-0 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
                           >
                             <td className="align-top py-3 pr-4 font-medium text-[var(--text-body)]">
-                              <span className="flex items-start gap-2">
+                              <span className="flex flex-wrap items-start gap-x-2 gap-y-1">
                                 {isThread ? (
                                   <span
                                     className="mt-0.5 inline-flex w-4 shrink-0 justify-center text-[var(--text-label)]"
@@ -443,9 +444,17 @@ export function CommunicationsJobEmailSection({
                                 )}
                                 <ChannelTimelineIcon
                                   channel={ch}
+                                  filterBucket={latest.filterBucket}
                                   className="mt-0.5"
                                 />
-                                <span className="line-clamp-2">{senderCol}</span>
+                                <ChannelTypeBadge
+                                  channel={ch}
+                                  filterBucket={latest.filterBucket}
+                                  senderType={latest.senderType}
+                                />
+                                <span className="line-clamp-2 min-w-[8rem] flex-1">
+                                  {senderCol}
+                                </span>
                               </span>
                             </td>
                             <td className="align-top py-3 pr-4 font-light text-[var(--text-body)]">
@@ -534,7 +543,13 @@ export function CommunicationsJobEmailSection({
                                         <div className="flex flex-wrap items-baseline gap-2">
                                           <ChannelTimelineIcon
                                             channel={rch}
+                                            filterBucket={row.filterBucket}
                                             className="mt-0.5 shrink-0"
+                                          />
+                                          <ChannelTypeBadge
+                                            channel={rch}
+                                            filterBucket={row.filterBucket}
+                                            senderType={row.senderType}
                                           />
                                           <span className="font-medium">
                                             {row.senderLabel}

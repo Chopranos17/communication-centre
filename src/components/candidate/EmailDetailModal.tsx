@@ -7,6 +7,8 @@ import {
   meetingStatusBadgeLabel,
   stripHtml,
 } from "../../utils/communicationTimeline";
+import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
+import { ChannelTypeBadge } from "./ChannelTypeBadge";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 
 type EmailDetailModalProps = {
@@ -47,7 +49,9 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
         ? "WhatsApp details"
         : ch === "meeting"
           ? "1:1 Meeting details"
-          : "Email details";
+          : ch === "system"
+            ? "System notification"
+            : "Email details";
   const subjectLine = email.subject?.trim() || "(No subject)";
   const bodyDisplay = stripHtml(email.body);
 
@@ -89,6 +93,18 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+            <ChannelTimelineIcon
+              channel={ch}
+              filterBucket={email.filterBucket}
+              className="text-[var(--text-body)]"
+            />
+            <ChannelTypeBadge
+              channel={ch}
+              filterBucket={email.filterBucket}
+              senderType={email.senderType}
+            />
+          </div>
           <dl className="space-y-4 text-[length:var(--body-m)]">
             <div>
               <dt className="mb-1 font-medium text-[var(--text-label)]">From</dt>

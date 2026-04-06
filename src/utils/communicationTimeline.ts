@@ -122,6 +122,13 @@ export function buildTimelineMessagePreview(
   >,
   max = 75,
 ): { subjectPart: string; bodyPart: string } {
+  if (row.channel === "system") {
+    const plain = stripHtml(row.body).replace(/\s+/g, " ").trim();
+    if (plain.length <= max) {
+      return { subjectPart: "", bodyPart: plain || "—" };
+    }
+    return { subjectPart: "", bodyPart: plain.slice(0, max) };
+  }
   if (row.channel === "sms" || row.channel === "whatsapp") {
     const plain = stripHtml(row.body).replace(/\s+/g, " ").trim();
     if (plain.length <= max) {

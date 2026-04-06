@@ -63,7 +63,13 @@ function senderLabelForTimeline(
   return { senderType, senderLabel: label, filterBucket: "user" };
 }
 
-const TIMELINE_CHANNELS = ["email", "sms", "whatsapp", "meeting"] as const;
+const TIMELINE_CHANNELS = [
+  "email",
+  "sms",
+  "whatsapp",
+  "meeting",
+  "system_notification",
+] as const;
 
 /** Task 6 + Task 11: timeline for Current Job (email, SMS, WhatsApp). */
 app.get("/api/candidates/:candidateId/communications", async (req, res) => {
@@ -112,12 +118,14 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
     const mapTimelineRow = (row: (typeof rows)[number]) => {
       const mapped = senderLabelForTimeline(row.sender_type, row.sender_name);
       const ch = row.channel;
-      const channel: "email" | "sms" | "whatsapp" | "meeting" =
+      const channel: "email" | "sms" | "whatsapp" | "meeting" | "system" =
         ch === "sms" || ch === "whatsapp"
           ? ch
           : ch === "meeting"
             ? "meeting"
-            : "email";
+            : ch === "system_notification"
+              ? "system"
+              : "email";
       const mtg = row.meeting_detail;
       return {
         id: row.id,

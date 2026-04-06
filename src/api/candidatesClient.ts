@@ -57,7 +57,13 @@ export async function fetchCandidateDetail(id: string): Promise<CandidateDetail>
 
 export type EmailDeliveryStatus = "pending" | "sent" | "delivered" | "failed"
 
-export type TimelineChannel = "email" | "sms" | "whatsapp" | "meeting"
+export type TimelineChannel =
+  | "email"
+  | "sms"
+  | "whatsapp"
+  | "meeting"
+  /** In-app / pipeline system notifications (seed `system_notification`). */
+  | "system"
 
 export type MeetingTimelineMeta = {
   status: string
