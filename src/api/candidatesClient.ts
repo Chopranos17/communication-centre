@@ -16,6 +16,8 @@ export type CandidateDetail = {
   name: string
   email: string
   phone: string
+  /** E.164 or local; may be empty */
+  whatsappNumber: string
   source: string
   sourceLabel: string
   createdAt: string
@@ -50,8 +52,11 @@ export async function fetchCandidateDetail(id: string): Promise<CandidateDetail>
 
 export type EmailDeliveryStatus = "pending" | "sent" | "delivered" | "failed"
 
+export type TimelineChannel = "email" | "sms" | "whatsapp"
+
 export type CurrentJobEmailRow = {
   id: string
+  channel: TimelineChannel
   senderType: string
   senderLabel: string
   filterBucket: "system" | "user"
@@ -146,6 +151,61 @@ export async function composeSendEmail(
     return {
       success: false,
       error: data.error ?? "Failed to send email",
+    }
+  }
+  return data
+}
+
+export type ComposeSmsPayload = {
+  jobId: string
+  text: string
+  senderName?: string
+}
+
+export type ComposeSmsResult = ComposeEmailResult
+
+export async function composeSendSms(
+  candidateId: string,
+  payload: ComposeSmsPayload,
+): Promise<ComposeSmsResult> {
+  const r = await fetch(
+    `/api/candidates/${encodeURIComponent(candidateId)}/compose-sms`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  )
+  const data = (await r.json()) as ComposeSmsResult & { error?: string }
+  if (!r.ok) {
+    return {
+      success: false,
+      error: data.error ?? "Failed to send SMS",
+    }
+  }
+  return data
+}
+
+export type ComposeWhatsAppPayload = ComposeSmsPayload
+export type ComposeWhatsAppResult = ComposeEmailResult
+
+export async function composeSendWhatsApp(
+  candidateId: string,
+  payload: ComposeWhatsAppPayload,
+): Promise<ComposeWhatsAppResult> {
+  const r = await fetch(
+    `/api/candidates/${encodeURIComponent(candidateId)}/compose-whatsapp`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  )
+  const data = (await r.json()) as ComposeWhatsAppResult & { error?: string }
+  if (!r.ok) {
+    return {
+      success: false,
+      error: data.error ?? "Failed to send WhatsApp message",
     }
   }
   return data

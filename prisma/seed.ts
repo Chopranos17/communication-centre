@@ -272,8 +272,8 @@ async function main() {
     {
       name: "Aditya Ghosh",
       email: "akshat.c@darwinbox.in",
-      phone: "+919966677788",
-      whatsapp_number: "+919966677788",
+      phone: "+919650064864",
+      whatsapp_number: "+919650064864",
       stage: "interview",
       source: "IJP",
       recruiter_id: "emp-rec-002",

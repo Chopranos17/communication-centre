@@ -1,3 +1,5 @@
+import type { CurrentJobEmailRow } from "../api/candidatesClient";
+
 /** Plain text for email body (seed data is plain; strip tags if HTML appears later). */
 export function stripHtml(s: string | undefined | null): string {
   return String(s ?? "")
@@ -28,6 +30,23 @@ export function buildEmailPreviewLine(
     return { subjectPart: sub, bodyPart: "" };
   }
   return { subjectPart: sub, bodyPart: ` ${plain.slice(0, take)}` };
+}
+
+/**
+ * Message column preview: email uses subject + body; SMS/WhatsApp use body only (channel icon shown separately).
+ */
+export function buildTimelineMessagePreview(
+  row: Pick<CurrentJobEmailRow, "channel" | "subject" | "body">,
+  max = 75,
+): { subjectPart: string; bodyPart: string } {
+  if (row.channel === "sms" || row.channel === "whatsapp") {
+    const plain = stripHtml(row.body).replace(/\s+/g, " ").trim();
+    if (plain.length <= max) {
+      return { subjectPart: "", bodyPart: plain || "—" };
+    }
+    return { subjectPart: "", bodyPart: plain.slice(0, max) };
+  }
+  return buildEmailPreviewLine(row.subject, row.body, max);
 }
 
 /** "Today" / "Yesterday" / short date for timeline Time column (PRD §4.4). */

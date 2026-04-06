@@ -1,9 +1,11 @@
 import { useMemo, useState, useEffect } from "react";
 import type { CurrentJobEmailRow } from "../../api/candidatesClient";
 import {
-  buildEmailPreviewLine,
+  buildTimelineMessagePreview,
   formatTimelineTime,
 } from "../../utils/communicationTimeline";
+import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
+import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 export type EmailTypeFilter = "all" | "system" | "user";
 
 const FILTER_OPTIONS: { id: EmailTypeFilter; label: string }[] = [
@@ -52,6 +54,13 @@ type CommunicationsJobEmailSectionProps = {
   /** Disables "+ New Email" (e.g. no current job or no candidate email). */
   newEmailDisabled?: boolean;
   newEmailDisabledTitle?: string;
+  /** Optional — same actions as Candidate header ⋮ menu (Current Job section only). */
+  onSendSms?: () => void;
+  onSendWhatsApp?: () => void;
+  smsDisabled?: boolean;
+  whatsappDisabled?: boolean;
+  smsDisabledTitle?: string;
+  whatsappDisabledTitle?: string;
 };
 
 export function CommunicationsJobEmailSection({
@@ -65,12 +74,18 @@ export function CommunicationsJobEmailSection({
   loadError = null,
   onRetry,
   missingJobMessage = null,
-  emptyFilterMessage = "No emails match this filter for this job.",
+  emptyFilterMessage = "No messages match this filter for this job.",
   onSelectEmail,
   onInvalidateDetail,
   onNewEmail,
   newEmailDisabled = false,
   newEmailDisabledTitle,
+  onSendSms,
+  onSendWhatsApp,
+  smsDisabled = false,
+  whatsappDisabled = false,
+  smsDisabledTitle,
+  whatsappDisabledTitle,
 }: CommunicationsJobEmailSectionProps) {
   const [sectionOpen, setSectionOpen] = useState(defaultSectionOpen);
   const [emailFilter, setEmailFilter] = useState<EmailTypeFilter>("all");
@@ -164,20 +179,58 @@ export function CommunicationsJobEmailSection({
               </div>
             </div>
             {showNewEmailButton ? (
-              <button
-                type="button"
-                onClick={() => onNewEmail?.()}
-                disabled={newEmailDisabled || !onNewEmail}
-                title={newEmailDisabled ? newEmailDisabledTitle : undefined}
-                className={[
-                  "rounded border border-[var(--charcoal-100)] px-4 py-2 text-[length:var(--body-s)] font-bold uppercase tracking-wide text-[var(--charcoal-700)]",
-                  newEmailDisabled || !onNewEmail
-                    ? "cursor-not-allowed bg-[var(--yellow-500)] opacity-60"
-                    : "bg-[var(--yellow-500)] hover:opacity-95",
-                ].join(" ")}
-              >
-                + New Email
-              </button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => onNewEmail?.()}
+                  disabled={newEmailDisabled || !onNewEmail}
+                  title={newEmailDisabled ? newEmailDisabledTitle : undefined}
+                  className={[
+                    "rounded border border-[var(--charcoal-100)] px-4 py-2 text-[length:var(--body-s)] font-bold uppercase tracking-wide text-[var(--charcoal-700)]",
+                    newEmailDisabled || !onNewEmail
+                      ? "cursor-not-allowed bg-[var(--yellow-500)] opacity-60"
+                      : "bg-[var(--yellow-500)] hover:opacity-95",
+                  ].join(" ")}
+                >
+                  + New Email
+                </button>
+                {onSendSms ? (
+                  <button
+                    type="button"
+                    onClick={() => onSendSms()}
+                    disabled={smsDisabled}
+                    title={smsDisabled ? smsDisabledTitle : "Send SMS to candidate"}
+                    className={[
+                      "rounded border px-4 py-2 text-[length:var(--body-s)] font-semibold",
+                      smsDisabled
+                        ? "cursor-not-allowed border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-label)] opacity-50"
+                        : "border-[var(--charcoal-200)] bg-[var(--bg-surface)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)]",
+                    ].join(" ")}
+                  >
+                    SMS
+                  </button>
+                ) : null}
+                {onSendWhatsApp ? (
+                  <button
+                    type="button"
+                    onClick={() => onSendWhatsApp()}
+                    disabled={whatsappDisabled}
+                    title={
+                      whatsappDisabled
+                        ? whatsappDisabledTitle
+                        : "Send WhatsApp to candidate"
+                    }
+                    className={[
+                      "rounded border px-4 py-2 text-[length:var(--body-s)] font-semibold",
+                      whatsappDisabled
+                        ? "cursor-not-allowed border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-label)] opacity-50"
+                        : "border-[var(--green-500)] bg-[var(--bg-surface)] text-[var(--green-500)] hover:bg-[var(--green-50)]",
+                    ].join(" ")}
+                  >
+                    WhatsApp
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <span className="hidden sm:block sm:min-w-[7rem]" aria-hidden />
             )}
@@ -185,7 +238,7 @@ export function CommunicationsJobEmailSection({
 
           {loading ? (
             <p className="text-[length:var(--body-m)] text-[var(--text-label)]" role="status">
-              Loading emails…
+              Loading communications…
             </p>
           ) : loadError ? (
             <div className="space-y-2">
@@ -224,10 +277,9 @@ export function CommunicationsJobEmailSection({
                   </thead>
                   <tbody>
                     {visibleRows.map((row) => {
-                      const { subjectPart, bodyPart } = buildEmailPreviewLine(
-                        row.subject,
-                        row.body,
-                      );
+                      const ch = row.channel ?? "email";
+                      const { subjectPart, bodyPart } =
+                        buildTimelineMessagePreview(row);
                       return (
                         <tr
                           key={row.id}
@@ -243,16 +295,27 @@ export function CommunicationsJobEmailSection({
                           className="group cursor-pointer border-0 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
                         >
                           <td className="align-top py-3 pr-4 font-medium text-[var(--text-body)]">
-                            <span className="line-clamp-2">{row.senderLabel}</span>
+                            <span className="flex items-start gap-2">
+                              <ChannelTimelineIcon
+                                channel={ch}
+                                className="mt-0.5"
+                              />
+                              <span className="line-clamp-2">{row.senderLabel}</span>
+                            </span>
                           </td>
                           <td className="align-top py-3 pr-4 font-light text-[var(--text-body)]">
                             <span className="line-clamp-2 break-words">
-                              <strong className="font-bold">{subjectPart}</strong>
+                              {subjectPart ? (
+                                <strong className="font-bold">{subjectPart}</strong>
+                              ) : null}
                               {bodyPart}
                             </span>
                           </td>
                           <td className="align-top py-3 text-[length:var(--body-s)] font-light text-[var(--text-label)] sm:text-right">
-                            {formatTimelineTime(row.sentAt)}
+                            <span className="inline-flex flex-col items-end gap-0.5 sm:inline-flex sm:flex-row sm:items-center sm:justify-end sm:gap-1.5">
+                              <span>{formatTimelineTime(row.sentAt)}</span>
+                              <DeliveryStatusGlyph status={row.deliveryStatus} />
+                            </span>
                           </td>
                         </tr>
                       );

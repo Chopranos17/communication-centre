@@ -5,50 +5,12 @@ import {
   formatEmailDetailDateTime,
   stripHtml,
 } from "../../utils/communicationTimeline";
+import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 
 type EmailDetailModalProps = {
   email: CurrentJobEmailRow | null;
   onClose: () => void;
 };
-
-function DeliveryStatusIcon({ status }: { status: CurrentJobEmailRow["deliveryStatus"] }) {
-  if (status === "delivered") {
-    return (
-      <span
-        className="inline-flex items-center gap-0.5 text-[var(--blue-500)]"
-        title="Delivered"
-        aria-label="Delivered"
-      >
-        <span aria-hidden>✓</span>
-        <span aria-hidden className="-ml-1.5">
-          ✓
-        </span>
-      </span>
-    );
-  }
-  if (status === "sent") {
-    return (
-      <span className="text-[var(--charcoal-400)]" title="Sent" aria-label="Sent">
-        ✓
-      </span>
-    );
-  }
-  if (status === "failed") {
-    return (
-      <span className="text-[var(--red-500)]" title="Failed" aria-label="Failed">
-        ✕
-      </span>
-    );
-  }
-  return (
-    <span
-      className="text-[length:var(--body-s)] font-medium text-[var(--charcoal-300)]"
-      title="Pending"
-    >
-      Pending
-    </span>
-  );
-}
 
 export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
   const open = email != null;
@@ -73,6 +35,14 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
 
   if (!email) return null;
 
+  const ch = email.channel ?? "email";
+  const isEmail = ch === "email";
+  const detailTitle =
+    ch === "sms"
+      ? "SMS details"
+      : ch === "whatsapp"
+        ? "WhatsApp details"
+        : "Email details";
   const subjectLine = email.subject?.trim() || "(No subject)";
   const bodyDisplay = stripHtml(email.body);
 
@@ -86,7 +56,7 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
       <button
         type="button"
         className="absolute inset-0 z-0 bg-[var(--bg-overlay)]"
-        aria-label="Close email details"
+        aria-label="Close message details"
         onClick={onClose}
       />
       <div
@@ -99,7 +69,7 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
             className="text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]"
             style={{ fontWeight: "var(--font-weight-bold)" }}
           >
-            Email details
+            {detailTitle}
           </h2>
           <button
             type="button"
@@ -127,15 +97,17 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
                 {email.toAddress || "—"}
               </dd>
             </div>
-            <div>
-              <dt className="mb-1 font-medium text-[var(--text-label)]">Subject</dt>
-              <dd className="break-words font-light text-[var(--text-body)]">{subjectLine}</dd>
-            </div>
+            {isEmail ? (
+              <div>
+                <dt className="mb-1 font-medium text-[var(--text-label)]">Subject</dt>
+                <dd className="break-words font-light text-[var(--text-body)]">{subjectLine}</dd>
+              </div>
+            ) : null}
             <div>
               <dt className="mb-1 font-medium text-[var(--text-label)]">Time</dt>
               <dd className="flex flex-wrap items-center gap-2 font-light text-[var(--text-body)]">
                 <span>{formatEmailDetailDateTime(email.sentAt)}</span>
-                <DeliveryStatusIcon status={email.deliveryStatus} />
+                <DeliveryStatusGlyph status={email.deliveryStatus} />
               </dd>
             </div>
             <div>

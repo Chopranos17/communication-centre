@@ -17,6 +17,13 @@ export function CommunicationsCurrentJobSection({
   candidateEmail,
   currentJob,
   jobApplicationCount,
+  refreshSignal = 0,
+  onSendSms,
+  onSendWhatsApp,
+  smsDisabled = false,
+  whatsappDisabled = false,
+  smsDisabledTitle,
+  whatsappDisabledTitle,
 }: {
   candidateId: string;
   candidateName: string;
@@ -24,6 +31,14 @@ export function CommunicationsCurrentJobSection({
   currentJob: { id: string; title: string; jobCode: string } | null;
   /** Total CandidateJob rows for this candidate (for bulk multi-job semantics if reused) */
   jobApplicationCount: number;
+  /** Increment from parent to refetch timeline (e.g. after SMS/WhatsApp send). */
+  refreshSignal?: number;
+  onSendSms?: () => void;
+  onSendWhatsApp?: () => void;
+  smsDisabled?: boolean;
+  whatsappDisabled?: boolean;
+  smsDisabledTitle?: string;
+  whatsappDisabledTitle?: string;
 }) {
   const [data, setData] = useState<CandidateCurrentJobEmails | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -47,7 +62,7 @@ export function CommunicationsCurrentJobSection({
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshSignal]);
 
   useEffect(() => {
     setDetailEmail(null);
@@ -98,7 +113,7 @@ export function CommunicationsCurrentJobSection({
         loading={loading}
         loadError={loadError}
         onRetry={() => void load()}
-        emptyFilterMessage="No emails match this filter for the current job."
+        emptyFilterMessage="No messages match this filter for the current job."
         missingJobMessage={
           !loading && !loadError && !data?.currentJob
             ? "No current job is linked to this candidate."
@@ -113,6 +128,12 @@ export function CommunicationsCurrentJobSection({
             ? "Candidate has no email address."
             : "No current job is linked to this candidate."
         }
+        onSendSms={onSendSms}
+        onSendWhatsApp={onSendWhatsApp}
+        smsDisabled={smsDisabled}
+        whatsappDisabled={whatsappDisabled}
+        smsDisabledTitle={smsDisabledTitle}
+        whatsappDisabledTitle={whatsappDisabledTitle}
       />
 
       {otherSections.map((section) => (

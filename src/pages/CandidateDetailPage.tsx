@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchCandidateDetail, type CandidateDetail } from '../api/candidatesClient'
 import { CandidateDetailHeader } from '../components/candidate/CandidateDetailHeader'
@@ -8,6 +8,7 @@ import {
   type CandidateMainTabId,
 } from '../components/candidate/CandidateDetailTabs'
 import { CommunicationsCurrentJobSection } from '../components/candidate/CommunicationsCurrentJobSection'
+import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
 import { HiringFlowPlaceholder } from '../components/candidate/HiringFlowPlaceholder'
 import { FilterTabs } from '../components/layout/FilterTabs'
 
@@ -37,6 +38,13 @@ export function CandidateDetailPage() {
   const [loading, setLoading] = useState(true)
   const [mainTab, setMainTab] = useState<CandidateMainTabId>('overview')
   const [appPill, setAppPill] = useState('snapshot')
+  const [smsModalOpen, setSmsModalOpen] = useState(false)
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
+  const [communicationsRefresh, setCommunicationsRefresh] = useState(0)
+
+  const bumpCommunications = useCallback(() => {
+    setCommunicationsRefresh((n) => n + 1)
+  }, [])
 
   const load = useCallback(async () => {
     if (!candidateId) return
@@ -60,6 +68,19 @@ export function CandidateDetailPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const smsToDisplay = useMemo(() => {
+    if (!detail) return ''
+    const num = detail.phone?.trim() || '—'
+    return `${detail.name} · ${num}`
+  }, [detail])
+
+  const whatsappToDisplay = useMemo(() => {
+    if (!detail) return ''
+    const num =
+      detail.whatsappNumber?.trim() || detail.phone?.trim() || '—'
+    return `${detail.name} · ${num}`
+  }, [detail])
 
   if (!candidateId) {
     return (
@@ -109,6 +130,14 @@ export function CandidateDetailPage() {
   const jobApplicationCount =
     (detail.currentJob ? 1 : 0) + detail.otherJobs.length
 
+  const currentJobId = detail.currentJob?.id ?? ''
+  const hasPhone = Boolean(detail.phone?.trim())
+  const hasWhatsAppTarget = Boolean(
+    detail.whatsappNumber?.trim() || detail.phone?.trim(),
+  )
+
+  const noJobTitle = 'No current job is linked — open a role first.'
+
   return (
     <div>
       <div className="mb-4">
@@ -121,7 +150,48 @@ export function CandidateDetailPage() {
       </div>
 
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] shadow-[var(--elevation-1)]">
-        <CandidateDetailHeader detail={detail} />
+        <CandidateDetailHeader
+          detail={detail}
+          onSendSms={() => setSmsModalOpen(true)}
+          onSendWhatsApp={() => setWhatsappModalOpen(true)}
+          smsDisabled={!detail.currentJob || !hasPhone}
+          whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
+          smsDisabledTitle={
+            !detail.currentJob ? noJobTitle : !hasPhone ? 'Candidate has no phone number.' : undefined
+          }
+          whatsappDisabledTitle={
+            !detail.currentJob
+              ? noJobTitle
+              : !hasWhatsAppTarget
+                ? 'Candidate has no phone or WhatsApp number.'
+                : undefined
+          }
+        />
+
+        {detail.currentJob ? (
+          <>
+            <SendChannelMessageModal
+              open={smsModalOpen}
+              onClose={() => setSmsModalOpen(false)}
+              variant="sms"
+              candidateId={detail.id}
+              candidateName={detail.name}
+              jobId={currentJobId}
+              toDisplay={smsToDisplay}
+              onSent={bumpCommunications}
+            />
+            <SendChannelMessageModal
+              open={whatsappModalOpen}
+              onClose={() => setWhatsappModalOpen(false)}
+              variant="whatsapp"
+              candidateId={detail.id}
+              candidateName={detail.name}
+              jobId={currentJobId}
+              toDisplay={whatsappToDisplay}
+              onSent={bumpCommunications}
+            />
+          </>
+        ) : null}
 
         <div className="bg-[var(--bg-surface)] px-5 pb-0 pt-4 sm:px-6">
           <CandidateDetailTabs active={mainTab} onChange={setMainTab} />
@@ -212,6 +282,25 @@ export function CandidateDetailPage() {
                   candidateEmail={detail.email}
                   currentJob={detail.currentJob}
                   jobApplicationCount={jobApplicationCount}
+                  refreshSignal={communicationsRefresh}
+                  onSendSms={() => setSmsModalOpen(true)}
+                  onSendWhatsApp={() => setWhatsappModalOpen(true)}
+                  smsDisabled={!detail.currentJob || !hasPhone}
+                  whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
+                  smsDisabledTitle={
+                    !detail.currentJob
+                      ? noJobTitle
+                      : !hasPhone
+                        ? 'Candidate has no phone number.'
+                        : undefined
+                  }
+                  whatsappDisabledTitle={
+                    !detail.currentJob
+                      ? noJobTitle
+                      : !hasWhatsAppTarget
+                        ? 'Candidate has no phone or WhatsApp number.'
+                        : undefined
+                  }
                 />
               </div>
             ) : null}

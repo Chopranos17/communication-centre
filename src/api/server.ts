@@ -3,6 +3,14 @@ import express from "express";
 import { prisma } from "./db";
 import { sendMessage } from "./services/message-sender";
 
+function normalizeSmsToE164(raw: string): string {
+  const t = raw.trim().replace(/\s/g, "");
+  if (!t) return "";
+  if (t.startsWith("+")) return t;
+  const digits = t.replace(/\D/g, "");
+  return digits ? `+${digits}` : "";
+}
+
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -55,7 +63,9 @@ function senderLabelForTimeline(
   return { senderType, senderLabel: label, filterBucket: "user" };
 }
 
-/** Task 6: email timeline for Current Job (channel = email only). */
+const TIMELINE_CHANNELS = ["email", "sms", "whatsapp"] as const;
+
+/** Task 6 + Task 11: timeline for Current Job (email, SMS, WhatsApp). */
 app.get("/api/candidates/:candidateId/communications", async (req, res) => {
   const { candidateId } = req.params;
   const jobIdParam =
@@ -93,15 +103,19 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
       where: {
         candidate_id: candidateId,
         job_id: jobId,
-        channel: "email",
+        channel: { in: [...TIMELINE_CHANNELS] },
       },
       orderBy: { sent_at: "desc" },
     });
 
-    const mapEmailRow = (row: (typeof rows)[number]) => {
+    const mapTimelineRow = (row: (typeof rows)[number]) => {
       const mapped = senderLabelForTimeline(row.sender_type, row.sender_name);
+      const ch = row.channel;
+      const channel =
+        ch === "sms" || ch === "whatsapp" ? ch : "email";
       return {
         id: row.id,
+        channel,
         senderType: mapped.senderType,
         senderLabel: mapped.senderLabel,
         filterBucket: mapped.filterBucket,
@@ -114,7 +128,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
       };
     };
 
-    const emails = rows.map(mapEmailRow);
+    const emails = rows.map(mapTimelineRow);
 
     const otherJobLinks = candidate.jobs.filter((j) => j.job_id !== jobId);
     const otherJobEmailSectionsRaw = await Promise.all(
@@ -123,7 +137,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
           where: {
             candidate_id: candidateId,
             job_id: link.job_id,
-            channel: "email",
+            channel: { in: [...TIMELINE_CHANNELS] },
           },
           orderBy: { sent_at: "desc" },
         });
@@ -134,7 +148,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
             title: link.job.title,
             jobCode: link.job.job_code,
           },
-          emails: otherRows.map(mapEmailRow),
+          emails: otherRows.map(mapTimelineRow),
         };
       }),
     );
@@ -142,11 +156,12 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
     const otherJobEmailSections = otherJobEmailSectionsRaw.filter(
       (x): x is NonNullable<typeof x> => x != null,
     );
-    otherJobEmailSections.sort(
-      (a, b) =>
-        new Date(b.emails[0].sentAt).getTime() -
-        new Date(a.emails[0].sentAt).getTime(),
-    );
+    otherJobEmailSections.sort((a, b) => {
+      const ta = a.emails[0]?.sentAt;
+      const tb = b.emails[0]?.sentAt;
+      if (!ta || !tb) return 0;
+      return new Date(tb).getTime() - new Date(ta).getTime();
+    });
 
     res.json({
       currentJob: {
@@ -222,6 +237,7 @@ app.get("/api/candidates/:id", async (req, res) => {
       name: candidate.name,
       email: candidate.email,
       phone: candidate.phone ?? "",
+      whatsappNumber: candidate.whatsapp_number ?? "",
       source: candidate.source,
       sourceLabel: sourceTypeLabel(candidate.source),
       createdAt: candidate.created_at.toISOString(),
@@ -482,6 +498,138 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
       senderType: "recruiter",
       senderName,
       templateId,
+    });
+
+    return res.json({
+      success: result.success,
+      messageId: result.messageId,
+      error: result.error,
+      communicationId: result.communicationId,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.post("/api/candidates/:candidateId/compose-sms", async (req, res) => {
+  const { candidateId } = req.params;
+  const body = req.body as {
+    jobId?: string;
+    text?: string;
+    senderName?: string;
+  };
+
+  const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
+  const text = typeof body.text === "string" ? body.text : "";
+  const senderName =
+    typeof body.senderName === "string" && body.senderName.trim()
+      ? body.senderName.trim()
+      : "Recruiter";
+
+  if (!jobId) {
+    return res.status(400).json({ error: "jobId is required" });
+  }
+  if (!text.trim()) {
+    return res.status(400).json({ error: "Message text is required" });
+  }
+
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: { jobs: true },
+    });
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+    const hasJob = candidate.jobs.some((j) => j.job_id === jobId);
+    if (!hasJob) {
+      return res.status(400).json({ error: "jobId is not linked to this candidate" });
+    }
+
+    const rawPhone = candidate.phone?.trim() ?? "";
+    const to = normalizeSmsToE164(rawPhone);
+    if (!to) {
+      return res.status(400).json({ error: "Candidate has no valid phone number for SMS" });
+    }
+
+    const result = await sendMessage({
+      channel: "sms",
+      to,
+      body: text.trim(),
+      candidateId,
+      jobId,
+      senderType: "recruiter",
+      senderName,
+    });
+
+    return res.json({
+      success: result.success,
+      messageId: result.messageId,
+      error: result.error,
+      communicationId: result.communicationId,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.post("/api/candidates/:candidateId/compose-whatsapp", async (req, res) => {
+  const { candidateId } = req.params;
+  const body = req.body as {
+    jobId?: string;
+    text?: string;
+    senderName?: string;
+  };
+
+  const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
+  const text = typeof body.text === "string" ? body.text : "";
+  const senderName =
+    typeof body.senderName === "string" && body.senderName.trim()
+      ? body.senderName.trim()
+      : "Recruiter";
+
+  if (!jobId) {
+    return res.status(400).json({ error: "jobId is required" });
+  }
+  if (!text.trim()) {
+    return res.status(400).json({ error: "Message text is required" });
+  }
+
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: { jobs: true },
+    });
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+    const hasJob = candidate.jobs.some((j) => j.job_id === jobId);
+    if (!hasJob) {
+      return res.status(400).json({ error: "jobId is not linked to this candidate" });
+    }
+
+    const raw =
+      candidate.whatsapp_number?.trim() || candidate.phone?.trim() || "";
+    const to = raw.startsWith("whatsapp:")
+      ? raw
+      : normalizeSmsToE164(raw);
+    if (!to) {
+      return res.status(400).json({
+        error:
+          "Candidate has no valid phone or WhatsApp number",
+      });
+    }
+
+    const result = await sendMessage({
+      channel: "whatsapp",
+      to,
+      body: text.trim(),
+      candidateId,
+      jobId,
+      senderType: "recruiter",
+      senderName,
     });
 
     return res.json({
