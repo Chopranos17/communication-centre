@@ -7,7 +7,129 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Task 2 replaces this with Candidate, Job, Communication, etc. (see docs/tasks.md)
-model ScaffoldPlaceholder {
-  id Int @id @default(autoincrement())
+// SQLite: store PRD §5 / tasks.md enum-like values as strings (see seed + app validation).
+
+model Candidate {
+  id                String @id @default(cuid())
+  name              String
+  email             String
+  phone             String?
+  whatsapp_number   String?
+  /// applied | shortlisting | screening | assessment | interview | pre_offer | offer | hired | rejected
+  current_stage     String
+  recruiter_id      String?
+  hiring_lead_id    String?
+  hiring_manager_id String?
+  /// job_portal | referral | external_recruiter | IJP | CRM
+  source            String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  jobs           CandidateJob[]
+  communications Communication[]
+  meetings       Meeting[]
+}
+
+model CandidateJob {
+  candidate_id String
+  job_id       String
+  is_current   Boolean @default(false)
+
+  candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  job       Job       @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@id([candidate_id, job_id])
+  @@index([job_id])
+}
+
+model Job {
+  id                          String @id @default(cuid())
+  title                       String
+  department                  String
+  location                    String
+  /// open | closed | on_hold
+  status                      String
+  job_code                    String @unique
+  requisition_id              String?
+  hiring_lead_id              String?
+  /// JSON array of recruiter user ids (text)
+  recruiter_ids               String?
+  hiring_workflow_template_id String?
+
+  candidates     CandidateJob[]
+  communications Communication[]
+  meetings       Meeting[]
+}
+
+model Communication {
+  id                String  @id @default(cuid())
+  candidate_id      String
+  job_id            String
+  /// email | sms | whatsapp | meeting | system_notification
+  channel           String
+  /// outbound | inbound
+  direction         String  @default("outbound")
+  /// recruiter | hiring_lead | system | candidate | CRM
+  sender_type       String
+  sender_id         String?
+  sender_name       String?
+  thread_id         String?
+  from_address      String?
+  to_address        String?
+  /// JSON array of CC emails (text)
+  cc_addresses      String?
+  subject           String?
+  body              String
+  template_id       String?
+  /// pending | sent | delivered | failed
+  delivery_status   String  @default("pending")
+  vendor_message_id String?
+  sent_at           DateTime @default(now())
+  read_at           DateTime?
+
+  candidate      Candidate      @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  job            Job            @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  template       EmailTemplate? @relation(fields: [template_id], references: [id], onDelete: SetNull)
+  meeting_detail Meeting?
+
+  @@index([candidate_id, job_id])
+  @@index([thread_id])
+}
+
+model Meeting {
+  id               String   @id @default(cuid())
+  candidate_id     String
+  job_id           String
+  communication_id String?  @unique
+  title            String
+  description      String?
+  organizer_id     String?
+  /// JSON text: [{ "name": "...", "email": "..." }, ...]
+  participants     String
+  duration_minutes Int
+  scheduled_at     DateTime
+  /// google_meet | ms_teams | zoom | darwinbox_meet | in_person
+  channel          String
+  meeting_link     String?
+  /// scheduled | rescheduled | completed | cancelled
+  status           String
+
+  candidate     Candidate     @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  job           Job           @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  communication Communication? @relation(fields: [communication_id], references: [id], onDelete: SetNull)
+}
+
+model EmailTemplate {
+  id               String @id @default(cuid())
+  name             String
+  /// confirmation | rejection | scheduling | offer | follow_up | assessment_invite | pre_offer | custom
+  category         String
+  subject_template String
+  body_template    String
+  /// JSON text: list of variable keys
+  variables        String
+  /// email | sms | whatsapp
+  channel          String @default("email")
+
+  communications Communication[]
 }
