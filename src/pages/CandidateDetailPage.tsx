@@ -106,6 +106,9 @@ export function CandidateDetailPage() {
     )
   }
 
+  const jobApplicationCount =
+    (detail.currentJob ? 1 : 0) + detail.otherJobs.length
+
   return (
     <div>
       <div className="mb-4">
@@ -203,7 +206,13 @@ export function CandidateDetailPage() {
                     {detail.communicationCount} total touchpoints (all channels)
                   </span>
                 </div>
-                <CommunicationsCurrentJobSection candidateId={detail.id} />
+                <CommunicationsCurrentJobSection
+                  candidateId={detail.id}
+                  candidateName={detail.name}
+                  candidateEmail={detail.email}
+                  currentJob={detail.currentJob}
+                  jobApplicationCount={jobApplicationCount}
+                />
               </div>
             ) : null}
 

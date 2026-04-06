@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { fetchJobs, type JobListRow } from '../api/jobsClient'
 import { FilterTabs } from '../components/layout/FilterTabs'
 import { ListToolbar } from '../components/layout/ListToolbar'
 import { PageHeader } from '../components/layout/PageHeader'
@@ -12,23 +14,63 @@ const JOB_TABS = [
   { id: 'archived', label: 'Archived', count: 57 },
 ]
 
-const SAMPLE_ROWS = [
-  {
-    title: 'Regional Sales Manager',
-    code: 'JOB_1024',
-    status: 'Open',
-    statusVariant: 'open' as const,
-  },
-  {
-    title: 'Product Manager',
-    code: 'JOB_1025',
-    status: 'Draft',
-    statusVariant: 'draft' as const,
-  },
-]
+function statusVariant(
+  status: string,
+): 'open' | 'draft' | 'hold' {
+  const s = status.toLowerCase()
+  if (s === 'open') return 'open'
+  if (s === 'on_hold' || s === 'hold') return 'hold'
+  return 'draft'
+}
+
+function StatusBadge({
+  label,
+  variant,
+}: {
+  label: string
+  variant: 'open' | 'draft' | 'hold'
+}) {
+  const border =
+    variant === 'open'
+      ? 'border-l-[var(--status-open)]'
+      : variant === 'hold'
+        ? 'border-l-amber-500'
+        : 'border-l-[var(--status-draft)]'
+  return (
+    <span
+      className={`inline-flex items-center rounded border border-[var(--border-subtle)] border-l-4 ${border} bg-[var(--charcoal-5)] px-2 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--text-body)]`}
+    >
+      {label}
+    </span>
+  )
+}
 
 export function JobOpeningsPage() {
   const [tab, setTab] = useState('all')
+  const [jobs, setJobs] = useState<JobListRow[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoadError(null)
+    try {
+      const list = await fetchJobs()
+      setJobs(list)
+    } catch {
+      setLoadError('Could not load jobs.')
+      setJobs([])
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const visibleJobs =
+    tab === 'open'
+      ? jobs.filter((j) => j.status.toLowerCase() === 'open')
+      : tab === 'hold'
+        ? jobs.filter((j) => j.status.toLowerCase() === 'on_hold')
+        : jobs
 
   return (
     <div>
@@ -72,6 +114,10 @@ export function JobOpeningsPage() {
         <FilterTabs tabs={JOB_TABS} activeId={tab} onChange={setTab} />
       </div>
 
+      {loadError ? (
+        <p className="mb-4 text-[length:var(--body-m)] text-[var(--text-error)]">{loadError}</p>
+      ) : null}
+
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-left text-[length:var(--body-m)]">
@@ -86,52 +132,42 @@ export function JobOpeningsPage() {
               </tr>
             </thead>
             <tbody>
-              {SAMPLE_ROWS.map((row) => (
+              {visibleJobs.map((row) => (
                 <tr
-                  key={row.code}
+                  key={row.id}
                   className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]"
                 >
                   <td className="px-3 py-3 align-top">
                     <input type="checkbox" aria-label={`Select ${row.title}`} className="rounded border-[var(--border-default)]" />
                   </td>
                   <td className="px-3 py-3">
-                    <button
-                      type="button"
-                      className="text-left font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
+                    <Link
+                      to={`/recruitment/jobs/${row.id}`}
+                      className="font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
                     >
                       {row.title}
-                    </button>
-                    <div className="text-[length:var(--body-s)] text-[var(--text-label)]">{row.code}</div>
+                    </Link>
+                    <div className="text-[length:var(--body-s)] text-[var(--text-label)]">{row.job_code}</div>
                   </td>
                   <td className="px-3 py-3 align-top">
-                    <StatusBadge label={row.status} variant={row.statusVariant} />
+                    <StatusBadge
+                      label={row.status.replace(/_/g, ' ')}
+                      variant={statusVariant(row.status)}
+                    />
                   </td>
-                  <td className="px-3 py-3 text-[var(--text-body)]">Multiple locations</td>
+                  <td className="px-3 py-3 text-[var(--text-body)]">{row.location}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <PaginationFooter from={1} to={10} total={2549} />
+        {visibleJobs.length === 0 && !loadError ? (
+          <p className="p-6 text-center text-[length:var(--body-m)] text-[var(--text-label)]">
+            No jobs in this filter.
+          </p>
+        ) : null}
+        <PaginationFooter from={1} to={visibleJobs.length} total={visibleJobs.length} />
       </div>
     </div>
-  )
-}
-
-function StatusBadge({
-  label,
-  variant,
-}: {
-  label: string
-  variant: 'open' | 'draft'
-}) {
-  const border =
-    variant === 'open' ? 'border-l-[var(--status-open)]' : 'border-l-[var(--status-draft)]'
-  return (
-    <span
-      className={`inline-flex items-center rounded border border-[var(--border-subtle)] border-l-4 ${border} bg-[var(--charcoal-5)] px-2 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--text-body)]`}
-    >
-      {label}
-    </span>
   )
 }

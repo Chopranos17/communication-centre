@@ -271,7 +271,7 @@ async function main() {
     },
     {
       name: "Aditya Ghosh",
-      email: "aditya.ghosh.se@example.com",
+      email: "akshat.c@darwinbox.in",
       phone: "+919966677788",
       whatsapp_number: "+919966677788",
       stage: "interview",

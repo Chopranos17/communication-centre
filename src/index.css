@@ -12,3 +12,12 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+.compose-quill .ql-container {
+  min-height: 220px;
+  font-size: 14px;
+}
+
+.compose-quill .ql-editor {
+  min-height: 200px;
+}

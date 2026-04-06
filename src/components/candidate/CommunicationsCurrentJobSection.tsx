@@ -5,15 +5,31 @@ import type {
   CurrentJobEmailRow,
 } from "../../api/candidatesClient";
 import { CommunicationsJobEmailSection } from "./CommunicationsJobEmailSection";
+import { ComposeEmailModal } from "./ComposeEmailModal";
+import type { ComposeEmailRecipient } from "./ComposeEmailModal";
 import { EmailDetailModal } from "./EmailDetailModal";
 
 const EMPTY_EMAILS: CurrentJobEmailRow[] = [];
 
-export function CommunicationsCurrentJobSection({ candidateId }: { candidateId: string }) {
+export function CommunicationsCurrentJobSection({
+  candidateId,
+  candidateName,
+  candidateEmail,
+  currentJob,
+  jobApplicationCount,
+}: {
+  candidateId: string;
+  candidateName: string;
+  candidateEmail: string;
+  currentJob: { id: string; title: string; jobCode: string } | null;
+  /** Total CandidateJob rows for this candidate (for bulk multi-job semantics if reused) */
+  jobApplicationCount: number;
+}) {
   const [data, setData] = useState<CandidateCurrentJobEmails | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailEmail, setDetailEmail] = useState<CurrentJobEmailRow | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,9 +61,33 @@ export function CommunicationsCurrentJobSection({ candidateId }: { candidateId: 
   const jobCode = data?.currentJob?.jobCode;
   const otherSections = data?.otherJobEmailSections ?? [];
 
+  const composeJob = currentJob ?? data?.currentJob ?? null;
+  const canCompose = Boolean(
+    composeJob && candidateEmail.trim().length > 0,
+  );
+
   return (
     <div className="space-y-4">
       <EmailDetailModal email={detailEmail} onClose={() => setDetailEmail(null)} />
+      {composeJob ? (
+        <ComposeEmailModal
+          open={composeOpen}
+          onClose={() => setComposeOpen(false)}
+          jobId={composeJob.id}
+          jobTitle={composeJob.title}
+          recipients={
+            [
+              {
+                candidateId,
+                candidateName,
+                candidateEmail,
+                jobCount: jobApplicationCount,
+              },
+            ] satisfies ComposeEmailRecipient[]
+          }
+          onSent={() => void load()}
+        />
+      ) : null}
       <CommunicationsJobEmailSection
         defaultSectionOpen
         jobTitle={jobTitle}
@@ -66,6 +106,13 @@ export function CommunicationsCurrentJobSection({ candidateId }: { candidateId: 
         }
         onSelectEmail={setDetailEmail}
         onInvalidateDetail={clearDetailEmail}
+        onNewEmail={() => setComposeOpen(true)}
+        newEmailDisabled={!canCompose}
+        newEmailDisabledTitle={
+          !candidateEmail.trim()
+            ? "Candidate has no email address."
+            : "No current job is linked to this candidate."
+        }
       />
 
       {otherSections.map((section) => (

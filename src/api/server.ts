@@ -255,6 +255,247 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+/** Task 10: job list + job detail with candidates (for bulk email from Job Detail Page). */
+app.get("/api/jobs", async (_req, res) => {
+  try {
+    const rows = await prisma.job.findMany({
+      orderBy: { job_code: "asc" },
+      select: {
+        id: true,
+        title: true,
+        job_code: true,
+        status: true,
+        location: true,
+        department: true,
+      },
+    });
+    res.json({ jobs: rows });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.get("/api/jobs/:jobId", async (req, res) => {
+  const { jobId } = req.params;
+  try {
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+    });
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+
+    const links = await prisma.candidateJob.findMany({
+      where: { job_id: jobId },
+      include: { candidate: true },
+      orderBy: { candidate: { name: "asc" } },
+    });
+
+    const candidateIds = [...new Set(links.map((l) => l.candidate_id))];
+    const counts =
+      candidateIds.length === 0
+        ? []
+        : await prisma.candidateJob.groupBy({
+            by: ["candidate_id"],
+            where: { candidate_id: { in: candidateIds } },
+            _count: { _all: true },
+          });
+    const countMap = new Map(
+      counts.map((c) => [c.candidate_id, c._count._all]),
+    );
+
+    const candidates = links.map((l) => ({
+      id: l.candidate.id,
+      name: l.candidate.name,
+      email: l.candidate.email,
+      jobCount: countMap.get(l.candidate_id) ?? 1,
+    }));
+
+    res.json({
+      job: {
+        id: job.id,
+        title: job.title,
+        jobCode: job.job_code,
+        status: job.status,
+        location: job.location,
+        department: job.department,
+      },
+      candidates,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+const DISPLAY_FROM_ADDRESSES = new Set([
+  "no-reply@darwinbox.in",
+  "contact@darwinbox.in",
+]);
+
+function resendFromForDisplay(display: string): string {
+  const noreply =
+    process.env.RESEND_FROM_NOREPLY?.trim() || "onboarding@resend.dev";
+  const contact =
+    process.env.RESEND_FROM_CONTACT?.trim() || "onboarding@resend.dev";
+  if (display === "no-reply@darwinbox.in") return noreply;
+  if (display === "contact@darwinbox.in") return contact;
+  return display;
+}
+
+/** Seed-style employees for CC type-ahead (Task 9). */
+const MOCK_EMPLOYEES: { id: string; name: string; email: string }[] = [
+  { id: "emp-rec-001", name: "Atharva M", email: "atharva.m@darwinbox.in" },
+  { id: "emp-rec-002", name: "Priya Sharma", email: "priya.sharma@darwinbox.in" },
+  { id: "emp-rec-003", name: "Rahul Verma", email: "rahul.verma@darwinbox.in" },
+  { id: "emp-hl-001", name: "Neha Kapoor", email: "neha.kapoor@darwinbox.in" },
+  { id: "emp-hl-002", name: "Vikram Singh", email: "vikram.singh@darwinbox.in" },
+];
+
+function uniqEmails(emails: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const e of emails) {
+    const t = e.trim();
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+  }
+  return out;
+}
+
+app.get("/api/email-templates", async (_req, res) => {
+  try {
+    const rows = await prisma.emailTemplate.findMany({
+      where: { channel: "email" },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        subject_template: true,
+        body_template: true,
+        variables: true,
+      },
+    });
+    res.json({ templates: rows });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.get("/api/employees", (req, res) => {
+  const q =
+    typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
+  if (!q) {
+    res.json({ employees: MOCK_EMPLOYEES });
+    return;
+  }
+  const employees = MOCK_EMPLOYEES.filter(
+    (e) =>
+      e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q),
+  );
+  res.json({ employees });
+});
+
+app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
+  const { candidateId } = req.params;
+  const body = req.body as {
+    jobId?: string;
+    fromAddress?: string;
+    subject?: string;
+    htmlBody?: string;
+    cc?: string[];
+    templateId?: string | null;
+    senderName?: string;
+  };
+
+  const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
+  const fromAddress =
+    typeof body.fromAddress === "string" ? body.fromAddress.trim() : "";
+  const subject =
+    typeof body.subject === "string" ? body.subject.trim() : "";
+  const htmlBody =
+    typeof body.htmlBody === "string" ? body.htmlBody : "";
+  const senderName =
+    typeof body.senderName === "string" && body.senderName.trim()
+      ? body.senderName.trim()
+      : "Recruiter";
+
+  if (!jobId) {
+    return res.status(400).json({ error: "jobId is required" });
+  }
+  if (!DISPLAY_FROM_ADDRESSES.has(fromAddress)) {
+    return res.status(400).json({
+      error: "fromAddress must be no-reply@darwinbox.in or contact@darwinbox.in",
+    });
+  }
+  if (!subject) {
+    return res.status(400).json({ error: "subject is required" });
+  }
+  if (!htmlBody.trim()) {
+    return res.status(400).json({ error: "body is required" });
+  }
+
+  const ccRaw = Array.isArray(body.cc) ? body.cc : [];
+  const cc = uniqEmails(ccRaw.map((x) => String(x)));
+
+  const templateId =
+    typeof body.templateId === "string" && body.templateId.trim()
+      ? body.templateId.trim()
+      : null;
+
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: { jobs: true },
+    });
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+    const hasJob = candidate.jobs.some((j) => j.job_id === jobId);
+    if (!hasJob) {
+      return res.status(400).json({ error: "jobId is not linked to this candidate" });
+    }
+
+    const to = candidate.email.trim();
+    if (!to) {
+      return res.status(400).json({ error: "Candidate has no email address" });
+    }
+
+    const apiFrom = resendFromForDisplay(fromAddress);
+
+    const result = await sendMessage({
+      channel: "email",
+      to,
+      from: apiFrom,
+      fromDisplay: fromAddress,
+      subject,
+      body: htmlBody,
+      cc: cc.length ? cc : undefined,
+      candidateId,
+      jobId,
+      senderType: "recruiter",
+      senderName,
+      templateId,
+    });
+
+    return res.json({
+      success: result.success,
+      messageId: result.messageId,
+      error: result.error,
+      communicationId: result.communicationId,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
 /**
  * Task 3 verification: send one test message per channel.
  * GET /api/test-send?channel=email|sms|whatsapp

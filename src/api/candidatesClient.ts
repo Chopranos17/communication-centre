@@ -85,3 +85,68 @@ export async function fetchCandidateCurrentJobEmails(
   if (!r.ok) throw new Error("Failed to load communications")
   return r.json() as Promise<CandidateCurrentJobEmails>
 }
+
+export type EmailTemplateListItem = {
+  id: string
+  name: string
+  category: string
+  subject_template: string
+  body_template: string
+  variables: string
+}
+
+export type EmployeeRow = { id: string; name: string; email: string }
+
+export async function fetchEmailTemplates(): Promise<EmailTemplateListItem[]> {
+  const r = await fetch("/api/email-templates")
+  if (!r.ok) throw new Error("Failed to load templates")
+  const data = (await r.json()) as { templates: EmailTemplateListItem[] }
+  return data.templates
+}
+
+export async function fetchEmployees(q?: string): Promise<EmployeeRow[]> {
+  const query = q ? `?q=${encodeURIComponent(q)}` : ""
+  const r = await fetch(`/api/employees${query}`)
+  if (!r.ok) throw new Error("Failed to load employees")
+  const data = (await r.json()) as { employees: EmployeeRow[] }
+  return data.employees
+}
+
+export type ComposeEmailPayload = {
+  jobId: string
+  fromAddress: string
+  subject: string
+  htmlBody: string
+  cc?: string[]
+  templateId?: string | null
+  senderName?: string
+}
+
+export type ComposeEmailResult = {
+  success: boolean
+  messageId?: string
+  error?: string
+  communicationId?: string
+}
+
+export async function composeSendEmail(
+  candidateId: string,
+  payload: ComposeEmailPayload,
+): Promise<ComposeEmailResult> {
+  const r = await fetch(
+    `/api/candidates/${encodeURIComponent(candidateId)}/compose-email`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  )
+  const data = (await r.json()) as ComposeEmailResult & { error?: string }
+  if (!r.ok) {
+    return {
+      success: false,
+      error: data.error ?? "Failed to send email",
+    }
+  }
+  return data
+}

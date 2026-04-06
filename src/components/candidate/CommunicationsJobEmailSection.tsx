@@ -47,6 +47,11 @@ type CommunicationsJobEmailSectionProps = {
   onSelectEmail?: (row: CurrentJobEmailRow) => void;
   /** Clear open detail when filter or list identity changes. */
   onInvalidateDetail?: () => void;
+  /** Opens compose email panel (Current Job section). */
+  onNewEmail?: () => void;
+  /** Disables "+ New Email" (e.g. no current job or no candidate email). */
+  newEmailDisabled?: boolean;
+  newEmailDisabledTitle?: string;
 };
 
 export function CommunicationsJobEmailSection({
@@ -63,6 +68,9 @@ export function CommunicationsJobEmailSection({
   emptyFilterMessage = "No emails match this filter for this job.",
   onSelectEmail,
   onInvalidateDetail,
+  onNewEmail,
+  newEmailDisabled = false,
+  newEmailDisabledTitle,
 }: CommunicationsJobEmailSectionProps) {
   const [sectionOpen, setSectionOpen] = useState(defaultSectionOpen);
   const [emailFilter, setEmailFilter] = useState<EmailTypeFilter>("all");
@@ -158,9 +166,15 @@ export function CommunicationsJobEmailSection({
             {showNewEmailButton ? (
               <button
                 type="button"
-                className="rounded border border-[var(--charcoal-100)] bg-[var(--yellow-500)] px-4 py-2 text-[length:var(--body-s)] font-bold uppercase tracking-wide text-[var(--charcoal-700)] opacity-60"
-                disabled
-                title="Available in a later task"
+                onClick={() => onNewEmail?.()}
+                disabled={newEmailDisabled || !onNewEmail}
+                title={newEmailDisabled ? newEmailDisabledTitle : undefined}
+                className={[
+                  "rounded border border-[var(--charcoal-100)] px-4 py-2 text-[length:var(--body-s)] font-bold uppercase tracking-wide text-[var(--charcoal-700)]",
+                  newEmailDisabled || !onNewEmail
+                    ? "cursor-not-allowed bg-[var(--yellow-500)] opacity-60"
+                    : "bg-[var(--yellow-500)] hover:opacity-95",
+                ].join(" ")}
               >
                 + New Email
               </button>

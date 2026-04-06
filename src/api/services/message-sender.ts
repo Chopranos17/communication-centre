@@ -31,7 +31,10 @@ export interface SendWhatsAppParams {
 export interface SendMessageParams {
   channel: MessageChannel;
   to: string;
+  /** Resend/Twilio “from” (verified sender for API). */
   from?: string;
+  /** For email: stored as `from_address` when set (e.g. branded no-reply@…) while `from` is the verified Resend address. */
+  fromDisplay?: string;
   subject?: string;
   body: string;
   cc?: string[];
@@ -39,6 +42,7 @@ export interface SendMessageParams {
   jobId: string;
   senderType?: string;
   senderName?: string;
+  templateId?: string | null;
 }
 
 export interface SendMessageResult extends VendorSendResult {
@@ -196,7 +200,9 @@ export async function sendMessage(
 
   const fromStored =
     channel === "email"
-      ? (from?.trim() || DEFAULT_EMAIL_FROM)
+      ? (params.fromDisplay?.trim() ||
+          from?.trim() ||
+          DEFAULT_EMAIL_FROM)
       : channel === "sms"
         ? process.env.TWILIO_PHONE_NUMBER?.trim() ?? from?.trim() ?? null
         : process.env.TWILIO_WHATSAPP_NUMBER?.trim() ?? from?.trim() ?? null;
@@ -217,6 +223,7 @@ export async function sendMessage(
         channel === "email" && cc?.length ? JSON.stringify(cc) : null,
       subject: channel === "email" ? (subject ?? null) : null,
       body,
+      template_id: params.templateId?.trim() || null,
       delivery_status: deliveryStatus,
       vendor_message_id:
         vendor.success && vendor.messageId ? vendor.messageId : null,
