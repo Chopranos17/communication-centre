@@ -1,5 +1,85 @@
 import type { CurrentJobEmailRow } from "../api/candidatesClient";
 
+/** One visual row in the timeline: a single message or a full email thread. */
+export type TimelineThreadGroup = {
+  key: string
+  /** Messages in chronological order (oldest first). */
+  rows: CurrentJobEmailRow[]
+}
+
+/**
+ * Group flat timeline rows into threads (email + same threadId) and singletons (SMS/WhatsApp,
+ * standalone email). Sort groups by latest activity (newest first). PRD §4.5 / Task 12.
+ */
+export function buildTimelineThreadGroups(
+  rows: CurrentJobEmailRow[],
+): TimelineThreadGroup[] {
+  const emailRows = rows.filter((r) => r.channel === "email")
+  const otherRows = rows.filter((r) => r.channel !== "email")
+
+  const threadMap = new Map<string, CurrentJobEmailRow[]>()
+  const singletonEmails: CurrentJobEmailRow[] = []
+
+  for (const r of emailRows) {
+    if (r.threadId) {
+      const arr = threadMap.get(r.threadId) ?? []
+      arr.push(r)
+      threadMap.set(r.threadId, arr)
+    } else {
+      singletonEmails.push(r)
+    }
+  }
+
+  const groups: TimelineThreadGroup[] = []
+
+  for (const r of singletonEmails) {
+    groups.push({ key: `email-${r.id}`, rows: [r] })
+  }
+
+  for (const [tid, list] of threadMap) {
+    const sorted = [...list].sort(
+      (a, b) =>
+        new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+    )
+    groups.push({ key: `thread-${tid}`, rows: sorted })
+  }
+
+  for (const r of otherRows) {
+    groups.push({ key: `${r.channel}-${r.id}`, rows: [r] })
+  }
+
+  groups.sort((a, b) => {
+    const maxA = Math.max(
+      ...a.rows.map((x) => new Date(x.sentAt).getTime()),
+    )
+    const maxB = Math.max(
+      ...b.rows.map((x) => new Date(x.sentAt).getTime()),
+    )
+    return maxB - maxA
+  })
+
+  return groups
+}
+
+/**
+ * Sender column for a thread: "{Candidate Name} (N)" if any inbound/candidate message; else
+ * "{root sender} (N)" using chronologically first message. PRD §4.5.
+ */
+export function threadSenderColumnLabel(
+  rows: CurrentJobEmailRow[],
+  candidateName: string,
+): string {
+  const n = rows.length
+  const hasCandidate = rows.some((r) => r.senderType === "candidate")
+  if (hasCandidate) {
+    return `${candidateName} (${n})`
+  }
+  const sorted = [...rows].sort(
+    (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+  )
+  return `${sorted[0].senderLabel} (${n})`
+}
+
 /** Plain text for email body (seed data is plain; strip tags if HTML appears later). */
 export function stripHtml(s: string | undefined | null): string {
   return String(s ?? "")

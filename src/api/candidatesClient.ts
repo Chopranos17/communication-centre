@@ -66,6 +66,8 @@ export type CurrentJobEmailRow = {
   fromAddress: string
   toAddress: string
   deliveryStatus: EmailDeliveryStatus
+  /** Same id for all messages in an email thread; null for standalone email or non-email channels. */
+  threadId: string | null
 }
 
 export type OtherJobEmailSection = {

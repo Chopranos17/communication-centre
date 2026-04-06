@@ -125,6 +125,8 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         fromAddress: row.from_address ?? "",
         toAddress: row.to_address ?? "",
         deliveryStatus: row.delivery_status,
+        threadId:
+          channel === "email" && row.thread_id ? row.thread_id : null,
       };
     };
 

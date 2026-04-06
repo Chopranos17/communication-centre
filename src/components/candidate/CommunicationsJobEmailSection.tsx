@@ -1,8 +1,10 @@
-import { useMemo, useState, useEffect } from "react";
+import { Fragment, useMemo, useState, useEffect } from "react";
 import type { CurrentJobEmailRow } from "../../api/candidatesClient";
 import {
   buildTimelineMessagePreview,
+  buildTimelineThreadGroups,
   formatTimelineTime,
+  threadSenderColumnLabel,
 } from "../../utils/communicationTimeline";
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
@@ -61,6 +63,8 @@ type CommunicationsJobEmailSectionProps = {
   whatsappDisabled?: boolean;
   smsDisabledTitle?: string;
   whatsappDisabledTitle?: string;
+  /** Used for "{Candidate Name} (N)" on threads with a candidate reply (PRD §4.5). */
+  candidateName?: string;
 };
 
 export function CommunicationsJobEmailSection({
@@ -86,10 +90,14 @@ export function CommunicationsJobEmailSection({
   whatsappDisabled = false,
   smsDisabledTitle,
   whatsappDisabledTitle,
+  candidateName = "",
 }: CommunicationsJobEmailSectionProps) {
   const [sectionOpen, setSectionOpen] = useState(defaultSectionOpen);
   const [emailFilter, setEmailFilter] = useState<EmailTypeFilter>("all");
   const [expandedList, setExpandedList] = useState(false);
+  const [expandedThreadKeys, setExpandedThreadKeys] = useState<
+    Record<string, boolean>
+  >({});
 
   const filtered = useMemo(
     () => (emails.length ? filterEmails(emails, emailFilter) : []),
@@ -104,24 +112,37 @@ export function CommunicationsJobEmailSection({
 
   useEffect(() => {
     setExpandedList(false);
+    setExpandedThreadKeys({});
   }, [emailFilter, emailListKey]);
 
   useEffect(() => {
     onInvalidateDetail?.();
   }, [emailFilter, emailListKey, onInvalidateDetail]);
 
-  const visibleRows = useMemo(() => {
-    if (!expandedList) return filtered.slice(0, INITIAL_VISIBLE);
-    return filtered;
-  }, [filtered, expandedList]);
+  const threadGroups = useMemo(
+    () => buildTimelineThreadGroups(filtered),
+    [filtered],
+  );
 
-  const showMoreControl = filtered.length > INITIAL_VISIBLE && !expandedList;
+  const visibleGroups = useMemo(() => {
+    if (!expandedList) return threadGroups.slice(0, INITIAL_VISIBLE);
+    return threadGroups;
+  }, [threadGroups, expandedList]);
 
-  const tableScroll = expandedList && filtered.length > EXPANDED_CAP;
+  const showMoreControl = threadGroups.length > INITIAL_VISIBLE && !expandedList;
+
+  const tableScroll = expandedList && threadGroups.length > EXPANDED_CAP;
 
   const showBody = missingJobMessage == null;
 
   const openDetail = onSelectEmail ?? (() => {});
+
+  const toggleThread = (key: string) => {
+    setExpandedThreadKeys((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
@@ -276,48 +297,134 @@ export function CommunicationsJobEmailSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleRows.map((row) => {
-                      const ch = row.channel ?? "email";
+                    {visibleGroups.map((group) => {
+                      const rows = group.rows;
+                      const latest = rows[rows.length - 1];
+                      const isThread = rows.length > 1;
+                      const expanded = Boolean(expandedThreadKeys[group.key]);
+                      const ch = latest.channel ?? "email";
                       const { subjectPart, bodyPart } =
-                        buildTimelineMessagePreview(row);
+                        buildTimelineMessagePreview(latest);
+                      const nameForThread =
+                        candidateName.trim() ||
+                        rows.find((r) => r.senderType === "candidate")
+                          ?.senderLabel ||
+                        "Candidate";
+                      const senderCol = isThread
+                        ? threadSenderColumnLabel(rows, nameForThread)
+                        : latest.senderLabel;
+
                       return (
-                        <tr
-                          key={row.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => openDetail(row)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              openDetail(row);
-                            }
-                          }}
-                          className="group cursor-pointer border-0 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
-                        >
-                          <td className="align-top py-3 pr-4 font-medium text-[var(--text-body)]">
-                            <span className="flex items-start gap-2">
-                              <ChannelTimelineIcon
-                                channel={ch}
-                                className="mt-0.5"
-                              />
-                              <span className="line-clamp-2">{row.senderLabel}</span>
-                            </span>
-                          </td>
-                          <td className="align-top py-3 pr-4 font-light text-[var(--text-body)]">
-                            <span className="line-clamp-2 break-words">
-                              {subjectPart ? (
-                                <strong className="font-bold">{subjectPart}</strong>
-                              ) : null}
-                              {bodyPart}
-                            </span>
-                          </td>
-                          <td className="align-top py-3 text-[length:var(--body-s)] font-light text-[var(--text-label)] sm:text-right">
-                            <span className="inline-flex flex-col items-end gap-0.5 sm:inline-flex sm:flex-row sm:items-center sm:justify-end sm:gap-1.5">
-                              <span>{formatTimelineTime(row.sentAt)}</span>
-                              <DeliveryStatusGlyph status={row.deliveryStatus} />
-                            </span>
-                          </td>
-                        </tr>
+                        <Fragment key={group.key}>
+                          <tr
+                            role="button"
+                            tabIndex={0}
+                            aria-expanded={isThread ? expanded : undefined}
+                            onClick={() => {
+                              if (isThread) toggleThread(group.key);
+                              else openDetail(latest);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                if (isThread) toggleThread(group.key);
+                                else openDetail(latest);
+                              }
+                            }}
+                            className="group cursor-pointer border-0 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
+                          >
+                            <td className="align-top py-3 pr-4 font-medium text-[var(--text-body)]">
+                              <span className="flex items-start gap-2">
+                                {isThread ? (
+                                  <span
+                                    className="mt-0.5 inline-flex w-4 shrink-0 justify-center text-[var(--text-label)]"
+                                    aria-hidden
+                                  >
+                                    {expanded ? "▼" : "▶"}
+                                  </span>
+                                ) : (
+                                  <span className="w-4 shrink-0" aria-hidden />
+                                )}
+                                <ChannelTimelineIcon
+                                  channel={ch}
+                                  className="mt-0.5"
+                                />
+                                <span className="line-clamp-2">{senderCol}</span>
+                              </span>
+                            </td>
+                            <td className="align-top py-3 pr-4 font-light text-[var(--text-body)]">
+                              <span className="line-clamp-2 break-words">
+                                {subjectPart ? (
+                                  <strong className="font-bold">{subjectPart}</strong>
+                                ) : null}
+                                {bodyPart}
+                              </span>
+                            </td>
+                            <td className="align-top py-3 text-[length:var(--body-s)] font-light text-[var(--text-label)] sm:text-right">
+                              <span className="inline-flex flex-col items-end gap-0.5 sm:inline-flex sm:flex-row sm:items-center sm:justify-end sm:gap-1.5">
+                                <span>{formatTimelineTime(latest.sentAt)}</span>
+                                <DeliveryStatusGlyph
+                                  status={latest.deliveryStatus}
+                                />
+                              </span>
+                            </td>
+                          </tr>
+                          {isThread && expanded
+                            ? rows.map((row) => {
+                                const rch = row.channel ?? "email";
+                                const prev = buildTimelineMessagePreview(row);
+                                return (
+                                  <tr
+                                    key={`${group.key}-${row.id}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openDetail(row);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        openDetail(row);
+                                      }
+                                    }}
+                                    className="cursor-pointer border-0 bg-[var(--charcoal-10)]/80 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
+                                  >
+                                    <td
+                                      colSpan={3}
+                                      className="py-2 pl-10 pr-4 text-[length:var(--body-s)] text-[var(--text-body)]"
+                                    >
+                                      <div className="border-l-2 border-[var(--charcoal-100)] pl-3">
+                                        <div className="flex flex-wrap items-baseline gap-2">
+                                          <ChannelTimelineIcon
+                                            channel={rch}
+                                            className="mt-0.5 shrink-0"
+                                          />
+                                          <span className="font-medium">
+                                            {row.senderLabel}
+                                          </span>
+                                          <span className="text-[var(--text-label)]">
+                                            {formatTimelineTime(row.sentAt)}
+                                          </span>
+                                          <DeliveryStatusGlyph
+                                            status={row.deliveryStatus}
+                                          />
+                                        </div>
+                                        <div className="mt-0.5 line-clamp-3 break-words font-light">
+                                          {prev.subjectPart ? (
+                                            <strong className="font-bold">
+                                              {prev.subjectPart}
+                                            </strong>
+                                          ) : null}
+                                          {prev.bodyPart}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            : null}
+                        </Fragment>
                       );
                     })}
                   </tbody>

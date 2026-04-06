@@ -134,6 +134,7 @@ export function CommunicationsCurrentJobSection({
         whatsappDisabled={whatsappDisabled}
         smsDisabledTitle={smsDisabledTitle}
         whatsappDisabledTitle={whatsappDisabledTitle}
+        candidateName={candidateName}
       />
 
       {otherSections.map((section) => (
@@ -147,6 +148,7 @@ export function CommunicationsCurrentJobSection({
           loading={false}
           onSelectEmail={setDetailEmail}
           onInvalidateDetail={clearDetailEmail}
+          candidateName={candidateName}
         />
       ))}
     </div>
