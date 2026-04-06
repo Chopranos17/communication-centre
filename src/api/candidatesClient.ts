@@ -48,6 +48,8 @@ export async function fetchCandidateDetail(id: string): Promise<CandidateDetail>
   return r.json() as Promise<CandidateDetail>
 }
 
+export type EmailDeliveryStatus = "pending" | "sent" | "delivered" | "failed"
+
 export type CurrentJobEmailRow = {
   id: string
   senderType: string
@@ -56,6 +58,9 @@ export type CurrentJobEmailRow = {
   subject: string | null
   body: string
   sentAt: string
+  fromAddress: string
+  toAddress: string
+  deliveryStatus: EmailDeliveryStatus
 }
 
 export type OtherJobEmailSection = {

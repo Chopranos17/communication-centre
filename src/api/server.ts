@@ -108,6 +108,9 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         subject: row.subject,
         body: row.body,
         sentAt: row.sent_at.toISOString(),
+        fromAddress: row.from_address ?? "",
+        toAddress: row.to_address ?? "",
+        deliveryStatus: row.delivery_status,
       };
     };
 

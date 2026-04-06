@@ -4,7 +4,6 @@ import {
   buildEmailPreviewLine,
   formatTimelineTime,
 } from "../../utils/communicationTimeline";
-
 export type EmailTypeFilter = "all" | "system" | "user";
 
 const FILTER_OPTIONS: { id: EmailTypeFilter; label: string }[] = [
@@ -44,6 +43,10 @@ type CommunicationsJobEmailSectionProps = {
   missingJobMessage?: string | null;
   /** When the filter excludes all rows (optional copy for Current vs Other job) */
   emptyFilterMessage?: string;
+  /** Opens email detail panel (single modal owned by parent). */
+  onSelectEmail?: (row: CurrentJobEmailRow) => void;
+  /** Clear open detail when filter or list identity changes. */
+  onInvalidateDetail?: () => void;
 };
 
 export function CommunicationsJobEmailSection({
@@ -58,6 +61,8 @@ export function CommunicationsJobEmailSection({
   onRetry,
   missingJobMessage = null,
   emptyFilterMessage = "No emails match this filter for this job.",
+  onSelectEmail,
+  onInvalidateDetail,
 }: CommunicationsJobEmailSectionProps) {
   const [sectionOpen, setSectionOpen] = useState(defaultSectionOpen);
   const [emailFilter, setEmailFilter] = useState<EmailTypeFilter>("all");
@@ -68,9 +73,19 @@ export function CommunicationsJobEmailSection({
     [emails, emailFilter],
   );
 
+  /** Stable identity for list contents — avoid clearing the detail modal when `emails` is a new [] each render. */
+  const emailListKey = useMemo(
+    () => emails.map((e) => e.id).join("\u001f"),
+    [emails],
+  );
+
   useEffect(() => {
     setExpandedList(false);
-  }, [emailFilter, emails]);
+  }, [emailFilter, emailListKey]);
+
+  useEffect(() => {
+    onInvalidateDetail?.();
+  }, [emailFilter, emailListKey, onInvalidateDetail]);
 
   const visibleRows = useMemo(() => {
     if (!expandedList) return filtered.slice(0, INITIAL_VISIBLE);
@@ -82,6 +97,8 @@ export function CommunicationsJobEmailSection({
   const tableScroll = expandedList && filtered.length > EXPANDED_CAP;
 
   const showBody = missingJobMessage == null;
+
+  const openDetail = onSelectEmail ?? (() => {});
 
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
@@ -200,7 +217,16 @@ export function CommunicationsJobEmailSection({
                       return (
                         <tr
                           key={row.id}
-                          className="group border-0 transition-colors hover:bg-[var(--charcoal-10)]"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openDetail(row)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              openDetail(row);
+                            }
+                          }}
+                          className="group cursor-pointer border-0 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
                         >
                           <td className="align-top py-3 pr-4 font-medium text-[var(--text-body)]">
                             <span className="line-clamp-2">{row.senderLabel}</span>

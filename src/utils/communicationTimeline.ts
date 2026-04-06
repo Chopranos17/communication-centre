@@ -1,6 +1,9 @@
 /** Plain text for email body (seed data is plain; strip tags if HTML appears later). */
-export function stripHtml(s: string): string {
-  return s.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+export function stripHtml(s: string | undefined | null): string {
+  return String(s ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -49,5 +52,20 @@ export function formatTimelineTime(iso: string, now = new Date()): string {
     month: "short",
     day: "numeric",
     year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+}
+
+/** Full date, time, and timezone for email detail modal (PRD §4.4). */
+export function formatEmailDetailDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  // Do not mix `dateStyle`/`timeStyle` with `timeZoneName` — Chromium throws Invalid option.
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
   });
 }
