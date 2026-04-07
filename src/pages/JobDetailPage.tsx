@@ -7,6 +7,7 @@ import {
 import { ComposeEmailModal } from "../components/candidate/ComposeEmailModal";
 import type { ComposeEmailRecipient } from "../components/candidate/ComposeEmailModal";
 import { PageHeader } from "../components/layout/PageHeader";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export function JobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -114,8 +115,12 @@ export function JobDetailPage() {
 
   if (loading) {
     return (
-      <p className="text-[length:var(--body-m)] text-[var(--text-body)]" role="status">
-        Loading job…
+      <p
+        className="flex items-center gap-2 text-[length:var(--body-m)] text-[var(--text-body)]"
+        role="status"
+      >
+        <LoadingSpinner size="sm" aria-hidden />
+        <span>Loading job…</span>
       </p>
     );
   }

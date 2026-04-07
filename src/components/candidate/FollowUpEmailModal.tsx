@@ -25,6 +25,7 @@ import {
   type EmailTemplateVarContext,
 } from "../../utils/emailTemplateVars";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 const CONTACT_FROM = "contact@darwinbox.in";
 const CC_QUICK_RECRUITER = "recruiter.cc@darwinbox.in";
@@ -622,10 +623,22 @@ export function FollowUpEmailModal({
             <button
               type="button"
               disabled={sending || !candidateEmail.trim()}
+              aria-busy={sending}
               onClick={() => void handleSend()}
-              className="rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-w-[7rem] items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {sending ? "Sending…" : "Send"}
+              {sending ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner
+                    size="sm"
+                    aria-hidden
+                    className="border-white border-t-transparent"
+                  />
+                  Sending…
+                </span>
+              ) : (
+                "Send"
+              )}
             </button>
           </div>
         </div>

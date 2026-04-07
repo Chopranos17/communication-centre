@@ -12,6 +12,7 @@ import { IconFollowUp, IconMoreVertical, IconReply } from "./CommunicationToolba
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { ChannelTypeBadge } from "./ChannelTypeBadge";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 export type EmailTypeFilter = "all" | "system" | "user";
 
 const FILTER_OPTIONS: { id: EmailTypeFilter; label: string }[] = [
@@ -53,6 +54,8 @@ type CommunicationsJobEmailSectionProps = {
   missingJobMessage?: string | null;
   /** When the filter excludes all rows (optional copy for Current vs Other job) */
   emptyFilterMessage?: string;
+  /** When there are no messages at all for this job (not a filter mismatch). */
+  emptyTimelineMessage?: string;
   /** Opens email detail panel (single modal owned by parent). */
   onSelectEmail?: (row: CurrentJobEmailRow) => void;
   /** Clear open detail when filter or list identity changes. */
@@ -93,6 +96,7 @@ export function CommunicationsJobEmailSection({
   onRetry,
   missingJobMessage = null,
   emptyFilterMessage = "No messages match this filter for this job.",
+  emptyTimelineMessage = "No communications yet. Send the first message.",
   onSelectEmail,
   onInvalidateDetail,
   onNewEmail,
@@ -344,9 +348,13 @@ export function CommunicationsJobEmailSection({
           </div>
 
           {loading ? (
-            <p className="text-[length:var(--body-m)] text-[var(--text-label)]" role="status">
-              Loading communications…
-            </p>
+            <div
+              className="flex items-center gap-2 py-6 text-[length:var(--body-m)] text-[var(--text-label)]"
+              role="status"
+            >
+              <LoadingSpinner size="sm" aria-hidden />
+              <span>Loading communications…</span>
+            </div>
           ) : loadError ? (
             <div className="space-y-2">
               <p className="text-[length:var(--body-m)] text-[var(--text-error)]">{loadError}</p>
@@ -363,6 +371,10 @@ export function CommunicationsJobEmailSection({
           ) : missingJobMessage ? (
             <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
               {missingJobMessage}
+            </p>
+          ) : showBody && emails.length === 0 ? (
+            <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
+              {emptyTimelineMessage}
             </p>
           ) : showBody && filtered.length === 0 ? (
             <p className="text-[length:var(--body-m)] text-[var(--text-label)]">

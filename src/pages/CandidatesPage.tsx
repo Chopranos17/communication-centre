@@ -10,6 +10,7 @@ import { SendChannelMessageModal } from "../components/candidate/SendChannelMess
 import { PageHeader } from "../components/layout/PageHeader";
 import { ListToolbar } from "../components/layout/ListToolbar";
 import { PaginationFooter } from "../components/layout/PaginationFooter";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export function CandidatesPage() {
   const [rows, setRows] = useState<CandidateListRow[]>([]);
@@ -225,7 +226,13 @@ export function CandidatesPage() {
                     colSpan={6}
                     className="px-3 py-8 text-center text-[var(--text-label)]"
                   >
-                    Loading candidates…
+                    <span
+                      className="inline-flex items-center justify-center gap-2"
+                      role="status"
+                    >
+                      <LoadingSpinner size="sm" aria-hidden />
+                      Loading candidates…
+                    </span>
                   </td>
                 </tr>
               ) : (

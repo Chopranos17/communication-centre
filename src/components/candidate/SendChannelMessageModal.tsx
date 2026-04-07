@@ -5,6 +5,7 @@ import {
   composeSendSms,
   composeSendWhatsApp,
 } from "../../api/candidatesClient";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 const SMS_FROM =
   import.meta.env.VITE_SMS_SENDER_LABEL ?? "Twilio SMS (Sender ID)";
@@ -222,14 +223,16 @@ export function SendChannelMessageModal({
           <button
             type="button"
             disabled={sending || !text.trim()}
+            aria-busy={sending}
             onClick={() => void send()}
             className="inline-flex min-w-[7rem] items-center justify-center rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {sending ? (
               <span className="inline-flex items-center gap-2">
-                <span
-                  className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                <LoadingSpinner
+                  size="sm"
                   aria-hidden
+                  className="border-white border-t-transparent"
                 />
                 Sending…
               </span>

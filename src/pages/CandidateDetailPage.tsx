@@ -9,6 +9,7 @@ import {
 } from '../components/candidate/CandidateDetailTabs'
 import { CommunicationsCurrentJobSection } from '../components/candidate/CommunicationsCurrentJobSection'
 import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
+import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { HiringFlowPlaceholder } from '../components/candidate/HiringFlowPlaceholder'
 import { FilterTabs } from '../components/layout/FilterTabs'
 
@@ -110,8 +111,12 @@ export function CandidateDetailPage() {
 
   if (loading) {
     return (
-      <div className="text-[length:var(--body-m)] text-[var(--text-body)]" role="status">
-        Loading candidate…
+      <div
+        className="flex items-center gap-2 text-[length:var(--body-m)] text-[var(--text-body)]"
+        role="status"
+      >
+        <LoadingSpinner size="sm" aria-hidden />
+        <span>Loading candidate…</span>
       </div>
     )
   }

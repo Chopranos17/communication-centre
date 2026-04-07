@@ -5,6 +5,7 @@ import {
   scheduleMeeting,
   type ScheduleMeetingPayload,
 } from "../../api/candidatesClient";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 const DURATIONS: (15 | 30 | 45 | 60)[] = [15, 30, 45, 60];
 
@@ -374,10 +375,22 @@ export function ScheduleMeetingModal({
           <button
             type="button"
             disabled={!canSend || sending}
+            aria-busy={sending}
             onClick={() => void handleSend()}
             className="inline-flex min-w-[7rem] items-center justify-center rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {sending ? "Sending…" : "Send Invite"}
+            {sending ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSpinner
+                  size="sm"
+                  aria-hidden
+                  className="border-white border-t-transparent"
+                />
+                Sending…
+              </span>
+            ) : (
+              "Send Invite"
+            )}
           </button>
         </div>
       </div>

@@ -17,6 +17,7 @@ import {
   resolveEmailTemplateString,
   type EmailTemplateVarContext,
 } from "../../utils/emailTemplateVars";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 const FROM_OPTIONS = [
   {
@@ -758,14 +759,24 @@ export function ComposeEmailModal({
                 (isBulk && effectiveRecipients.length === 0) ||
                 (!isBulk && !primaryRecipient?.candidateEmail?.trim())
               }
+              aria-busy={sending}
               onClick={() => void handleSend()}
-              className="rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-w-[7rem] items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {sending
-                ? sendProgress
-                  ? `Sending ${sendProgress.current} of ${sendProgress.total}…`
-                  : "Sending…"
-                : "Send"}
+              {sending ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner
+                    size="sm"
+                    aria-hidden
+                    className="border-white border-t-transparent"
+                  />
+                  {sendProgress
+                    ? `Sending ${sendProgress.current} of ${sendProgress.total}…`
+                    : "Sending…"}
+                </span>
+              ) : (
+                "Send"
+              )}
             </button>
           </div>
         </div>
