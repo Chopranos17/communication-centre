@@ -11,6 +11,12 @@ function envEmail(key: string, fallback: string): string {
   return v && String(v).trim() ? String(v).trim() : fallback;
 }
 
+/** E.164 phone for SMS/WhatsApp demo (Twilio sandbox); safe fake fallback when unset */
+function envPhone(key: string, fallback: string): string {
+  const v = process.env[key];
+  return v && String(v).trim() ? String(v).trim() : fallback;
+}
+
 async function main() {
   await prisma.meeting.deleteMany();
   await prisma.communication.deleteMany();
@@ -163,9 +169,13 @@ async function main() {
 
   const [jobRsm, jobPm, jobSe, jobHrbp] = jobs;
 
+  /** Task 21: set in `.env` for live demo — Priya, Arjun, Sneha respectively */
   const demo1 = envEmail("SEED_DEMO_EMAIL_1", "demo.pm@example.com");
   const demo2 = envEmail("SEED_DEMO_EMAIL_2", "demo.colleague@example.com");
   const demo3 = envEmail("SEED_DEMO_EMAIL_3", "demo.candidate@example.com");
+  /** Task 21: real numbers that joined Twilio WhatsApp sandbox — Priya & Arjun */
+  const phoneDemo1 = envPhone("SEED_DEMO_PHONE_1", "+919876543210");
+  const phoneDemo2 = envPhone("SEED_DEMO_PHONE_2", "+919650064864");
 
   type CDef = {
     name: string;
@@ -182,8 +192,8 @@ async function main() {
     {
       name: "Priya Sharma",
       email: demo1,
-      phone: "+919876543210",
-      whatsapp_number: "+919876543210",
+      phone: phoneDemo1,
+      whatsapp_number: phoneDemo1,
       stage: "interview",
       source: "job_portal",
       recruiter_id: "emp-rec-001",
@@ -191,9 +201,9 @@ async function main() {
     },
     {
       name: "Arjun Mehta",
-      email: "akshat.c@darwinbox.in",
-      phone: "+919650064864",
-      whatsapp_number: "+919650064864",
+      email: demo2,
+      phone: phoneDemo2,
+      whatsapp_number: phoneDemo2,
       stage: "assessment",
       source: "referral",
       recruiter_id: "emp-rec-001",
@@ -271,9 +281,9 @@ async function main() {
     },
     {
       name: "Aditya Ghosh",
-      email: "akshat.c@darwinbox.in",
-      phone: "+919650064864",
-      whatsapp_number: "+919650064864",
+      email: "aditya.ghosh.dev@example.com",
+      phone: "+919811122233",
+      whatsapp_number: "+919811122233",
       stage: "interview",
       source: "IJP",
       recruiter_id: "emp-rec-002",

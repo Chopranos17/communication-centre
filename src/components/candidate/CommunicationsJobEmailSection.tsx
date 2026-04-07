@@ -316,7 +316,7 @@ export function CommunicationsJobEmailSection({
                         }
                       }}
                     >
-                      Whatsapp
+                      WhatsApp
                     </button>
                     <button
                       type="button"
