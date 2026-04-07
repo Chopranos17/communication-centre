@@ -5,6 +5,11 @@ import {
   scheduleMeeting,
   type ScheduleMeetingPayload,
 } from "../../api/candidatesClient";
+import {
+  meetingInvitePartial,
+  meetingInviteSuccess,
+  meetingInviteVendorError,
+} from "../../utils/sendFeedbackMessages";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 const DURATIONS: (15 | 30 | 45 | 60)[] = [15, 30, 45, 60];
@@ -136,19 +141,31 @@ export function ScheduleMeetingModal({
     };
     const result = await scheduleMeeting(candidateId, payload);
     setSending(false);
+    const total = result.inviteTotal ?? payload.participants.length;
+    const sent = result.inviteSent ?? 0;
+    const failed = result.inviteFailed ?? (total > 0 ? total : 0);
+
     if (result.success) {
       setBanner({
         kind: "ok",
-        text: "Meeting scheduled and invites sent.",
+        text: meetingInviteSuccess(sent || total),
       });
       onSent();
       window.setTimeout(() => {
         onClose();
       }, 600);
+    } else if (sent > 0 && failed > 0) {
+      setBanner({
+        kind: "ok",
+        text: meetingInvitePartial(sent, total, failed),
+      });
+      onSent();
     } else {
       setBanner({
         kind: "err",
-        text: result.error ?? "Could not send meeting invites.",
+        text: result.error
+          ? meetingInviteVendorError(result.error)
+          : meetingInviteVendorError("Unknown error"),
       });
     }
   }, [

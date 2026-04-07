@@ -967,6 +967,8 @@ app.post("/api/candidates/:candidateId/schedule-meeting", async (req, res) => {
     const messageIds: string[] = [];
     let anyFailed = false;
     let lastError: string | undefined;
+    let inviteSent = 0;
+    const inviteTotal = participantEmails.length;
 
     for (const to of participantEmails) {
       const result = await sendEmail({
@@ -977,6 +979,7 @@ app.post("/api/candidates/:candidateId/schedule-meeting", async (req, res) => {
       });
       if (result.success && result.messageId) {
         messageIds.push(result.messageId);
+        inviteSent += 1;
       } else {
         anyFailed = true;
         lastError = result.error;
@@ -1001,6 +1004,9 @@ app.post("/api/candidates/:candidateId/schedule-meeting", async (req, res) => {
       communicationId: comm.id,
       meetingId: meetingRow.id,
       messageIds,
+      inviteTotal,
+      inviteSent,
+      inviteFailed: inviteTotal - inviteSent,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

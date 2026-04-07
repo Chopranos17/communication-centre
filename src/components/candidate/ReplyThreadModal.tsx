@@ -24,6 +24,10 @@ import {
   resolveEmailTemplateString,
   type EmailTemplateVarContext,
 } from "../../utils/emailTemplateVars";
+import {
+  emailSuccessCandidateCount,
+  emailVendorError,
+} from "../../utils/sendFeedbackMessages";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 
@@ -335,7 +339,7 @@ export function ReplyThreadModal({
     if (result.success) {
       setBanner({
         type: "success",
-        text: `Email successfully sent to ${candidateEmail}.`,
+        text: emailSuccessCandidateCount(1),
       });
       onSent();
       setTimeout(() => onClose(), 1200);
@@ -343,8 +347,8 @@ export function ReplyThreadModal({
       setBanner({
         type: "error",
         text: result.error
-          ? `Failed to send email: ${result.error}. Message saved with failed status.`
-          : "Failed to send email. Message saved with failed status.",
+          ? emailVendorError(result.error)
+          : emailVendorError("Unknown error"),
       });
       onSent();
     }

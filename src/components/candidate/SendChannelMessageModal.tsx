@@ -5,6 +5,10 @@ import {
   composeSendSms,
   composeSendWhatsApp,
 } from "../../api/candidatesClient";
+import {
+  resolveWhatsAppErrorBannerText,
+  smsVendorError,
+} from "../../utils/sendFeedbackMessages";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 const SMS_FROM =
@@ -88,11 +92,13 @@ export function SendChannelMessageModal({
       onSent();
       setTimeout(() => onClose(), 1000);
     } else {
+      const errText = result.error ?? "Unknown error";
       setBanner({
         type: "error",
-        text: result.error
-          ? `Failed to send: ${result.error}. Message saved with failed status.`
-          : "Failed to send. Message saved with failed status.",
+        text:
+          variant === "sms"
+            ? smsVendorError(errText)
+            : resolveWhatsAppErrorBannerText(errText),
       });
       onSent();
     }

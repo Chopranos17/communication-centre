@@ -17,6 +17,11 @@ import {
   resolveEmailTemplateString,
   type EmailTemplateVarContext,
 } from "../../utils/emailTemplateVars";
+import {
+  emailPartialSuccess,
+  emailSuccessCandidateCount,
+  emailVendorError,
+} from "../../utils/sendFeedbackMessages";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 const FROM_OPTIONS = [
@@ -371,12 +376,7 @@ export function ComposeEmailModal({
     if (failCount === 0) {
       setBanner({
         type: "success",
-        text:
-          list.length === 1
-            ? `Email successfully sent to ${list[0].candidateEmail}.`
-            : `Email successfully sent to ${successCount} candidate${
-                successCount === 1 ? "" : "s"
-              }.`,
+        text: emailSuccessCandidateCount(successCount),
       });
       onSent();
       setTimeout(() => {
@@ -385,12 +385,10 @@ export function ComposeEmailModal({
     } else {
       const text =
         successCount > 0
-          ? `Email sent to ${successCount} of ${list.length} candidate${
-              list.length === 1 ? "" : "s"
-            }. ${failCount} failed.`
+          ? emailPartialSuccess(successCount, list.length, failCount)
           : lastError
-            ? `Failed to send email: ${lastError}. Message saved with failed status.`
-            : "Failed to send email. Message saved with failed status.";
+            ? emailVendorError(lastError)
+            : emailVendorError("Unknown error");
       setBanner({
         type: successCount > 0 ? "success" : "error",
         text,

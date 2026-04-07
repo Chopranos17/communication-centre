@@ -255,6 +255,10 @@ export type ScheduleMeetingPayload = {
 export type ScheduleMeetingResult = ComposeEmailResult & {
   meetingId?: string
   messageIds?: string[]
+  /** Task 19: per-recipient invite email stats */
+  inviteTotal?: number
+  inviteSent?: number
+  inviteFailed?: number
 }
 
 export async function scheduleMeeting(
