@@ -10,6 +10,7 @@ import {
 import { CommunicationsCurrentJobSection } from '../components/candidate/CommunicationsCurrentJobSection'
 import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { usePersona } from '../context/PersonaContext'
 import { HiringFlowPlaceholder } from '../components/candidate/HiringFlowPlaceholder'
 import { FilterTabs } from '../components/layout/FilterTabs'
 
@@ -51,6 +52,7 @@ export function CandidateDetailPage() {
   const [smsModalOpen, setSmsModalOpen] = useState(false)
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
   const [communicationsRefresh, setCommunicationsRefresh] = useState(0)
+  const { canManageRecruitment } = usePersona()
 
   const bumpCommunications = useCallback(() => {
     setCommunicationsRefresh((n) => n + 1)
@@ -177,8 +179,13 @@ export function CandidateDetailPage() {
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] shadow-[var(--elevation-1)]">
         <CandidateDetailHeader
           detail={detail}
-          onSendSms={() => setSmsModalOpen(true)}
-          onSendWhatsApp={() => setWhatsappModalOpen(true)}
+          showCommunicationActions={canManageRecruitment}
+          onSendSms={
+            canManageRecruitment ? () => setSmsModalOpen(true) : undefined
+          }
+          onSendWhatsApp={
+            canManageRecruitment ? () => setWhatsappModalOpen(true) : undefined
+          }
           smsDisabled={!detail.currentJob || !hasPhone}
           whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
           smsDisabledTitle={
@@ -193,7 +200,7 @@ export function CandidateDetailPage() {
           }
         />
 
-        {detail.currentJob ? (
+        {detail.currentJob && canManageRecruitment ? (
           <>
             <SendChannelMessageModal
               open={smsModalOpen}
@@ -308,8 +315,16 @@ export function CandidateDetailPage() {
                   currentJob={detail.currentJob}
                   jobApplicationCount={jobApplicationCount}
                   refreshSignal={communicationsRefresh}
-                  onSendSms={() => setSmsModalOpen(true)}
-                  onSendWhatsApp={() => setWhatsappModalOpen(true)}
+                  onSendSms={
+                    canManageRecruitment
+                      ? () => setSmsModalOpen(true)
+                      : undefined
+                  }
+                  onSendWhatsApp={
+                    canManageRecruitment
+                      ? () => setWhatsappModalOpen(true)
+                      : undefined
+                  }
                   smsDisabled={!detail.currentJob || !hasPhone}
                   whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
                   smsDisabledTitle={

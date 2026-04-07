@@ -8,6 +8,7 @@ import { ComposeEmailModal } from "../components/candidate/ComposeEmailModal";
 import type { ComposeEmailRecipient } from "../components/candidate/ComposeEmailModal";
 import { PageHeader } from "../components/layout/PageHeader";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { usePersona } from "../context/PersonaContext";
 
 export function JobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -20,6 +21,7 @@ export function JobDetailPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   /** When set, compose uses this candidate only (row action); otherwise uses checkbox selection. */
   const [composeFromRowId, setComposeFromRowId] = useState<string | null>(null);
+  const { canManageRecruitment } = usePersona();
 
   const load = useCallback(async () => {
     if (!jobId) return;
@@ -63,6 +65,14 @@ export function JobDetailPage() {
   const clearSelection = useCallback(() => {
     setSelected(new Set());
   }, []);
+
+  useEffect(() => {
+    if (!canManageRecruitment) {
+      clearSelection();
+      setComposeOpen(false);
+      setComposeFromRowId(null);
+    }
+  }, [canManageRecruitment, clearSelection]);
 
   const composeRecipients: ComposeEmailRecipient[] = useMemo(() => {
     if (!data) return [];
@@ -165,7 +175,9 @@ export function JobDetailPage() {
   return (
     <div
       className={
-        selected.size > 0 ? "pb-[4.5rem] sm:pb-[4.25rem]" : undefined
+        canManageRecruitment && selected.size > 0
+          ? "pb-[4.5rem] sm:pb-[4.25rem]"
+          : undefined
       }
     >
       <div className="mb-4">
@@ -186,7 +198,7 @@ export function JobDetailPage() {
         }
       />
 
-      {composeOpen && composeRecipients.length > 0 ? (
+      {canManageRecruitment && composeOpen && composeRecipients.length > 0 ? (
         <ComposeEmailModal
           open={composeOpen}
           onClose={closeCompose}
@@ -197,35 +209,46 @@ export function JobDetailPage() {
         />
       ) : null}
 
-      <p className="mb-3 text-[length:var(--body-m)] text-[var(--text-label)]">
-        Select candidates with the checkboxes for bulk email (bar at bottom), or
-        use <span className="font-medium text-[var(--text-body)]">Email</span>{" "}
-        on a row to message one candidate.
-      </p>
+      {canManageRecruitment ? (
+        <p className="mb-3 text-[length:var(--body-m)] text-[var(--text-label)]">
+          Select candidates with the checkboxes for bulk email (bar at bottom), or
+          use <span className="font-medium text-[var(--text-body)]">Email</span>{" "}
+          on a row to message one candidate.
+        </p>
+      ) : (
+        <p className="mb-3 text-[length:var(--body-m)] text-[var(--text-label)]">
+          Candidate view: you can browse this list; email and bulk actions are
+          hidden.
+        </p>
+      )}
 
       <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
         <div className="overflow-x-auto overscroll-x-contain rounded-[var(--radius-md)]">
           <table className="w-full min-w-[720px] border-collapse text-left text-[length:var(--body-m)]">
             <thead>
               <tr className="border-b border-[var(--border-subtle)] bg-[var(--blue-20)] text-[length:var(--body-s)] font-medium uppercase tracking-wide text-[var(--text-label)]">
-                <th className="w-12 px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={() => {
-                      if (allSelected) clearSelection();
-                      else selectAll();
-                    }}
-                    aria-label="Select all candidates"
-                    className="rounded border-[var(--border-default)]"
-                  />
-                </th>
+                {canManageRecruitment ? (
+                  <th className="w-12 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() => {
+                        if (allSelected) clearSelection();
+                        else selectAll();
+                      }}
+                      aria-label="Select all candidates"
+                      className="rounded border-[var(--border-default)]"
+                    />
+                  </th>
+                ) : null}
                 <th className="px-3 py-2">Candidate</th>
                 <th className="px-3 py-2">Email</th>
                 <th className="px-3 py-2">Jobs applied</th>
-                <th className="sticky right-0 z-20 w-[7.5rem] min-w-[7.5rem] border-l border-[var(--border-subtle)] bg-[var(--blue-20)] px-3 py-2 text-right shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]">
-                  Actions
-                </th>
+                {canManageRecruitment ? (
+                  <th className="sticky right-0 z-20 w-[7.5rem] min-w-[7.5rem] border-l border-[var(--border-subtle)] bg-[var(--blue-20)] px-3 py-2 text-right shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]">
+                    Actions
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -234,15 +257,17 @@ export function JobDetailPage() {
                   key={c.id}
                   className="group border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]"
                 >
-                  <td className="px-3 py-3 align-top">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(c.id)}
-                      onChange={() => toggle(c.id)}
-                      aria-label={`Select ${c.name}`}
-                      className="rounded border-[var(--border-default)]"
-                    />
-                  </td>
+                  {canManageRecruitment ? (
+                    <td className="px-3 py-3 align-top">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(c.id)}
+                        onChange={() => toggle(c.id)}
+                        aria-label={`Select ${c.name}`}
+                        className="rounded border-[var(--border-default)]"
+                      />
+                    </td>
+                  ) : null}
                   <td className="px-3 py-3 font-medium text-[var(--text-body)]">
                     {c.name}
                   </td>
@@ -252,25 +277,27 @@ export function JobDetailPage() {
                   <td className="px-3 py-3 text-[var(--text-label)]">
                     {c.jobCount}
                   </td>
-                  <td
-                    className="sticky right-0 z-10 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-3 text-right align-middle shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)] group-hover:bg-[var(--bg-surface-hover)]"
-                  >
-                    <button
-                      type="button"
-                      disabled={!c.email.trim()}
-                      title={
-                        !c.email.trim()
-                          ? "Candidate has no email address."
-                          : `Send email to ${c.name}`
-                      }
-                      onClick={() => {
-                        if (c.email.trim()) openComposeFromRow(c.id);
-                      }}
-                      className="inline-flex min-h-8 items-center justify-center whitespace-nowrap rounded border border-[var(--charcoal-100)] bg-[var(--white)] px-3 py-1.5 text-center text-[length:var(--body-m)] font-medium text-[var(--charcoal-700)] shadow-sm hover:bg-[var(--charcoal-5)] hover:border-[var(--charcoal-200)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--white)] disabled:hover:border-[var(--charcoal-100)]"
+                  {canManageRecruitment ? (
+                    <td
+                      className="sticky right-0 z-10 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-3 text-right align-middle shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)] group-hover:bg-[var(--bg-surface-hover)]"
                     >
-                      Email
-                    </button>
-                  </td>
+                      <button
+                        type="button"
+                        disabled={!c.email.trim()}
+                        title={
+                          !c.email.trim()
+                            ? "Candidate has no email address."
+                            : `Send email to ${c.name}`
+                        }
+                        onClick={() => {
+                          if (c.email.trim()) openComposeFromRow(c.id);
+                        }}
+                        className="inline-flex min-h-8 items-center justify-center whitespace-nowrap rounded border border-[var(--charcoal-100)] bg-[var(--white)] px-3 py-1.5 text-center text-[length:var(--body-m)] font-medium text-[var(--charcoal-700)] shadow-sm hover:bg-[var(--charcoal-5)] hover:border-[var(--charcoal-200)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[var(--white)] disabled:hover:border-[var(--charcoal-100)]"
+                      >
+                        Email
+                      </button>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -283,7 +310,7 @@ export function JobDetailPage() {
         ) : null}
       </div>
 
-      {selected.size > 0 ? (
+      {canManageRecruitment && selected.size > 0 ? (
         <div
           className="fixed inset-x-0 bottom-0 z-[100] flex flex-wrap items-center justify-between gap-3 border-t border-[var(--charcoal-600)] bg-[var(--charcoal-700)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--elevation-3)] sm:px-6"
           role="region"

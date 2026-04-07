@@ -11,6 +11,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { ListToolbar } from "../components/layout/ListToolbar";
 import { PaginationFooter } from "../components/layout/PaginationFooter";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { usePersona } from "../context/PersonaContext";
 
 export function CandidatesPage() {
   const [rows, setRows] = useState<CandidateListRow[]>([]);
@@ -24,6 +25,7 @@ export function CandidatesPage() {
     row: CandidateListRow;
     variant: "sms" | "whatsapp";
   } | null>(null);
+  const { canManageRecruitment } = usePersona();
 
   const rowMap = useMemo(
     () => new Map(rows.map((r) => [r.id, r])),
@@ -78,6 +80,16 @@ export function CandidatesPage() {
   const clearSelection = useCallback(() => {
     setSelected(new Set());
   }, []);
+
+  useEffect(() => {
+    if (!canManageRecruitment) {
+      clearSelection();
+      setComposeOpen(false);
+      setComposeFromRowId(null);
+      setChannelModal(null);
+      setMenuOpenId(null);
+    }
+  }, [canManageRecruitment, clearSelection]);
 
   const allSelected = rows.length > 0 && selected.size === rows.length;
 
@@ -139,7 +151,9 @@ export function CandidatesPage() {
   return (
     <div
       className={
-        selected.size > 0 ? "pb-[4.5rem] sm:pb-[4.25rem]" : undefined
+        canManageRecruitment && selected.size > 0
+          ? "pb-[4.5rem] sm:pb-[4.25rem]"
+          : undefined
       }
     >
       <PageHeader title="All Candidates" />
@@ -159,7 +173,10 @@ export function CandidatesPage() {
         </div>
       ) : null}
 
-      {composeOpen && composeRecipients.length > 0 && primaryJobId ? (
+      {canManageRecruitment &&
+      composeOpen &&
+      composeRecipients.length > 0 &&
+      primaryJobId ? (
         <ComposeEmailModal
           open={composeOpen}
           onClose={closeCompose}
@@ -170,7 +187,7 @@ export function CandidatesPage() {
         />
       ) : null}
 
-      {channelModal?.row.currentJobId ? (
+      {canManageRecruitment && channelModal?.row.currentJobId ? (
         <SendChannelMessageModal
           open={Boolean(channelModal)}
           onClose={() => setChannelModal(null)}
@@ -198,18 +215,20 @@ export function CandidatesPage() {
           <table className="w-full min-w-[900px] border-collapse text-left text-[length:var(--body-m)]">
             <thead>
               <tr className="border-b border-[var(--border-subtle)] bg-[var(--blue-20)] text-[length:var(--body-s)] font-medium uppercase tracking-wide text-[var(--text-label)]">
-                <th className="w-10 px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={() => {
-                      if (allSelected) clearSelection();
-                      else selectAll();
-                    }}
-                    aria-label="Select all"
-                    className="rounded border-[var(--border-default)]"
-                  />
-                </th>
+                {canManageRecruitment ? (
+                  <th className="w-10 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() => {
+                        if (allSelected) clearSelection();
+                        else selectAll();
+                      }}
+                      aria-label="Select all"
+                      className="rounded border-[var(--border-default)]"
+                    />
+                  </th>
+                ) : null}
                 <th className="px-3 py-2">Candidate</th>
                 <th className="px-3 py-2">Email &amp; Phone</th>
                 <th className="px-3 py-2">Job Applied</th>
@@ -223,7 +242,7 @@ export function CandidatesPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={canManageRecruitment ? 6 : 5}
                     className="px-3 py-8 text-center text-[var(--text-label)]"
                   >
                     <span
@@ -253,15 +272,17 @@ export function CandidatesPage() {
                       key={row.id}
                       className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]"
                     >
-                      <td className="px-3 py-3 align-top">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(row.id)}
-                          onChange={() => toggle(row.id)}
-                          aria-label={`Select ${row.name}`}
-                          className="rounded border-[var(--border-default)]"
-                        />
-                      </td>
+                      {canManageRecruitment ? (
+                        <td className="px-3 py-3 align-top">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(row.id)}
+                            onChange={() => toggle(row.id)}
+                            aria-label={`Select ${row.name}`}
+                            className="rounded border-[var(--border-default)]"
+                          />
+                        </td>
+                      ) : null}
                       <td className="px-3 py-3">
                         <Link
                           to={`/recruitment/candidates/${row.id}`}
@@ -350,69 +371,73 @@ export function CandidatesPage() {
                                 >
                                   View Application Log
                                 </Link>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  disabled={!canEmail}
-                                  title={
-                                    !canEmail
-                                      ? !row.currentJobId
-                                        ? "No current job application."
-                                        : "Candidate has no email address."
-                                      : undefined
-                                  }
-                                  className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                                  onClick={() => {
-                                    if (!canEmail) return;
-                                    setMenuOpenId(null);
-                                    openComposeFromRow(row.id);
-                                  }}
-                                >
-                                  Send Email
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  disabled={!canWhatsApp}
-                                  title={
-                                    !canWhatsApp
-                                      ? !row.currentJobId
-                                        ? "No current job application."
-                                        : "Candidate has no phone or WhatsApp number."
-                                      : undefined
-                                  }
-                                  className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                                  onClick={() => {
-                                    if (!canWhatsApp) return;
-                                    setMenuOpenId(null);
-                                    setChannelModal({
-                                      row,
-                                      variant: "whatsapp",
-                                    });
-                                  }}
-                                >
-                                  Send WhatsApp
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  disabled={!canSms}
-                                  title={
-                                    !canSms
-                                      ? !row.currentJobId
-                                        ? "No current job application."
-                                        : "Candidate has no valid phone number for SMS."
-                                      : undefined
-                                  }
-                                  className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                                  onClick={() => {
-                                    if (!canSms) return;
-                                    setMenuOpenId(null);
-                                    setChannelModal({ row, variant: "sms" });
-                                  }}
-                                >
-                                  Send SMS
-                                </button>
+                                {canManageRecruitment ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      disabled={!canEmail}
+                                      title={
+                                        !canEmail
+                                          ? !row.currentJobId
+                                            ? "No current job application."
+                                            : "Candidate has no email address."
+                                          : undefined
+                                      }
+                                      className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                                      onClick={() => {
+                                        if (!canEmail) return;
+                                        setMenuOpenId(null);
+                                        openComposeFromRow(row.id);
+                                      }}
+                                    >
+                                      Send Email
+                                    </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      disabled={!canWhatsApp}
+                                      title={
+                                        !canWhatsApp
+                                          ? !row.currentJobId
+                                            ? "No current job application."
+                                            : "Candidate has no phone or WhatsApp number."
+                                          : undefined
+                                      }
+                                      className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                                      onClick={() => {
+                                        if (!canWhatsApp) return;
+                                        setMenuOpenId(null);
+                                        setChannelModal({
+                                          row,
+                                          variant: "whatsapp",
+                                        });
+                                      }}
+                                    >
+                                      Send WhatsApp
+                                    </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      disabled={!canSms}
+                                      title={
+                                        !canSms
+                                          ? !row.currentJobId
+                                            ? "No current job application."
+                                            : "Candidate has no valid phone number for SMS."
+                                          : undefined
+                                      }
+                                      className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                                      onClick={() => {
+                                        if (!canSms) return;
+                                        setMenuOpenId(null);
+                                        setChannelModal({ row, variant: "sms" });
+                                      }}
+                                    >
+                                      Send SMS
+                                    </button>
+                                  </>
+                                ) : null}
                               </div>
                             ) : null}
                           </div>
@@ -428,7 +453,7 @@ export function CandidatesPage() {
         <PaginationFooter from={1} to={rows.length} total={rows.length} />
       </div>
 
-      {selected.size > 0 ? (
+      {canManageRecruitment && selected.size > 0 ? (
         <div
           className="fixed inset-x-0 bottom-0 z-[100] flex flex-wrap items-center justify-between gap-3 border-t border-[var(--charcoal-600)] bg-[var(--charcoal-700)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--elevation-3)] sm:px-6"
           role="region"

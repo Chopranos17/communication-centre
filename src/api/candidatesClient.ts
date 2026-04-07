@@ -76,6 +76,8 @@ export type MeetingTimelineMeta = {
 export type CurrentJobEmailRow = {
   id: string
   channel: TimelineChannel
+  /** outbound = sent to candidate; inbound = candidate reply */
+  direction: "outbound" | "inbound"
   senderType: string
   senderLabel: string
   filterBucket: "system" | "user"

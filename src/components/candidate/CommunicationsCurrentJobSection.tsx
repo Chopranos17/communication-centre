@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchCandidateCurrentJobEmails } from "../../api/candidatesClient";
+import { usePersona } from "../../context/PersonaContext";
 import type {
   CandidateCurrentJobEmails,
   CurrentJobEmailRow,
@@ -64,6 +65,25 @@ export function CommunicationsCurrentJobSection({
     title: string;
   } | null>(null);
 
+  const { canManageRecruitment } = usePersona();
+
+  const emailsForPersona = useMemo(() => {
+    const list = data?.emails ?? EMPTY_EMAILS;
+    if (canManageRecruitment) return list;
+    return list.filter((e) => e.direction === "outbound");
+  }, [data?.emails, canManageRecruitment]);
+
+  const otherJobSectionsForPersona = useMemo(() => {
+    const sections = data?.otherJobEmailSections ?? [];
+    if (canManageRecruitment) return sections;
+    return sections
+      .map((section) => ({
+        ...section,
+        emails: section.emails.filter((e) => e.direction === "outbound"),
+      }))
+      .filter((section) => section.emails.length > 0);
+  }, [data?.otherJobEmailSections, canManageRecruitment]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -92,7 +112,6 @@ export function CommunicationsCurrentJobSection({
 
   const jobTitle = data?.currentJob?.title ?? "Current role";
   const jobCode = data?.currentJob?.jobCode;
-  const otherSections = data?.otherJobEmailSections ?? [];
 
   const composeJob = currentJob ?? data?.currentJob ?? null;
   const canCompose = Boolean(
@@ -112,10 +131,14 @@ export function CommunicationsCurrentJobSection({
     setReplyRows(rows);
   };
 
+  const emptyTimelineCopy = canManageRecruitment
+    ? "No communications yet. Send the first message."
+    : "No messages received yet.";
+
   return (
     <div className="space-y-4">
       <EmailDetailModal email={detailEmail} onClose={() => setDetailEmail(null)} />
-      {actionJob && followUpRows ? (
+      {canManageRecruitment && actionJob && followUpRows ? (
         <FollowUpEmailModal
           open
           onClose={() => {
@@ -131,7 +154,7 @@ export function CommunicationsCurrentJobSection({
           onSent={() => void load()}
         />
       ) : null}
-      {actionJob && replyRows ? (
+      {canManageRecruitment && actionJob && replyRows ? (
         <ReplyThreadModal
           open
           onClose={() => {
@@ -147,7 +170,7 @@ export function CommunicationsCurrentJobSection({
           onSent={() => void load()}
         />
       ) : null}
-      {composeJob ? (
+      {canManageRecruitment && composeJob ? (
         <ComposeEmailModal
           open={composeOpen}
           onClose={() => setComposeOpen(false)}
@@ -166,7 +189,7 @@ export function CommunicationsCurrentJobSection({
           onSent={() => void load()}
         />
       ) : null}
-      {composeJob ? (
+      {canManageRecruitment && composeJob ? (
         <ScheduleMeetingModal
           open={meetingOpen}
           onClose={() => setMeetingOpen(false)}
@@ -186,12 +209,13 @@ export function CommunicationsCurrentJobSection({
         jobId={data?.currentJob?.id ?? currentJob?.id ?? ""}
         jobCode={jobCode}
         titleSuffix=" (Current Job)"
-        showNewEmailButton
-        emails={data?.emails ?? EMPTY_EMAILS}
+        showNewEmailButton={canManageRecruitment}
+        emails={emailsForPersona}
         loading={loading}
         loadError={loadError}
         onRetry={() => void load()}
         emptyFilterMessage="No messages match this filter for the current job."
+        emptyTimelineMessage={emptyTimelineCopy}
         missingJobMessage={
           !loading && !loadError && !data?.currentJob
             ? "No current job is linked to this candidate."
@@ -199,16 +223,20 @@ export function CommunicationsCurrentJobSection({
         }
         onSelectEmail={setDetailEmail}
         onInvalidateDetail={clearDetailEmail}
-        onNewEmail={() => setComposeOpen(true)}
+        onNewEmail={
+          canManageRecruitment ? () => setComposeOpen(true) : undefined
+        }
         newEmailDisabled={!canCompose}
         newEmailDisabledTitle={
           !candidateEmail.trim()
             ? "Candidate has no email address."
             : "No current job is linked to this candidate."
         }
-        onSendSms={onSendSms}
-        onSendWhatsApp={onSendWhatsApp}
-        onScheduleMeeting={() => setMeetingOpen(true)}
+        onSendSms={canManageRecruitment ? onSendSms : undefined}
+        onSendWhatsApp={canManageRecruitment ? onSendWhatsApp : undefined}
+        onScheduleMeeting={
+          canManageRecruitment ? () => setMeetingOpen(true) : undefined
+        }
         smsDisabled={smsDisabled}
         whatsappDisabled={whatsappDisabled}
         scheduleMeetingDisabled={!canScheduleMeeting}
@@ -220,19 +248,27 @@ export function CommunicationsCurrentJobSection({
             : "No current job is linked to this candidate."
         }
         candidateName={candidateName}
-        onFollowUp={(rows) => {
-          const j = data?.currentJob ?? currentJob;
-          if (!j) return;
-          openFollowUp(rows, { id: j.id, title: j.title });
-        }}
-        onReply={(rows) => {
-          const j = data?.currentJob ?? currentJob;
-          if (!j) return;
-          openReply(rows, { id: j.id, title: j.title });
-        }}
+        onFollowUp={
+          canManageRecruitment
+            ? (rows) => {
+                const j = data?.currentJob ?? currentJob;
+                if (!j) return;
+                openFollowUp(rows, { id: j.id, title: j.title });
+              }
+            : undefined
+        }
+        onReply={
+          canManageRecruitment
+            ? (rows) => {
+                const j = data?.currentJob ?? currentJob;
+                if (!j) return;
+                openReply(rows, { id: j.id, title: j.title });
+              }
+            : undefined
+        }
       />
 
-      {otherSections.map((section) => (
+      {otherJobSectionsForPersona.map((section) => (
         <CommunicationsJobEmailSection
           key={section.job.id}
           defaultSectionOpen={false}
@@ -245,18 +281,25 @@ export function CommunicationsCurrentJobSection({
           onSelectEmail={setDetailEmail}
           onInvalidateDetail={clearDetailEmail}
           candidateName={candidateName}
-          onFollowUp={(rows) =>
-            openFollowUp(rows, {
-              id: section.job.id,
-              title: section.job.title,
-            })
+          onFollowUp={
+            canManageRecruitment
+              ? (rows) =>
+                  openFollowUp(rows, {
+                    id: section.job.id,
+                    title: section.job.title,
+                  })
+              : undefined
           }
-          onReply={(rows) =>
-            openReply(rows, {
-              id: section.job.id,
-              title: section.job.title,
-            })
+          onReply={
+            canManageRecruitment
+              ? (rows) =>
+                  openReply(rows, {
+                    id: section.job.id,
+                    title: section.job.title,
+                  })
+              : undefined
           }
+          emptyTimelineMessage={emptyTimelineCopy}
         />
       ))}
     </div>

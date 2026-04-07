@@ -130,6 +130,8 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
       return {
         id: row.id,
         channel,
+        /** outbound = to candidate; inbound = from candidate (reply). Used for candidate-persona timeline. */
+        direction: row.direction,
         senderType: mapped.senderType,
         senderLabel: mapped.senderLabel,
         filterBucket: mapped.filterBucket,

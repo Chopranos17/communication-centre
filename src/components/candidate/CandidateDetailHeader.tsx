@@ -16,6 +16,8 @@ type Props = {
   whatsappDisabled?: boolean
   smsDisabledTitle?: string
   whatsappDisabledTitle?: string
+  /** When false, hides SMS/WhatsApp actions (e.g. Candidate persona read-only). */
+  showCommunicationActions?: boolean
 }
 
 export function CandidateDetailHeader({
@@ -26,6 +28,7 @@ export function CandidateDetailHeader({
   whatsappDisabled = false,
   smsDisabledTitle,
   whatsappDisabledTitle,
+  showCommunicationActions = true,
 }: Props) {
   const [actionsOpen, setActionsOpen] = useState(false)
   const actionsRef = useRef<HTMLDivElement>(null)
@@ -85,57 +88,59 @@ export function CandidateDetailHeader({
                 </button>
               </p>
             </div>
-            <div className="relative shrink-0" ref={actionsRef}>
-              <button
-                type="button"
-                onClick={() => setActionsOpen((o) => !o)}
-                className="flex h-9 w-9 items-center justify-center rounded text-[var(--blue-100)] hover:bg-[var(--blue-600)]"
-                aria-expanded={actionsOpen}
-                aria-haspopup="menu"
-                aria-label="Candidate actions"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                  <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                </svg>
-              </button>
-              {actionsOpen ? (
-                <div
-                  className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
-                  role="menu"
+            {showCommunicationActions ? (
+              <div className="relative shrink-0" ref={actionsRef}>
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((o) => !o)}
+                  className="flex h-9 w-9 items-center justify-center rounded text-[var(--blue-100)] hover:bg-[var(--blue-600)]"
+                  aria-expanded={actionsOpen}
+                  aria-haspopup="menu"
+                  aria-label="Candidate actions"
                 >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={smsDisabled || !onSendSms}
-                    title={smsDisabled ? smsDisabledTitle : undefined}
-                    onClick={() => {
-                      if (!smsDisabled && onSendSms) {
-                        onSendSms()
-                        setActionsOpen(false)
-                      }
-                    }}
-                    className="block w-full px-4 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)] disabled:cursor-not-allowed disabled:opacity-50"
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                  </svg>
+                </button>
+                {actionsOpen ? (
+                  <div
+                    className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
+                    role="menu"
                   >
-                    Send SMS
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={whatsappDisabled || !onSendWhatsApp}
-                    title={whatsappDisabled ? whatsappDisabledTitle : undefined}
-                    onClick={() => {
-                      if (!whatsappDisabled && onSendWhatsApp) {
-                        onSendWhatsApp()
-                        setActionsOpen(false)
-                      }
-                    }}
-                    className="block w-full px-4 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Send WhatsApp
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={smsDisabled || !onSendSms}
+                      title={smsDisabled ? smsDisabledTitle : undefined}
+                      onClick={() => {
+                        if (!smsDisabled && onSendSms) {
+                          onSendSms()
+                          setActionsOpen(false)
+                        }
+                      }}
+                      className="block w-full px-4 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Send SMS
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={whatsappDisabled || !onSendWhatsApp}
+                      title={whatsappDisabled ? whatsappDisabledTitle : undefined}
+                      onClick={() => {
+                        if (!whatsappDisabled && onSendWhatsApp) {
+                          onSendWhatsApp()
+                          setActionsOpen(false)
+                        }
+                      }}
+                      className="block w-full px-4 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Send WhatsApp
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
