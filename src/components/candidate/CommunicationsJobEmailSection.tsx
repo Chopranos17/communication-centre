@@ -264,7 +264,7 @@ export function CommunicationsJobEmailSection({
   const toggleSection = () => setSectionOpen((o) => !o);
 
   return (
-    <div className="mb-4 rounded-lg border border-gray-200/60 bg-gray-50 shadow-none">
+    <div className="rounded-lg border border-[#e0e0e0] bg-[#f5f5f5] shadow-none">
       <div className="flex items-center justify-between gap-3 px-5 py-4">
         <button
           type="button"

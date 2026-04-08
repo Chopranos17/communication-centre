@@ -307,7 +307,7 @@ export function CandidateDetailPage() {
             {mainTab === 'activity' ? <TabPanelPlaceholder title="Activity Log" /> : null}
 
             {mainTab === 'communications' ? (
-              <div className="space-y-4">
+              <div className="space-y-4 rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-5 shadow-[var(--elevation-1)]">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2
                     className="text-[length:var(--title-xs)] font-bold text-[var(--text-title)]"
@@ -362,7 +362,10 @@ export function CandidateDetailPage() {
             {mainTab === 'other-apps' ? <TabPanelPlaceholder title="Other Apps" /> : null}
           </div>
 
-          <CandidateDetailSidebar detail={detail} />
+          <CandidateDetailSidebar
+            detail={detail}
+            communicationsLayout={mainTab === 'communications'}
+          />
         </div>
       </div>
     </div>
