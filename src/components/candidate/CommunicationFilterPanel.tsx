@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CommunicationFilters } from "../../utils/communicationsTimelineFilter";
 import { DEFAULT_COMMUNICATION_FILTERS } from "../../utils/communicationsTimelineFilter";
 
@@ -76,11 +77,11 @@ export function CommunicationFilterPanel({
 
   const sectionClass = "mb-6";
 
-  return (
+  const panel = (
     <>
       <div
         className={[
-          "fixed inset-0 z-40 bg-black/30 transition-opacity duration-300 ease-in-out",
+          "fixed inset-0 z-[100] bg-black/30 transition-opacity duration-300 ease-in-out",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         ].join(" ")}
         aria-hidden={!isOpen}
@@ -88,7 +89,7 @@ export function CommunicationFilterPanel({
       />
       <aside
         className={[
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-[420px] flex-col bg-white shadow-[0_0_24px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-[101] flex w-full max-w-[420px] flex-col bg-white shadow-[0_0_24px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "pointer-events-none translate-x-full",
         ].join(" ")}
         role="dialog"
@@ -172,7 +173,7 @@ export function CommunicationFilterPanel({
                   }
                   className="h-4 w-4 border-gray-300 text-gray-900"
                 />
-                Sent
+                Outbound
               </label>
               <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
                 <input
@@ -184,7 +185,7 @@ export function CommunicationFilterPanel({
                   }
                   className="h-4 w-4 border-gray-300 text-gray-900"
                 />
-                Received
+                Inbound
               </label>
             </div>
           </div>
@@ -279,7 +280,7 @@ export function CommunicationFilterPanel({
           </div>
         </div>
 
-        <footer className="shrink-0 border-t border-gray-200 px-6 py-4">
+        <footer className="shrink-0 border-t border-gray-200 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <button
               type="button"
@@ -309,4 +310,6 @@ export function CommunicationFilterPanel({
       </aside>
     </>
   );
+
+  return createPortal(panel, document.body);
 }

@@ -289,17 +289,17 @@ export function CommunicationsJobEmailSection({
         <div className="flex shrink-0 items-center gap-2">
           {showNewEmailButton ? (
             <div ref={splitCommActionsRef} className="relative flex items-center">
-              <div className="inline-flex overflow-hidden rounded-md border border-black bg-black shadow-sm">
+              <div className="inline-flex overflow-hidden rounded-[var(--radius-sm)] border border-black bg-black shadow-sm">
                 <button
                   type="button"
-                  className="inline-flex h-9 items-center gap-1 border-r border-white/25 px-3 text-sm font-semibold text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-1 border-r border-white/25 px-4 py-1.5 text-[length:var(--body-s)] font-medium text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={Boolean(newEmailDisabled || !onNewEmail)}
                   title={
                     newEmailDisabled ? (newEmailDisabledTitle ?? "") : "Email"
                   }
                   onClick={() => onNewEmail?.()}
                 >
-                  <span className="text-lg font-medium leading-none" aria-hidden>
+                  <span className="text-sm font-medium leading-none" aria-hidden>
                     +
                   </span>
                   <span>Email</span>
@@ -307,14 +307,14 @@ export function CommunicationsJobEmailSection({
                 <button
                   type="button"
                   id="comm-actions-more-trigger"
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  className="inline-flex shrink-0 items-center justify-center px-2 py-1.5 text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   aria-expanded={moreMenuOpen}
                   aria-haspopup="menu"
                   aria-controls="comm-actions-more-menu"
                   aria-label="More communication actions"
                   onClick={() => setMoreMenuOpen((o) => !o)}
                 >
-                  <IconMoreVertical className="h-4 w-4 text-white" />
+                  <IconMoreVertical className="h-3.5 w-3.5 text-white" />
                 </button>
               </div>
               {moreMenuOpen ? (
