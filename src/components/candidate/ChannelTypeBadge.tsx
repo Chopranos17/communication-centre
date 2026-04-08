@@ -7,8 +7,11 @@ type Props = {
   className?: string;
 };
 
+const pill =
+  "inline-flex max-w-full shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium ";
+
 /**
- * Compact channel label for the communications timeline (Task 17).
+ * Channel pill on the communications timeline.
  */
 export function ChannelTypeBadge({
   channel,
@@ -16,46 +19,28 @@ export function ChannelTypeBadge({
   senderType,
   className,
 }: Props) {
-  const base =
-    "inline-flex max-w-full shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide " +
-    (className ?? "");
+  const extra = className ?? "";
 
   if (channel === "system") {
-    return (
-      <span
-        className={`${base} border border-slate-200 bg-slate-100 text-slate-700`}
-        title="System notification"
-      >
-        System
-      </span>
-    );
+    return null;
   }
   if (channel === "sms") {
     return (
-      <span
-        className={`${base} border border-emerald-200 bg-emerald-50 text-emerald-900`}
-        title="SMS"
-      >
+      <span className={`${pill} bg-amber-100 text-amber-800 ${extra}`} title="SMS">
         SMS
       </span>
     );
   }
   if (channel === "whatsapp") {
     return (
-      <span
-        className={`${base} border border-[#25D366]/40 bg-[#25D366]/15 text-[#075E54]`}
-        title="WhatsApp"
-      >
+      <span className={`${pill} bg-green-100 text-green-800 ${extra}`} title="WhatsApp">
         WhatsApp
       </span>
     );
   }
   if (channel === "meeting") {
     return (
-      <span
-        className={`${base} border border-indigo-200 bg-indigo-50 text-indigo-900`}
-        title="Meeting"
-      >
+      <span className={`${pill} bg-purple-100 text-purple-800 ${extra}`} title="Meeting">
         Meeting
       </span>
     );
@@ -64,28 +49,19 @@ export function ChannelTypeBadge({
   if (filterBucket === "system") {
     if (senderType === "CRM") {
       return (
-        <span
-          className={`${base} border border-violet-200 bg-violet-50 text-violet-900`}
-          title="CRM"
-        >
+        <span className={`${pill} bg-violet-100 text-violet-800 ${extra}`} title="CRM">
           CRM
         </span>
       );
     }
     return (
-      <span
-        className={`${base} border border-slate-200 bg-slate-100 text-slate-700`}
-        title="System email"
-      >
+      <span className={`${pill} bg-gray-100 text-gray-800 ${extra}`} title="System email">
         System
       </span>
     );
   }
   return (
-    <span
-      className={`${base} border border-[var(--blue-200)] bg-[var(--blue-50)] text-[var(--blue-800)]`}
-      title="Email"
-    >
+    <span className={`${pill} bg-blue-100 text-blue-800 ${extra}`} title="Email">
       Email
     </span>
   );

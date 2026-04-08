@@ -97,7 +97,7 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
             <ChannelTimelineIcon
               channel={ch}
               filterBucket={email.filterBucket}
-              className="text-[var(--text-body)]"
+              className="h-5 w-5 text-[var(--text-body)]"
             />
             <ChannelTypeBadge
               channel={ch}

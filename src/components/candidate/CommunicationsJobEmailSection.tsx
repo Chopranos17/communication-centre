@@ -1,19 +1,25 @@
 import { Fragment, useMemo, useState, useEffect, useRef } from "react";
-import type { CurrentJobEmailRow } from "../../api/candidatesClient";
+import type { CurrentJobEmailRow, TimelineChannel } from "../../api/candidatesClient";
 import {
   buildTimelineMessagePreview,
   buildTimelineThreadGroups,
   type TimelineGroupSortOrder,
+  formatMeetingTimelineFooter,
   formatTimelineTime,
   getContactThreadActions,
   meetingStatusBadgeLabel,
-  threadSenderColumnLabel,
+  stripHtml,
 } from "../../utils/communicationTimeline";
-import { IconFollowUp, IconMoreVertical, IconReply } from "./CommunicationToolbarIcons";
+import {
+  IconFollowUp,
+  IconMoreVertical,
+  IconReply,
+} from "./CommunicationToolbarIcons";
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { ChannelTypeBadge } from "./ChannelTypeBadge";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+
 export type EmailTypeFilter = "all" | "system" | "user";
 
 const FILTER_OPTIONS: { id: EmailTypeFilter; label: string }[] = [
@@ -24,7 +30,6 @@ const FILTER_OPTIONS: { id: EmailTypeFilter; label: string }[] = [
 
 const INITIAL_VISIBLE = 6;
 const EXPANDED_CAP = 10;
-/** ~10 table body rows at ~56px (design system table pattern). */
 const SCROLL_MAX_HEIGHT_PX = 560;
 
 function filterEmails(
@@ -36,41 +41,114 @@ function filterEmails(
   return rows.filter((r) => r.filterBucket === "user");
 }
 
+function timelineDotClasses(channel: TimelineChannel): {
+  circle: string;
+  icon: string;
+} {
+  switch (channel) {
+    case "email":
+      return { circle: "bg-blue-100", icon: "text-blue-600" };
+    case "whatsapp":
+      return { circle: "bg-green-100", icon: "text-green-600" };
+    case "sms":
+      return { circle: "bg-amber-100", icon: "text-amber-600" };
+    case "meeting":
+      return { circle: "bg-purple-100", icon: "text-purple-600" };
+    case "system":
+      return { circle: "bg-gray-100", icon: "text-gray-400" };
+    default:
+      return { circle: "bg-gray-100", icon: "text-gray-400" };
+  }
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M6 9l6 6 6-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function InboundBadge() {
+  return (
+    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+      Inbound
+    </span>
+  );
+}
+
+function MailGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+      />
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M22 6l-10 7L2 6"
+      />
+    </svg>
+  );
+}
+
+function threadParentDisplayName(
+  rows: CurrentJobEmailRow[],
+  candidateName: string,
+): string {
+  const fromCandidate = rows.find((r) => r.senderType === "candidate");
+  if (fromCandidate) {
+    return candidateName.trim() || fromCandidate.senderLabel || "Candidate";
+  }
+  const sorted = [...rows].sort(
+    (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+  );
+  return sorted[0]?.senderLabel ?? "—";
+}
+
 type CommunicationsJobEmailSectionProps = {
-  /** Collapsible panel open by default (Current Job = true, Other Jobs = false). */
   defaultSectionOpen: boolean;
-  /** Job title in header */
   jobTitle: string;
-  /** Required for Task 13 follow-up / reply compose. */
   jobId: string;
   jobCode?: string | null;
-  /** e.g. " (Current Job)" — omit for other jobs */
   titleSuffix?: string | null;
   showNewEmailButton: boolean;
   emails: CurrentJobEmailRow[];
-  /** Row count before parent-level search/channel/direction filters (for empty states). */
   preGlobalEmailCount?: number;
-  /** Resets parent search/channel/direction filters (shown when global filters hide all rows). */
   onClearGlobalFilters?: () => void;
   loading?: boolean;
   loadError?: string | null;
   onRetry?: () => void;
-  /** When current job is missing (current section only) */
   missingJobMessage?: string | null;
-  /** When the filter excludes all rows (optional copy for Current vs Other job) */
   emptyFilterMessage?: string;
-  /** When there are no messages at all for this job (not a filter mismatch). */
   emptyTimelineMessage?: string;
-  /** Opens email detail panel (single modal owned by parent). */
   onSelectEmail?: (row: CurrentJobEmailRow) => void;
-  /** Clear open detail when filter or list identity changes. */
   onInvalidateDetail?: () => void;
-  /** Opens compose email panel (Current Job section). */
   onNewEmail?: () => void;
-  /** Disables "+ New Email" (e.g. no current job or no candidate email). */
   newEmailDisabled?: boolean;
   newEmailDisabledTitle?: string;
-  /** Optional — same actions as Candidate header ⋮ menu (Current Job section only). */
   onSendSms?: () => void;
   onSendWhatsApp?: () => void;
   onScheduleMeeting?: () => void;
@@ -80,13 +158,9 @@ type CommunicationsJobEmailSectionProps = {
   smsDisabledTitle?: string;
   whatsappDisabledTitle?: string;
   scheduleMeetingDisabledTitle?: string;
-  /** Used for "{Candidate Name} (N)" on threads with a candidate reply (PRD §4.5). */
   candidateName?: string;
-  /** Task 13: contact@ threads without candidate reply. */
   onFollowUp?: (threadRows: CurrentJobEmailRow[]) => void;
-  /** Task 13: contact@ threads with candidate reply. */
   onReply?: (threadRows: CurrentJobEmailRow[]) => void;
-  /** Thread group ordering from Communications filter panel. */
   timelineGroupOrder?: TimelineGroupSortOrder;
 };
 
@@ -136,14 +210,15 @@ export function CommunicationsJobEmailSection({
     Record<string, boolean>
   >({});
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [cardMenuGroupKey, setCardMenuGroupKey] = useState<string | null>(null);
   const splitCommActionsRef = useRef<HTMLDivElement>(null);
+  const cardMenuRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(
     () => (emails.length ? filterEmails(emails, emailFilter) : []),
     [emails, emailFilter],
   );
 
-  /** Stable identity for list contents — avoid clearing the detail modal when `emails` is a new [] each render. */
   const emailListKey = useMemo(
     () => emails.map((e) => e.id).join("\u001f"),
     [emails],
@@ -177,6 +252,25 @@ export function CommunicationsJobEmailSection({
     };
   }, [moreMenuOpen]);
 
+  useEffect(() => {
+    if (!cardMenuGroupKey) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const el = cardMenuRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setCardMenuGroupKey(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCardMenuGroupKey(null);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [cardMenuGroupKey]);
+
   const threadGroups = useMemo(
     () => buildTimelineThreadGroups(filtered, timelineGroupOrder),
     [filtered, timelineGroupOrder],
@@ -193,9 +287,7 @@ export function CommunicationsJobEmailSection({
 
   const showBody = missingJobMessage == null;
 
-  const showThreadActions = Boolean(
-    jobId.trim() && (onFollowUp || onReply),
-  );
+  const showThreadActions = Boolean(jobId.trim() && (onFollowUp || onReply));
 
   const openDetail = onSelectEmail ?? (() => {});
 
@@ -206,159 +298,161 @@ export function CommunicationsJobEmailSection({
     }));
   };
 
-  return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
-      <button
-        type="button"
-        onClick={() => setSectionOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3 text-left sm:px-5"
-        aria-expanded={sectionOpen}
-      >
-        <span
-          className="text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]"
-          style={{ fontWeight: "var(--font-weight-bold)" }}
-        >
-          {jobTitle}
-          {titleSuffix ? (
-            <span className="font-medium text-[var(--text-label)]">{titleSuffix}</span>
-          ) : null}
-          {jobCode ? (
-            <span className="ml-2 text-[length:var(--body-s)] font-normal text-[var(--text-label)]">
-              {jobCode}
-            </span>
-          ) : null}
-        </span>
-        <span className="text-[var(--text-label)]" aria-hidden>
-          {sectionOpen ? "▼" : "▶"}
-        </span>
-      </button>
+  const toggleSection = () => setSectionOpen((o) => !o);
 
-      {sectionOpen ? (
-        <div className="bg-[var(--charcoal-10)] px-4 py-4 sm:px-5">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {FILTER_OPTIONS.map((opt) => {
-                const active = emailFilter === opt.id;
-                return (
+  return (
+    <div className="rounded-lg border border-gray-200 bg-slate-50 shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:px-5">
+        <button
+          type="button"
+          onClick={toggleSection}
+          className="min-w-0 flex-1 text-left"
+          aria-expanded={sectionOpen}
+        >
+          <span className="text-sm font-bold text-gray-900 sm:text-base">
+            {jobTitle}
+            {titleSuffix ? (
+              <span className="font-medium text-gray-600">{titleSuffix}</span>
+            ) : null}
+            {jobCode ? (
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                {jobCode}
+              </span>
+            ) : null}
+          </span>
+        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {showNewEmailButton ? (
+            <div ref={splitCommActionsRef} className="relative flex items-center">
+              <div className="inline-flex overflow-hidden rounded-md border border-black bg-black shadow-sm">
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center gap-1 border-r border-white/25 px-3 text-sm font-semibold text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={Boolean(newEmailDisabled || !onNewEmail)}
+                  title={
+                    newEmailDisabled ? (newEmailDisabledTitle ?? "") : "Email"
+                  }
+                  onClick={() => onNewEmail?.()}
+                >
+                  <span className="text-lg font-medium leading-none" aria-hidden>
+                    +
+                  </span>
+                  <span>Email</span>
+                </button>
+                <button
+                  type="button"
+                  id="comm-actions-more-trigger"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  aria-expanded={moreMenuOpen}
+                  aria-haspopup="menu"
+                  aria-controls="comm-actions-more-menu"
+                  aria-label="More communication actions"
+                  onClick={() => setMoreMenuOpen((o) => !o)}
+                >
+                  <IconMoreVertical className="h-4 w-4 text-white" />
+                </button>
+              </div>
+              {moreMenuOpen ? (
+                <div
+                  id="comm-actions-more-menu"
+                  role="menu"
+                  aria-labelledby="comm-actions-more-trigger"
+                  className="absolute right-0 top-full z-[60] mt-1 min-w-[12rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                >
                   <button
-                    key={opt.id}
                     type="button"
-                    onClick={() => setEmailFilter(opt.id)}
-                    className={[
-                      "rounded-full border px-3 py-1 text-[length:var(--body-s)] font-medium transition-colors",
-                      active
-                        ? "border-[var(--blue-500)] bg-[var(--blue-50)] text-[var(--blue-600)]"
-                        : "border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)]",
-                    ].join(" ")}
+                    role="menuitem"
+                    className="flex w-full px-4 py-2.5 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={Boolean(smsDisabled || !onSendSms)}
+                    title={smsDisabled ? smsDisabledTitle : undefined}
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      if (!smsDisabled && onSendSms) onSendSms();
+                    }}
                   >
-                    {opt.label}
+                    SMS
                   </button>
-                );
-              })}
-            </div>
-            {showNewEmailButton ? (
-              <div
-                ref={splitCommActionsRef}
-                className="relative flex flex-wrap items-center justify-end"
-              >
-                <div className="inline-flex overflow-hidden rounded-md border border-black bg-black shadow-sm">
                   <button
                     type="button"
-                    className="inline-flex h-9 items-center gap-1 border-r border-white/25 px-3 text-[length:var(--body-s)] font-semibold text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-500)] disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={Boolean(newEmailDisabled || !onNewEmail)}
+                    role="menuitem"
+                    className="flex w-full px-4 py-2.5 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={Boolean(whatsappDisabled || !onSendWhatsApp)}
+                    title={whatsappDisabled ? whatsappDisabledTitle : undefined}
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      if (!whatsappDisabled && onSendWhatsApp) {
+                        onSendWhatsApp();
+                      }
+                    }}
+                  >
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full px-4 py-2.5 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={Boolean(
+                      scheduleMeetingDisabled || !onScheduleMeeting,
+                    )}
                     title={
-                      newEmailDisabled ? (newEmailDisabledTitle ?? "") : "Email"
+                      scheduleMeetingDisabled
+                        ? scheduleMeetingDisabledTitle
+                        : undefined
                     }
-                    onClick={() => onNewEmail?.()}
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      if (!scheduleMeetingDisabled && onScheduleMeeting) {
+                        onScheduleMeeting();
+                      }
+                    }}
                   >
-                    <span
-                      className="text-[1.125rem] font-medium leading-none"
-                      aria-hidden
-                    >
-                      +
-                    </span>
-                    <span>Email</span>
-                  </button>
-                  <button
-                    type="button"
-                    id="comm-actions-more-trigger"
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-500)]"
-                    aria-expanded={moreMenuOpen}
-                    aria-haspopup="menu"
-                    aria-controls="comm-actions-more-menu"
-                    aria-label="More communication actions"
-                    onClick={() => setMoreMenuOpen((o) => !o)}
-                  >
-                    <IconMoreVertical className="h-4 w-4 text-white" />
+                    1:1 Meeting
                   </button>
                 </div>
-                {moreMenuOpen ? (
-                  <div
-                    id="comm-actions-more-menu"
-                    role="menu"
-                    aria-labelledby="comm-actions-more-trigger"
-                    className="absolute left-0 top-full z-[60] mt-1 min-w-[12rem] rounded-md border border-[var(--border-default)] bg-white py-1 shadow-[var(--elevation-3)]"
-                  >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full px-4 py-2.5 text-left text-[length:var(--body-m)] font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={Boolean(smsDisabled || !onSendSms)}
-                      title={smsDisabled ? smsDisabledTitle : undefined}
-                      onClick={() => {
-                        setMoreMenuOpen(false);
-                        if (!smsDisabled && onSendSms) onSendSms();
-                      }}
-                    >
-                      SMS
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full px-4 py-2.5 text-left text-[length:var(--body-m)] font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={Boolean(whatsappDisabled || !onSendWhatsApp)}
-                      title={whatsappDisabled ? whatsappDisabledTitle : undefined}
-                      onClick={() => {
-                        setMoreMenuOpen(false);
-                        if (!whatsappDisabled && onSendWhatsApp) {
-                          onSendWhatsApp();
-                        }
-                      }}
-                    >
-                      WhatsApp
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full px-4 py-2.5 text-left text-[length:var(--body-m)] font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={Boolean(
-                        scheduleMeetingDisabled || !onScheduleMeeting,
-                      )}
-                      title={
-                        scheduleMeetingDisabled
-                          ? scheduleMeetingDisabledTitle
-                          : undefined
-                      }
-                      onClick={() => {
-                        setMoreMenuOpen(false);
-                        if (!scheduleMeetingDisabled && onScheduleMeeting) {
-                          onScheduleMeeting();
-                        }
-                      }}
-                    >
-                      1:1 Meeting
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <span className="hidden sm:block sm:min-w-[7rem]" aria-hidden />
-            )}
+              ) : null}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={toggleSection}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100"
+            aria-label={sectionOpen ? "Collapse job section" : "Expand job section"}
+          >
+            <ChevronDownIcon
+              className={`h-4 w-4 transition-transform duration-200 ${
+                sectionOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {sectionOpen ? (
+        <div className="px-4 py-4 sm:px-5">
+          <div className="mb-4 flex flex-wrap gap-2">
+            {FILTER_OPTIONS.map((opt) => {
+              const active = emailFilter === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setEmailFilter(opt.id)}
+                  className={[
+                    "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                    active
+                      ? "border-gray-300 bg-white text-gray-900"
+                      : "border-transparent bg-white/70 text-gray-600 hover:bg-white",
+                  ].join(" ")}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
 
           {loading ? (
             <div
-              className="flex items-center gap-2 py-6 text-[length:var(--body-m)] text-[var(--text-label)]"
+              className="flex items-center gap-2 py-6 text-sm text-gray-500"
               role="status"
             >
               <LoadingSpinner size="sm" aria-hidden />
@@ -366,31 +460,27 @@ export function CommunicationsJobEmailSection({
             </div>
           ) : loadError ? (
             <div className="space-y-2">
-              <p className="text-[length:var(--body-m)] text-[var(--text-error)]">{loadError}</p>
+              <p className="text-sm text-red-600">{loadError}</p>
               {onRetry ? (
                 <button
                   type="button"
                   onClick={() => onRetry()}
-                  className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+                  className="rounded border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-50"
                 >
                   Retry
                 </button>
               ) : null}
             </div>
           ) : missingJobMessage ? (
-            <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
-              {missingJobMessage}
-            </p>
+            <p className="text-sm text-gray-500">{missingJobMessage}</p>
           ) : showBody && sourceEmailCount === 0 ? (
-            <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
-              {emptyTimelineMessage}
-            </p>
+            <p className="text-sm text-gray-500">{emptyTimelineMessage}</p>
           ) : showBody && isGlobalFilterEmpty ? (
             <div
               className="flex flex-col items-center justify-center gap-3 py-10 text-center"
               role="status"
             >
-              <span className="text-[var(--icon-default)]" aria-hidden>
+              <span className="text-gray-400" aria-hidden>
                 <svg
                   width="40"
                   height="40"
@@ -412,69 +502,111 @@ export function CommunicationsJobEmailSection({
                   />
                 </svg>
               </span>
-              <p className="max-w-sm text-[length:var(--body-m)] text-[var(--text-body)]">
+              <p className="max-w-sm text-sm text-gray-700">
                 No messages match your filters
               </p>
               {onClearGlobalFilters ? (
                 <button
                   type="button"
                   onClick={() => onClearGlobalFilters()}
-                  className="text-[length:var(--body-m)] font-medium text-[var(--text-link)] underline hover:text-[var(--text-link-hover)]"
+                  className="text-sm font-medium text-blue-600 underline hover:text-blue-700"
                 >
                   Clear filters
                 </button>
               ) : null}
             </div>
           ) : showBody && filtered.length === 0 ? (
-            <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
-              {emptyFilterMessage}
-            </p>
+            <p className="text-sm text-gray-500">{emptyFilterMessage}</p>
           ) : showBody ? (
             <>
               <div
-                className={tableScroll ? "overflow-y-auto rounded-[var(--radius-md)]" : ""}
+                className={tableScroll ? "overflow-y-auto rounded-lg" : ""}
                 style={tableScroll ? { maxHeight: SCROLL_MAX_HEIGHT_PX } : undefined}
               >
-                <table className="w-full border-collapse text-left text-[length:var(--body-m)]">
-                  <thead>
-                    <tr className="text-[length:var(--body-m)] font-medium text-[var(--charcoal-400)]">
-                      <th className="pb-3 pr-4 font-medium sm:w-[22%]">Sender</th>
-                      <th className="pb-3 pr-4 font-medium">Message</th>
-                      <th className="pb-3 font-medium sm:w-[18%] sm:text-right">Time</th>
-                      {showThreadActions ? (
-                        <th className="pb-3 w-11 text-right font-medium sm:w-12">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      ) : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleGroups.map((group) => {
-                      const rows = group.rows;
-                      const latest = rows[rows.length - 1];
-                      const isThread = rows.length > 1;
-                      const expanded = Boolean(expandedThreadKeys[group.key]);
-                      const ch = latest.channel ?? "email";
-                      const { subjectPart, bodyPart } =
-                        buildTimelineMessagePreview(latest);
-                      const nameForThread =
-                        candidateName.trim() ||
-                        rows.find((r) => r.senderType === "candidate")
-                          ?.senderLabel ||
-                        "Candidate";
-                      const senderCol = isThread
-                        ? threadSenderColumnLabel(rows, nameForThread)
-                        : latest.senderLabel;
+                <div className="relative pl-9">
+                  <div className="absolute bottom-0 left-[13px] top-0 w-px bg-gray-200" />
 
-                      const threadActions = getContactThreadActions(rows);
-                      const canThreadAct =
-                        showThreadActions &&
-                        threadActions.eligible &&
-                        latest.channel === "email";
+                  {visibleGroups.map((group) => {
+                    const rows = group.rows;
+                    const latest = rows[rows.length - 1];
+                    const isThread = rows.length > 1;
+                    const expanded = Boolean(expandedThreadKeys[group.key]);
+                    const ch = latest.channel ?? "email";
+                    const { subjectPart } = buildTimelineMessagePreview(latest);
+                    const bodyOneLine = stripHtml(latest.body)
+                      .replace(/\s+/g, " ")
+                      .trim();
+                    const nameForThread = threadParentDisplayName(
+                      rows,
+                      candidateName,
+                    );
+                    const displayName = isThread ? nameForThread : latest.senderLabel;
+                    const threadActions = getContactThreadActions(rows);
+                    const canThreadAct =
+                      showThreadActions &&
+                      threadActions.eligible &&
+                      latest.channel === "email";
+                    const dot = timelineDotClasses(ch);
 
+                    if (ch === "system") {
+                      const systemText =
+                        stripHtml(latest.body).replace(/\s+/g, " ").trim() ||
+                        "—";
                       return (
-                        <Fragment key={group.key}>
-                          <tr
+                        <div key={group.key} className="relative mb-6">
+                          <div
+                            className="absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-gray-50 bg-gray-100"
+                            aria-hidden
+                          >
+                            <ChannelTimelineIcon
+                              channel="system"
+                              className="h-3 w-3 text-gray-400"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="w-full py-1.5 text-left"
+                            onClick={() => openDetail(latest)}
+                          >
+                            <span className="text-xs italic text-gray-400">
+                              System · {systemText}
+                            </span>
+                            <span className="ml-2 text-[11px] text-gray-400">
+                              {formatTimelineTime(latest.sentAt)}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    const meetingSubject =
+                      latest.subject?.trim() || "1:1 Meeting";
+                    const meetingFooter = formatMeetingTimelineFooter(
+                      latest,
+                      candidateName,
+                    );
+
+                    const showHoverSmsWaReply =
+                      (latest.channel === "sms" ||
+                        latest.channel === "whatsapp") &&
+                      latest.direction === "inbound";
+                    const showEmailCardMenu = latest.channel === "email";
+
+                    return (
+                      <Fragment key={group.key}>
+                        <div className="relative mb-6">
+                          <div
+                            className={`absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-gray-50 ${dot.circle}`}
+                            aria-hidden
+                          >
+                            <ChannelTimelineIcon
+                              channel={ch}
+                              filterBucket={latest.filterBucket}
+                              className={`h-3 w-3 ${dot.icon}`}
+                            />
+                          </div>
+
+                          <div
                             role="button"
                             tabIndex={0}
                             aria-expanded={isThread ? expanded : undefined}
@@ -489,101 +621,186 @@ export function CommunicationsJobEmailSection({
                                 else openDetail(latest);
                               }
                             }}
-                            className="group cursor-pointer border-0 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
+                            className="group relative cursor-pointer rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                           >
-                            <td className="align-top py-3 pr-4 font-medium text-[var(--text-body)]">
-                              <span className="flex flex-wrap items-start gap-x-2 gap-y-1">
-                                {isThread ? (
-                                  <span
-                                    className="mt-0.5 inline-flex w-4 shrink-0 justify-center text-[var(--text-label)]"
-                                    aria-hidden
-                                  >
-                                    {expanded ? "▼" : "▶"}
-                                  </span>
-                                ) : (
-                                  <span className="w-4 shrink-0" aria-hidden />
-                                )}
-                                <ChannelTimelineIcon
-                                  channel={ch}
-                                  filterBucket={latest.filterBucket}
-                                  className="mt-0.5"
-                                />
+                            <div className="flex items-baseline justify-between gap-2 pr-14">
+                              <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5">
+                                <span className="text-sm font-medium text-gray-900">
+                                  {displayName}
+                                </span>
                                 <ChannelTypeBadge
                                   channel={ch}
                                   filterBucket={latest.filterBucket}
                                   senderType={latest.senderType}
                                 />
-                                <span className="line-clamp-2 min-w-[8rem] flex-1">
-                                  {senderCol}
-                                </span>
-                              </span>
-                            </td>
-                            <td className="align-top py-3 pr-4 font-light text-[var(--text-body)]">
-                              <span className="line-clamp-2 break-words">
-                                {subjectPart ? (
-                                  <strong className="font-bold">{subjectPart}</strong>
+                                {latest.direction === "inbound" &&
+                                latest.channel !== "meeting" ? (
+                                  <InboundBadge />
                                 ) : null}
-                                {bodyPart}
-                                {latest.channel === "meeting" && latest.meeting ? (
-                                  <span
-                                    className="ml-1.5 inline-flex align-middle rounded bg-[var(--blue-50)] px-1.5 py-0.5 text-[length:10px] font-bold uppercase tracking-wide text-[var(--blue-700)]"
-                                    title="Meeting status"
-                                  >
-                                    {meetingStatusBadgeLabel(latest.meeting.status)}
+                                {isThread ? (
+                                  <span className="text-xs text-gray-400">
+                                    {rows.length} messages in thread
                                   </span>
                                 ) : null}
-                              </span>
-                            </td>
-                            <td className="align-top py-3 text-[length:var(--body-s)] font-light text-[var(--text-label)] sm:text-right">
-                              <span className="inline-flex flex-col items-end gap-0.5 sm:inline-flex sm:flex-row sm:items-center sm:justify-end sm:gap-1.5">
-                                <span>{formatTimelineTime(latest.sentAt)}</span>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1.5">
+                                <span className="text-xs text-gray-400">
+                                  {formatTimelineTime(latest.sentAt)}
+                                </span>
                                 <DeliveryStatusGlyph
                                   status={latest.deliveryStatus}
+                                  size="sm"
                                 />
-                              </span>
-                            </td>
-                            {showThreadActions ? (
-                              <td
-                                className="align-top py-3 text-right"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                              >
-                                <span className="inline-flex justify-end">
-                                  {canThreadAct && threadActions.followUp ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => onFollowUp?.(rows)}
-                                      title="Follow up"
-                                      aria-label="Follow up on this thread"
-                                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--bg-surface)] text-[var(--blue-600)] hover:bg-[var(--blue-50)]"
-                                    >
-                                      <IconFollowUp />
-                                    </button>
-                                  ) : null}
-                                  {canThreadAct && threadActions.reply ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => onReply?.(rows)}
-                                      title="Reply"
-                                      aria-label="Reply in thread"
-                                      className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--blue-500)] text-white hover:bg-[var(--blue-600)]"
-                                    >
-                                      <IconReply />
-                                    </button>
-                                  ) : null}
-                                </span>
-                              </td>
+                                {isThread ? (
+                                  <ChevronDownIcon
+                                    className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${
+                                      expanded ? "rotate-180" : ""
+                                    }`}
+                                  />
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {latest.channel === "email" ? (
+                              <p className="mt-1 truncate text-sm font-medium text-gray-900">
+                                {subjectPart}
+                              </p>
                             ) : null}
-                          </tr>
-                          {isThread && expanded
-                            ? rows.map((row) => {
-                                const rch = row.channel ?? "email";
+                            {latest.channel === "meeting" ? (
+                              <div className="mt-1 flex min-w-0 items-start gap-2">
+                                <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
+                                  {meetingSubject}
+                                </span>
+                                {latest.meeting ? (
+                                  <span
+                                    className="shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-purple-800"
+                                    title="Meeting status"
+                                  >
+                                    {meetingStatusBadgeLabel(
+                                      latest.meeting.status,
+                                    )}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+
+                            <p className="mt-0.5 truncate text-sm text-gray-500">
+                              {latest.channel === "meeting"
+                                ? meetingFooter
+                                : bodyOneLine || "—"}
+                            </p>
+
+                            {/* Last in DOM so hit-testing stacks above the header row; avoid fake Reply/FU that only opened detail. */}
+                            <div
+                              className={`pointer-events-none absolute right-2 top-2 z-20 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 ${
+                                latest.channel === "meeting" ? "hidden" : ""
+                              }`}
+                            >
+                              {canThreadAct && threadActions.followUp ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
+                                  title="Follow up"
+                                  aria-label="Follow up on this thread"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onFollowUp?.(rows);
+                                  }}
+                                >
+                                  <IconFollowUp className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                              {canThreadAct && threadActions.reply ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
+                                  title="Reply"
+                                  aria-label="Reply in thread"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onReply?.(rows);
+                                  }}
+                                >
+                                  <IconReply className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                              {showEmailCardMenu ? (
+                                <div
+                                  className="relative"
+                                  ref={
+                                    cardMenuGroupKey === group.key
+                                      ? cardMenuRef
+                                      : undefined
+                                  }
+                                >
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
+                                    title="More"
+                                    aria-label="More actions"
+                                    aria-expanded={
+                                      cardMenuGroupKey === group.key
+                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCardMenuGroupKey((k) =>
+                                        k === group.key ? null : group.key,
+                                      );
+                                    }}
+                                  >
+                                    <IconMoreVertical className="h-4 w-4" />
+                                  </button>
+                                  {cardMenuGroupKey === group.key ? (
+                                    <div
+                                      className="absolute right-0 top-full z-[50] mt-1 min-w-[10rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                      role="menu"
+                                    >
+                                      <button
+                                        type="button"
+                                        role="menuitem"
+                                        className="flex w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCardMenuGroupKey(null);
+                                          openDetail(latest);
+                                        }}
+                                      >
+                                        View details
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                              {showHoverSmsWaReply ? (
+                                <button
+                                  type="button"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
+                                  title="Reply"
+                                  aria-label="Reply"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDetail(latest);
+                                  }}
+                                >
+                                  <IconReply className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {isThread && expanded ? (
+                            <div className="mb-6 ml-5 mt-1.5 space-y-2.5 border-l border-gray-200 pl-5">
+                              {rows.map((row) => {
                                 const prev = buildTimelineMessagePreview(row);
+                                const childBody = stripHtml(row.body)
+                                  .replace(/\s+/g, " ")
+                                  .trim();
                                 return (
-                                  <tr
+                                  <div
                                     key={`${group.key}-${row.id}`}
                                     role="button"
                                     tabIndex={0}
+                                    className="cursor-pointer rounded-lg bg-gray-50 px-3.5 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       openDetail(row);
@@ -592,63 +809,53 @@ export function CommunicationsJobEmailSection({
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
                                         openDetail(row);
-                                      }
+                                    }
                                     }}
-                                    className="cursor-pointer border-0 bg-[var(--charcoal-10)]/80 transition-colors hover:bg-[var(--charcoal-10)] focus-visible:bg-[var(--bg-surface-selected)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--blue-500)]"
                                   >
-                                    <td
-                                      colSpan={showThreadActions ? 4 : 3}
-                                      className="py-2 pl-10 pr-4 text-[length:var(--body-s)] text-[var(--text-body)]"
-                                    >
-                                      <div className="border-l-2 border-[var(--charcoal-100)] pl-3">
-                                        <div className="flex flex-wrap items-baseline gap-2">
-                                          <ChannelTimelineIcon
-                                            channel={rch}
-                                            filterBucket={row.filterBucket}
-                                            className="mt-0.5 shrink-0"
-                                          />
-                                          <ChannelTypeBadge
-                                            channel={rch}
-                                            filterBucket={row.filterBucket}
-                                            senderType={row.senderType}
-                                          />
-                                          <span className="font-medium">
-                                            {row.senderLabel}
-                                          </span>
-                                          <span className="text-[var(--text-label)]">
-                                            {formatTimelineTime(row.sentAt)}
-                                          </span>
-                                          <DeliveryStatusGlyph
-                                            status={row.deliveryStatus}
-                                          />
-                                        </div>
-                                        <div className="mt-0.5 line-clamp-3 break-words font-light">
-                                          {prev.subjectPart ? (
-                                            <strong className="font-bold">
-                                              {prev.subjectPart}
-                                            </strong>
-                                          ) : null}
-                                          {prev.bodyPart}
-                                        </div>
+                                    <div className="mb-0.5 flex items-baseline justify-between gap-2">
+                                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                        <MailGlyph className="h-2.5 w-2.5 shrink-0 text-gray-400" />
+                                        <span className="text-xs text-gray-600">
+                                          {row.senderLabel}
+                                        </span>
+                                        {row.direction === "inbound" ? (
+                                          <InboundBadge />
+                                        ) : null}
                                       </div>
-                                    </td>
-                                  </tr>
+                                      <div className="flex shrink-0 items-center gap-1.5">
+                                        <span className="text-[11px] text-gray-400">
+                                          {formatTimelineTime(row.sentAt)}
+                                        </span>
+                                        <DeliveryStatusGlyph
+                                          status={row.deliveryStatus}
+                                          size="sm"
+                                        />
+                                      </div>
+                                    </div>
+                                    <p className="mb-0.5 truncate text-xs font-medium text-gray-900">
+                                      {prev.subjectPart}
+                                    </p>
+                                    <p className="truncate text-xs text-gray-400">
+                                      {childBody || "—"}
+                                    </p>
+                                  </div>
                                 );
-                              })
-                            : null}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      </Fragment>
+                    );
+                  })}
+                </div>
               </div>
 
               {showMoreControl ? (
-                <div className="mt-2 border-t border-transparent pt-1">
+                <div className="mt-2 pt-1">
                   <button
                     type="button"
                     onClick={() => setExpandedList(true)}
-                    className="text-[length:var(--body-m)] font-medium text-[var(--blue-500)] hover:underline"
+                    className="text-sm font-medium text-blue-600 hover:underline"
                   >
                     Show more
                   </button>

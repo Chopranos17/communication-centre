@@ -190,10 +190,19 @@ export function meetingChannelLabel(ch: string): string {
   return m[ch] ?? ch;
 }
 
-/** "Today" / "Yesterday" / short date for timeline Time column (PRD §4.4). */
+/**
+ * Timeline list timestamps: always includes time; relative labels for recent dates.
+ * Same day → "Today, 3:42 PM"; yesterday → "Yesterday, …"; within prior 7 days → "Mon, …";
+ * older same year → "6 Apr, 10:00 AM"; other year → "15 Dec 2025, 9:00 AM".
+ */
 export function formatTimelineTime(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
+
+  const timeStr = d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
   const startOf = (x: Date) =>
     new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
@@ -201,18 +210,49 @@ export function formatTimelineTime(iso: string, now = new Date()): string {
   const t0 = startOf(now);
   const t = startOf(d);
   const dayMs = 86400000;
+  const diffDays = Math.round((t0 - t) / dayMs);
 
-  if (t === t0) {
-    return "Today";
+  if (diffDays === 0) {
+    return `Today, ${timeStr}`;
   }
-  if (t === t0 - dayMs) {
-    return "Yesterday";
+  if (diffDays === 1) {
+    return `Yesterday, ${timeStr}`;
   }
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-  });
+  if (diffDays >= 2 && diffDays < 7) {
+    const wk = d.toLocaleDateString(undefined, { weekday: "short" });
+    return `${wk}, ${timeStr}`;
+  }
+
+  const day = d.getDate();
+  const mon = d.toLocaleDateString(undefined, { month: "short" });
+  if (d.getFullYear() === now.getFullYear()) {
+    return `${day} ${mon}, ${timeStr}`;
+  }
+  return `${day} ${mon} ${d.getFullYear()}, ${timeStr}`;
+}
+
+/** Third row preview for meeting cards: "30 min · Google Meet · with …". */
+export function formatMeetingTimelineFooter(
+  row: Pick<CurrentJobEmailRow, "senderLabel" | "meeting" | "body">,
+  candidateName: string,
+): string {
+  const mtg = row.meeting;
+  if (!mtg) {
+    return stripHtml(row.body).replace(/\s+/g, " ").trim() || "—";
+  }
+  const parts: string[] = [
+    `${mtg.durationMinutes} min`,
+    meetingChannelLabel(mtg.meetingChannel),
+  ];
+  const names = [candidateName.trim(), row.senderLabel].filter(Boolean);
+  const uniq: string[] = [];
+  for (const n of names) {
+    if (n && !uniq.includes(n)) uniq.push(n);
+  }
+  if (uniq.length) {
+    parts.push(`with ${uniq.join(", ")}`);
+  }
+  return parts.join(" · ");
 }
 
 /** Full date, time, and timezone for email detail modal (PRD §4.4). */
