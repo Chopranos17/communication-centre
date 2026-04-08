@@ -1,296 +1,507 @@
-import type { SVGProps } from 'react'
+import type { ComponentType, SVGProps } from 'react'
 
-export function IconGrid(props: SVGProps<SVGSVGElement>) {
+/**
+ * Production Darwinbox sidebar icons (inline SVGs from docs/design-system/icons/).
+ * Figma exports use `var(--fill-color)` for the tinted surface and white for line/detail.
+ * Surface → currentColor (sidebar text color or active blue). Lines stay white so active
+ * recruitment matches the reference (blue fill + white strokes).
+ */
+const LINE = '#FFFFFF'
+
+export function IconAllApps(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M15.3 3.66665C14.9502 3.66665 14.6667 3.95021 14.6667 4.29998V8.69995C14.6667 9.04972 14.9502 9.33328 15.3 9.33328H19.6999C20.0497 9.33328 20.3333 9.04972 20.3333 8.69995V4.29998C20.3333 3.95021 20.0497 3.66665 19.6999 3.66665H15.3ZM13 4.29998C13 3.02974 14.0297 2 15.3 2H19.6999C20.9702 2 21.9999 3.02974 21.9999 4.29998V8.69995C21.9999 9.97018 20.9702 10.9999 19.6999 10.9999H15.3C14.0297 10.9999 13 9.97018 13 8.69995V4.29998Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M4.29998 3.66665C3.95021 3.66665 3.66665 3.95021 3.66665 4.29998V8.69995C3.66665 9.04972 3.95021 9.33328 4.29998 9.33328H8.69995C9.04972 9.33328 9.33328 9.04972 9.33328 8.69995V4.29998C9.33328 3.95021 9.04972 3.66665 8.69995 3.66665H4.29998ZM2 4.29998C2 3.02974 3.02974 2 4.29998 2H8.69995C9.97018 2 10.9999 3.02974 10.9999 4.29998V8.69995C10.9999 9.97018 9.97018 10.9999 8.69995 10.9999H4.29998C3.02974 10.9999 2 9.97018 2 8.69995V4.29998Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M15.3 14.6665C14.9502 14.6665 14.6667 14.9501 14.6667 15.2999V19.6998C14.6667 20.0496 14.9502 20.3332 15.3 20.3332H19.6999C20.0497 20.3332 20.3333 20.0496 20.3333 19.6998V15.2999C20.3333 14.9501 20.0497 14.6665 19.6999 14.6665H15.3ZM13 15.2999C13 14.0296 14.0297 12.9999 15.3 12.9999H19.6999C20.9702 12.9999 21.9999 14.0296 21.9999 15.2999V19.6998C21.9999 20.9701 20.9702 21.9998 19.6999 21.9998H15.3C14.0297 21.9998 13 20.9701 13 19.6998V15.2999Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M4.29998 14.6665C3.95021 14.6665 3.66665 14.9501 3.66665 15.2999V19.6998C3.66665 20.0496 3.95021 20.3332 4.29998 20.3332H8.69995C9.04972 20.3332 9.33328 20.0496 9.33328 19.6998V15.2999C9.33328 14.9501 9.04972 14.6665 8.69995 14.6665H4.29998ZM2 15.2999C2 14.0296 3.02974 12.9999 4.29998 12.9999H8.69995C9.97018 12.9999 10.9999 14.0296 10.9999 15.2999V19.6998C10.9999 20.9701 9.97018 21.9998 8.69995 21.9998H4.29998C3.02974 21.9998 2 20.9701 2 19.6998V15.2999Z"
+        fill="currentColor"
+      />
     </svg>
   )
 }
 
-export function IconHome(props: SVGProps<SVGSVGElement>) {
+export function IconDashboard(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" />
+      <path
+        d="M4 12.9044C4 11.7821 4.47153 10.7114 5.29949 9.95364L10.4871 5.20603C11.2377 4.51909 12.3844 4.50519 13.1515 5.17374L18.6282 9.94725C19.4998 10.7069 20 11.8065 20 12.9626V19C20 19.5523 19.5523 20 19 20H5C4.44772 20 4 19.5523 4 19V12.9044Z"
+        fill="currentColor"
+      />
+      <path
+        d="M3.25 12.9041C3.2501 11.5714 3.80986 10.2999 4.79297 9.40018L9.98047 4.65311C11.0126 3.70857 12.5899 3.68894 13.6445 4.60819L19.1211 9.38163C20.1561 10.2837 20.75 11.5898 20.75 12.9627V18.9998C20.75 19.9663 19.9665 20.7498 19 20.7498H5C4.0335 20.7498 3.25 19.9663 3.25 18.9998V12.9041ZM4.75 18.9998C4.75 19.1379 4.86193 19.2498 5 19.2498H11.248V11.9998C11.2482 11.5857 11.5839 11.2498 11.998 11.2498C12.4122 11.2498 12.7479 11.5857 12.748 11.9998V19.2498H19C19.1381 19.2498 19.25 19.1379 19.25 18.9998V12.9627C19.25 12.0234 18.8438 11.1297 18.1357 10.5125L12.6582 5.73905C12.1788 5.32148 11.4622 5.33031 10.9932 5.75956L5.80566 10.5066C5.13303 11.1222 4.7501 11.9923 4.75 12.9041V18.9998Z"
+        fill={LINE}
+      />
     </svg>
   )
 }
 
-export function IconUser(props: SVGProps<SVGSVGElement>) {
+export function IconProfile(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <circle cx="12" cy="8" r="4" />
-      <path d="M20 21a8 8 0 10-16 0" />
+      <path
+        d="M12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20Z"
+        fill="currentColor"
+      />
+      <path
+        d="M19.25 12C19.25 7.99593 16.0041 4.75 12 4.75C7.99594 4.75 4.75 7.99594 4.75 12C4.75 13.8766 5.46299 15.5866 6.63281 16.874C7.18087 16.1967 7.85368 15.6267 8.61816 15.1973C9.65072 14.6172 10.8157 14.3125 12 14.3125C13.1841 14.3126 14.3484 14.6172 15.3809 15.1973C16.1454 15.6267 16.8172 16.1976 17.3652 16.875C18.5359 15.5874 19.25 13.8773 19.25 12ZM12 15.8125C11.073 15.8125 10.1607 16.0508 9.35254 16.5049C8.7329 16.8529 8.1909 17.3197 7.75391 17.875C8.94751 18.7392 10.4138 19.25 12 19.25C13.586 19.25 15.0516 18.7389 16.2451 17.875C15.8081 17.3197 15.2661 16.8529 14.6465 16.5049C13.8384 16.0509 12.9268 15.8126 12 15.8125ZM14.3281 10.1396C14.3281 8.8546 13.286 7.81262 12.001 7.8125C10.7159 7.8125 9.67383 8.85453 9.67383 10.1396C9.67395 11.4247 10.7159 12.4668 12.001 12.4668C13.2859 12.4667 14.328 11.4246 14.3281 10.1396ZM20.75 12C20.75 16.8326 16.8326 20.75 12 20.75C7.16751 20.75 3.25 16.8326 3.25 12C3.25 7.16751 7.16751 3.25 12 3.25C16.8326 3.25 20.75 7.16751 20.75 12ZM15.8281 10.1396C15.828 12.253 14.1143 13.9667 12.001 13.9668C9.8875 13.9668 8.17395 12.2531 8.17383 10.1396C8.17383 8.0261 9.88743 6.3125 12.001 6.3125C14.1144 6.31262 15.8281 8.02617 15.8281 10.1396Z"
+        fill={LINE}
+      />
     </svg>
   )
 }
 
-export function IconUsers(props: SVGProps<SVGSVGElement>) {
+export function IconEmployees(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <circle cx="9" cy="7" r="3.5" />
-      <path d="M2 21a7 7 0 0114 0" />
-      <circle cx="17" cy="9" r="2.5" />
-      <path d="M22 21a5 5 0 00-7.5-4.3" />
+      <circle
+        cx="11.9433"
+        cy="7.90534"
+        r="2.52545"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+      />
+      <path
+        d="M15.7496 17.7178C15.7496 17.8634 15.6316 17.9814 15.486 17.9814L8.40081 17.9814C8.2552 17.9814 8.13717 17.8634 8.13717 17.7178L8.13717 16.2513C8.13717 14.1492 9.84128 12.4451 11.9434 12.4451C14.0455 12.4451 15.7496 14.1492 15.7496 16.2513L15.7496 17.7178Z"
+        fill="currentColor"
+      />
+      <path
+        d="M15.7496 17.7178C15.7496 17.8634 15.6316 17.9814 15.486 17.9814L8.40081 17.9814C8.2552 17.9814 8.13717 17.8634 8.13717 17.7178L8.13717 16.2513C8.13717 14.1492 9.84128 12.4451 11.9434 12.4451C14.0455 12.4451 15.7496 14.1492 15.7496 16.2513L15.7496 17.7178Z"
+        fill="none"
+        stroke={LINE}
+        strokeWidth="1.5"
+      />
+      <path
+        d="M18.7393 16.5563H20.4027V16.1404C20.4027 14.3593 19.1585 12.8687 17.4917 12.4905"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16.244 7.45988C16.3769 7.42567 16.5163 7.40747 16.6599 7.40747C17.5786 7.40747 18.3233 8.15221 18.3233 9.0709C18.3233 9.98959 17.5786 10.7343 16.6599 10.7343C16.5163 10.7343 16.3769 10.7161 16.244 10.6819"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.14794 16.556H3.48451V16.1402C3.48451 14.359 4.72875 12.8684 6.39551 12.4902"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.64294 7.45963C7.51003 7.42542 7.37068 7.40723 7.22709 7.40723C6.30837 7.40723 5.56366 8.15197 5.56366 9.07066C5.56366 9.98934 6.30837 10.7341 7.22709 10.7341C7.37068 10.7341 7.51003 10.7159 7.64294 10.6817"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-export function IconShield(props: SVGProps<SVGSVGElement>) {
+export function IconPoliciesHr(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path
+        d="M5.1803 5.13015L5.1803 18.969C5.1803 19.6638 5.85882 20.2271 6.6958 20.2271L17.3043 20.2271C18.1413 20.2271 18.8198 19.6638 18.8198 18.969L18.8198 5.13014C18.8198 4.43531 18.1413 3.87207 17.3043 3.87207L6.6958 3.87207C5.85882 3.87207 5.1803 4.43531 5.1803 5.13015Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16.6817 10.8807V9.4643C16.6817 9.03338 16.3323 8.68404 15.9014 8.68404H15.0455C14.3369 8.68404 13.6493 8.44285 13.0959 8.00013L12.0001 7.12354L10.9044 8.00013C10.351 8.44285 9.66339 8.68404 8.9547 8.68404H8.09886C7.66794 8.68404 7.3186 9.03338 7.3186 9.4643V10.8807C7.3186 13.7168 9.24876 16.1888 12.0001 16.8767C14.7515 16.1888 16.6817 13.7168 16.6817 10.8807Z"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="12.0001"
+        cy="12.0001"
+        r="1.12711"
+        transform="rotate(180 12.0001 12.0001)"
+        stroke={LINE}
+        strokeWidth="1.5"
+      />
     </svg>
   )
 }
 
-export function IconWorkflow(props: SVGProps<SVGSVGElement>) {
+export function IconFlows(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <circle cx="5" cy="6" r="2.5" />
-      <circle cx="19" cy="6" r="2.5" />
-      <circle cx="12" cy="18" r="2.5" />
-      <path d="M5 8.5v2a4 4 0 004 4h6a4 4 0 004-4v-2" />
-      <path d="M12 14.5v1" />
+      <path
+        d="M12.0002 17.8879H20.2421"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M17.8868 15.5317L20.2417 17.8866L17.8868 20.2413"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.05645 7.29149C10.0319 7.29149 10.8227 6.5007 10.8227 5.5252C10.8227 4.54971 10.0319 3.75891 9.05645 3.75891C8.08096 3.75891 7.29016 4.54971 7.29016 5.5252C7.29016 6.5007 8.08096 7.29149 9.05645 7.29149Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.7665 13.1788C14.742 13.1788 15.5328 12.388 15.5328 11.4125C15.5328 10.437 14.742 9.64624 13.7665 9.64624C12.791 9.64624 12.0002 10.437 12.0002 11.4125C12.0002 12.388 12.791 13.1788 13.7665 13.1788Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10.2333 19.6557C11.2088 19.6557 11.9996 18.865 11.9996 17.8895C11.9996 16.914 11.2088 16.1232 10.2333 16.1232C9.25784 16.1232 8.46704 16.914 8.46704 17.8895C8.46704 18.865 9.25784 19.6557 10.2333 19.6557Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11.9998 11.4109H6.99581C5.20759 11.4109 3.75793 12.8605 3.75793 14.6488C3.75793 16.437 5.20759 17.8867 6.99581 17.8867H8.46758"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15.532 11.4126H17.2982C18.9238 11.4126 20.2417 10.0947 20.2417 8.46903C20.2417 6.84337 18.9238 5.52551 17.2982 5.52551H10.8224"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.29017 5.52551H3.75793"
+        stroke={LINE}
+        strokeWidth="1.54529"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-export function IconWallet(props: SVGProps<SVGSVGElement>) {
+export function IconCompensation(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <rect x="2" y="6" width="20" height="14" rx="2" />
-      <path d="M2 10h20" />
-      <circle cx="17" cy="14" r="1" />
+      <path
+        d="M18.7692 6H5.23077C4.55103 6 4 6.59696 4 7.33333V16.6667C4 17.4031 4.55103 18 5.23077 18H18.7692C19.449 18 20 17.4031 20 16.6667V7.33333C20 6.59696 19.449 6 18.7692 6Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 14C13.1046 14 14 13.1046 14 12C14 10.8954 13.1046 10 12 10C10.8954 10 10 10.8954 10 12C10 13.1046 10.8954 14 12 14Z"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M17.5 12.5C17.7761 12.5 18 12.2761 18 12C18 11.7239 17.7761 11.5 17.5 11.5C17.2239 11.5 17 11.7239 17 12C17 12.2761 17.2239 12.5 17.5 12.5Z"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.5 12.5C6.77614 12.5 7 12.2761 7 12C7 11.7239 6.77614 11.5 6.5 11.5C6.22386 11.5 6 11.7239 6 12C6 12.2761 6.22386 12.5 6.5 12.5Z"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
 export function IconEngagement(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <circle cx="9" cy="7" r="3.5" />
-      <path d="M2 21a7 7 0 0114 0" />
-      <path d="M18 8l1 2 2-1-1 2 2 1-2 1 1 2-2-1-1 2-1-2-2 1 1-2-2-1 2-1-1-2 2 1z" />
+      <path
+        d="M18.731 15.5248C18.731 15.1106 19.0667 14.7748 19.481 14.7748C19.8951 14.7748 20.231 15.1106 20.231 15.5248C20.231 17.2135 18.862 18.5823 17.1733 18.5824H14.2886C13.8744 18.5824 13.5386 18.2466 13.5386 17.8324C13.5386 17.4182 13.8744 17.0824 14.2886 17.0824H17.1733C18.0336 17.0823 18.731 16.3851 18.731 15.5248Z"
+        fill="currentColor"
+      />
+      <path
+        d="M15.4886 15.5714C15.7815 15.2786 16.2563 15.2787 16.5492 15.5714C16.8421 15.8643 16.8421 16.3391 16.5492 16.6319L15.348 17.8321L16.5492 19.0333L16.6009 19.09C16.8412 19.3845 16.8238 19.8193 16.5492 20.0939C16.2746 20.3681 15.8407 20.3848 15.5463 20.1446L15.4886 20.0939L13.7582 18.3624C13.4654 18.0695 13.4653 17.5947 13.7582 17.3019L15.4886 15.5714Z"
+        fill="currentColor"
+      />
+      <path
+        d="M4.25 9.03833C4.25004 7.34967 5.61896 5.98075 7.30762 5.98071H10.7695L10.8457 5.98462C11.224 6.02293 11.5195 6.34232 11.5195 6.73071C11.5195 7.11911 11.224 7.43849 10.8457 7.47681L10.7695 7.48071H7.30762C6.44739 7.48075 5.75004 8.1781 5.75 9.03833C5.75 9.45254 5.41421 9.78833 5 9.78833C4.58579 9.78833 4.25 9.45254 4.25 9.03833Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.50824 4.46967C8.80114 4.17678 9.2759 4.17678 9.56879 4.46967L11.2993 6.20014C11.5922 6.49303 11.5922 6.96779 11.2993 7.26069L9.56879 8.99213C9.27595 9.28477 8.80109 9.28477 8.50824 8.99213C8.21541 8.6993 8.21554 8.22449 8.50824 7.93158L9.70844 6.73041L8.50824 5.53022C8.21535 5.23732 8.21535 4.76256 8.50824 4.46967Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.125 15.3407C10.2652 15.3407 12.0008 17.0756 12.001 19.2157V19.5634C12.0009 19.9774 11.665 20.3132 11.251 20.3134H5C4.58581 20.3134 4.25004 19.9775 4.25 19.5634V19.2157C4.25017 17.0757 5.98498 15.3409 8.125 15.3407ZM8.125 16.8407C6.95067 16.8409 5.97752 17.6936 5.78613 18.8134H10.4639C10.2724 17.6935 9.29944 16.8407 8.125 16.8407Z"
+        fill="currentColor"
+      />
+      <path
+        d="M16.2764 9.00159C18.4165 9.00159 20.1522 10.7365 20.1523 12.8766V13.2242C20.1523 13.6383 19.8164 13.9741 19.4023 13.9742H13.1514C12.7372 13.9742 12.4014 13.6384 12.4014 13.2242V12.8766C12.4015 10.7366 14.1363 9.00176 16.2764 9.00159ZM16.2764 10.5016C15.102 10.5017 14.1289 11.3544 13.9375 12.4742H18.6152C18.4238 11.3544 17.4508 10.5016 16.2764 10.5016Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.76465 12.7119C8.76445 12.3592 8.47781 12.0732 8.125 12.0732C7.77236 12.0734 7.48652 12.3593 7.48633 12.7119C7.48633 13.0647 7.77224 13.3514 8.125 13.3516C8.47793 13.3516 8.76465 13.0648 8.76465 12.7119ZM10.2646 12.7119C10.2646 13.8933 9.30636 14.8516 8.125 14.8516C6.94381 14.8514 5.98633 13.8931 5.98633 12.7119C5.98652 11.5308 6.94393 10.5734 8.125 10.5732C9.30624 10.5732 10.2645 11.5307 10.2646 12.7119Z"
+        fill="currentColor"
+      />
+      <path
+        d="M16.916 6.47876C16.9158 6.126 16.6292 5.84009 16.2764 5.84009C15.9237 5.84028 15.6379 6.12612 15.6377 6.47876C15.6377 6.83157 15.9236 7.11821 16.2764 7.11841C16.6293 7.11841 16.916 6.83169 16.916 6.47876ZM18.416 6.47876C18.416 7.66012 17.4577 8.61841 16.2764 8.61841C15.0952 8.61821 14.1377 7.66 14.1377 6.47876C14.1379 5.29769 15.0953 4.34028 16.2764 4.34009C17.4576 4.34009 18.4158 5.29757 18.416 6.47876Z"
+        fill="currentColor"
+      />
     </svg>
   )
 }
 
-export function IconHierarchy(props: SVGProps<SVGSVGElement>) {
+export function IconOrgView(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <rect x="9" y="2" width="6" height="4" rx="1" />
-      <rect x="2" y="18" width="6" height="4" rx="1" />
-      <rect x="16" y="18" width="6" height="4" rx="1" />
-      <path d="M12 6v4m0 0H5m7 0h7m-14 0v8m14-8v8" />
+      <path
+        d="M6 16.6892V13.6372C6 13.2325 6.12643 12.8443 6.35147 12.5582C6.57652 12.272 6.88174 12.1112 7.2 12.1112H16.8C17.1182 12.1112 17.4235 12.272 17.6485 12.5582C17.8735 12.8443 18 13.2325 18 13.6372V16.6892"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12.0002 9.25V16.6892"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="12"
+        cy="6.59741"
+        r="2.65259"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+      />
+      <circle
+        cx="5.99988"
+        cy="18.6495"
+        r="1.65417"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+      />
+      <circle
+        cx="11.9999"
+        cy="18.6495"
+        r="1.65417"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+      />
+      <circle
+        cx="17.9999"
+        cy="18.6495"
+        r="1.65417"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+      />
     </svg>
   )
 }
 
-export function IconHeadset(props: SVGProps<SVGSVGElement>) {
+export function IconHelpdesk(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <path d="M3 18v-6a9 9 0 0118 0v6" />
-      <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3v5zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3v5z" />
+      <path
+        d="M7.07715 12.0004V8.76349C7.08676 8.12722 7.22183 7.49911 7.47461 6.91512C7.72739 6.33114 8.09293 5.80279 8.55026 5.36031C9.00759 4.91785 9.54773 4.56997 10.1397 4.33661C10.7317 4.10325 11.364 3.989 12.0002 4.00041C12.6365 3.989 13.2687 4.10325 13.8607 4.33661C14.4527 4.56997 14.9929 4.91785 15.4502 5.36031C15.9075 5.80279 16.2731 6.33114 16.5259 6.91512C16.7786 7.49911 16.9137 8.12722 16.9233 8.76349V12.0004"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.23077 10.1559H6.46154C6.62475 10.1559 6.78128 10.2207 6.89668 10.3361C7.01209 10.4515 7.07692 10.6081 7.07692 10.7713V14.4636C7.07692 14.6268 7.01209 14.7833 6.89668 14.8987C6.78128 15.0141 6.62475 15.079 6.46154 15.079H5.23077C4.90434 15.079 4.5913 14.9493 4.36048 14.7185C4.12967 14.4877 4 14.1746 4 13.8482V11.3867C4 11.0602 4.12967 10.7472 4.36048 10.5164C4.5913 10.2856 4.90434 10.1559 5.23077 10.1559Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.769 15.079H17.5382C17.375 15.079 17.2185 15.0141 17.103 14.8987C16.9877 14.7833 16.9229 14.6268 16.9229 14.4636V10.7713C16.9229 10.6081 16.9877 10.4515 17.103 10.3361C17.2185 10.2207 17.375 10.1559 17.5382 10.1559H18.769C19.0954 10.1559 19.4085 10.2856 19.6393 10.5164C19.8701 10.7472 19.9998 11.0602 19.9998 11.3867V13.8482C19.9998 14.1746 19.8701 14.4877 19.6393 14.7185C19.4085 14.9493 19.0954 15.079 18.769 15.079Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.4614 18.4609C15.1143 18.4609 15.7403 18.2015 16.202 17.7399C16.6636 17.2782 16.923 16.6521 16.923 15.9993V13.2301"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.4617 18.4619C14.4617 18.8699 14.2996 19.2613 14.011 19.5498C13.7225 19.8383 13.3312 20.0004 12.9232 20.0004H11.077C10.669 20.0004 10.2777 19.8383 9.98918 19.5498C9.70067 19.2613 9.53857 18.8699 9.53857 18.4619C9.53857 18.0539 9.70067 17.6625 9.98918 17.374C10.2777 17.0856 10.669 16.9235 11.077 16.9235H12.9232C13.3312 16.9235 13.7225 17.0856 14.011 17.374C14.2996 17.6625 14.4617 18.0539 14.4617 18.4619Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
 export function IconRecruitment(props: SVGProps<SVGSVGElement>) {
+  const { className, ...rest } = props
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...rest}
     >
-      <circle cx="9" cy="7" r="3.5" />
-      <path d="M2 21a7 7 0 0112.3-4.6" />
-      <circle cx="17.5" cy="17.5" r="3" />
-      <path d="M20 20l2 2" />
+      <path
+        d="M10.5133 19.2525C14.6337 19.2525 17.9738 15.9124 17.9738 11.792C17.9738 7.67171 14.6337 4.33154 10.5133 4.33154C6.39303 4.33154 3.05286 7.67171 3.05286 11.792C3.05286 15.9124 6.39303 19.2525 10.5133 19.2525Z"
+        fill="currentColor"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10.5134 12.1971C11.5833 12.1971 12.4507 11.3298 12.4507 10.2599C12.4507 9.18996 11.5833 8.32263 10.5134 8.32263C9.4435 8.32263 8.57617 9.18996 8.57617 10.2599C8.57617 11.3298 9.4435 12.1971 10.5134 12.1971Z"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.772 17.5491C13.7567 15.8211 12.2259 14.7209 10.5135 14.7209C8.80106 14.7209 7.27029 15.8211 6.255 17.549"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16.7086 16.215L20.9472 18.8833"
+        stroke={LINE}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-export function IconChevronDown(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  )
-}
-
-export function IconChevronRight(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  )
-}
-
-export function IconCollapseLeft(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  )
-}
-
-export function IconExpandRight(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  )
-}
-
-export function IconBell(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 01-3.46 0" />
-    </svg>
-  )
-}
-
-export function IconStar(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-    </svg>
-  )
-}
+export type SidebarIconComponent = ComponentType<SVGProps<SVGSVGElement>>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePersona } from '../../context/PersonaContext'
 import type { Persona } from '../../types/persona'
 import { PERSONA_LABELS } from '../../types/persona'
-import { IconBell, IconStar } from './SidebarIcons'
+import { Bell, Star } from 'lucide-react'
 
 export function TopBar() {
   const { persona, setPersona, personaLabel } = usePersona()
@@ -44,7 +44,7 @@ export function TopBar() {
           className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
           aria-label="Notifications"
         >
-          <IconBell className="h-[22px] w-[22px]" />
+          <Bell size={20} strokeWidth={1.5} />
           <span className="absolute right-1 top-1 min-w-[1.25rem] rounded-full bg-red-500 px-1 text-center text-[10px] font-semibold leading-tight text-white">
             99+
           </span>
@@ -55,7 +55,7 @@ export function TopBar() {
           className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
           aria-label="Bookmarks"
         >
-          <IconStar className="h-[22px] w-[22px]" />
+          <Star size={20} strokeWidth={1.5} />
         </button>
 
         <div className="relative pl-1" ref={menuRef}>

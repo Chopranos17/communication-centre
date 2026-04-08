@@ -4,30 +4,29 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type ComponentType,
   type MouseEvent as ReactMouseEvent,
-  type SVGProps,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
-  IconChevronDown,
-  IconCollapseLeft,
-  IconExpandRight,
+  IconAllApps,
+  IconCompensation,
+  IconDashboard,
+  IconEmployees,
   IconEngagement,
-  IconGrid,
-  IconHeadset,
-  IconHierarchy,
-  IconHome,
+  IconFlows,
+  IconHelpdesk,
+  IconOrgView,
+  IconPoliciesHr,
+  IconProfile,
   IconRecruitment,
-  IconShield,
-  IconUser,
-  IconUsers,
-  IconWallet,
-  IconWorkflow,
+  type SidebarIconComponent,
 } from './SidebarIcons'
 
 const STORAGE_KEY = 'sidebar-expanded'
+/** Darwinbox primary blue — active Recruitment module icon */
+const RECRUITMENT_ICON_ACTIVE = '#0183FF'
 
 export type ModuleChild = {
   id: string
@@ -39,7 +38,7 @@ export type ModuleChild = {
 export type ModuleDef = {
   id: string
   label: string
-  icon: ComponentType<SVGProps<SVGSVGElement>>
+  icon: SidebarIconComponent
   disabled?: boolean
   children?: ModuleChild[]
 }
@@ -61,15 +60,15 @@ const recruitmentChildren: ModuleChild[] = [
 ]
 
 const modules: ModuleDef[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: IconHome, disabled: true },
-  { id: 'profile', label: 'Profile', icon: IconUser, disabled: true },
-  { id: 'employees', label: 'Employees', icon: IconUsers, disabled: true },
-  { id: 'policies', label: 'Policies HR', icon: IconShield, disabled: true },
-  { id: 'flows', label: 'Flows', icon: IconWorkflow, disabled: true },
-  { id: 'compensation', label: 'Compensation', icon: IconWallet, disabled: true },
+  { id: 'dashboard', label: 'Dashboard', icon: IconDashboard, disabled: true },
+  { id: 'profile', label: 'Profile', icon: IconProfile, disabled: true },
+  { id: 'employees', label: 'Employees', icon: IconEmployees, disabled: true },
+  { id: 'policies', label: 'Policies HR', icon: IconPoliciesHr, disabled: true },
+  { id: 'flows', label: 'Flows', icon: IconFlows, disabled: true },
+  { id: 'compensation', label: 'Compensation', icon: IconCompensation, disabled: true },
   { id: 'engagement', label: 'Employee Engagement', icon: IconEngagement, disabled: true },
-  { id: 'orgview', label: 'Org View', icon: IconHierarchy, disabled: true },
-  { id: 'helpdesk', label: 'Helpdesk', icon: IconHeadset, disabled: true },
+  { id: 'orgview', label: 'Org View', icon: IconOrgView, disabled: true },
+  { id: 'helpdesk', label: 'Helpdesk', icon: IconHelpdesk, disabled: true },
   { id: 'recruitment', label: 'Recruitment', icon: IconRecruitment, children: recruitmentChildren },
 ]
 
@@ -101,6 +100,34 @@ function readExpanded(): boolean {
 
 function isRecruitmentPath(pathname: string) {
   return pathname.startsWith('/recruitment')
+}
+
+function expandedModuleIconProps(
+  mod: ModuleDef,
+  rowActive: boolean,
+  disabledNoKids: boolean,
+): { className: string; style?: { color: string } } {
+  if (disabledNoKids) {
+    return { className: 'shrink-0 text-white/30 opacity-40' }
+  }
+  if (mod.id === 'recruitment' && rowActive) {
+    return { className: 'shrink-0', style: { color: RECRUITMENT_ICON_ACTIVE } }
+  }
+  return { className: 'shrink-0 text-white/50 group-hover:text-white' }
+}
+
+function collapsedModuleIconProps(
+  mod: ModuleDef,
+  routeActive: boolean,
+  flyoutOpen: boolean,
+): { className: string; style?: { color: string } } {
+  if (mod.id === 'recruitment' && routeActive) {
+    return { className: 'shrink-0', style: { color: RECRUITMENT_ICON_ACTIVE } }
+  }
+  if (routeActive || flyoutOpen) {
+    return { className: 'shrink-0 text-white' }
+  }
+  return { className: 'shrink-0 text-white/50' }
 }
 
 export function Sidebar() {
@@ -371,9 +398,9 @@ export function Sidebar() {
           onClick={() => setExpanded((e) => !e)}
         >
           {expanded ? (
-            <IconCollapseLeft className="h-3 w-3 shrink-0 text-white/60" aria-hidden />
+            <ChevronLeft size={16} strokeWidth={2} className="shrink-0 text-white/60" aria-hidden />
           ) : (
-            <IconExpandRight className="h-3 w-3 shrink-0 text-white/60" aria-hidden />
+            <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-white/60" aria-hidden />
           )}
         </button>
 
@@ -381,7 +408,7 @@ export function Sidebar() {
           <>
             <div className="flex shrink-0 flex-col px-4 py-3">
               <div className="flex items-center gap-2 pr-2">
-                <IconGrid className="h-[22px] w-[22px] shrink-0 text-white" aria-hidden />
+                <IconAllApps className="h-5 w-5 shrink-0 text-white" aria-hidden />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">All Apps</span>
               </div>
               <label className="mt-3 block">
@@ -404,6 +431,8 @@ export function Sidebar() {
                 const isOpen = openModuleId === mod.id
                 const rowActive =
                   mod.id === 'recruitment' ? isRecruitmentActive : false
+                const disabledNoKids = Boolean(mod.disabled && !hasKids)
+                const iconProps = expandedModuleIconProps(mod, rowActive, disabledNoKids)
 
                 return (
                   <div
@@ -416,7 +445,7 @@ export function Sidebar() {
                       disabled={mod.disabled && !hasKids}
                       onClick={() => handleModuleRowClick(mod)}
                       className={[
-                        'flex w-full min-w-0 items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors',
+                        'group flex w-full min-w-0 items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors',
                         mod.disabled && !hasKids
                           ? 'cursor-not-allowed text-white/30'
                           : rowActive
@@ -424,17 +453,19 @@ export function Sidebar() {
                             : 'cursor-pointer text-white/70 hover:bg-white/5 hover:text-white',
                       ].join(' ')}
                     >
-                      <Icon className="h-[22px] w-[22px] shrink-0 text-current" aria-hidden />
+                      <Icon
+                        className={['h-5 w-5', iconProps.className].filter(Boolean).join(' ')}
+                        style={iconProps.style}
+                        aria-hidden
+                      />
                       <span className="min-w-0 flex-1 truncate">{mod.label}</span>
                       {hasKids && (
-                        <span
-                          className={[
-                            'ml-auto shrink-0 transition-transform',
-                            isOpen ? 'rotate-0' : '-rotate-90',
-                          ].join(' ')}
-                          aria-hidden
-                        >
-                          <IconChevronDown className="h-4 w-4 text-white/60" />
+                        <span className="ml-auto shrink-0 text-white/50" aria-hidden>
+                          {isOpen ? (
+                            <ChevronDown size={16} strokeWidth={2} />
+                          ) : (
+                            <ChevronRight size={16} strokeWidth={2} />
+                          )}
                         </span>
                       )}
                     </button>
@@ -496,7 +527,7 @@ export function Sidebar() {
                   className="flex h-12 w-12 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
                   aria-label="All Apps"
                 >
-                  <IconGrid className="h-[22px] w-[22px]" />
+                  <IconAllApps className="h-5 w-5 text-white/50" aria-hidden />
                 </button>
               </div>
               <div className="mx-3 my-2 border-t border-white/10" />
@@ -505,8 +536,9 @@ export function Sidebar() {
                   const Icon = mod.icon
                   const hasKids = Boolean(mod.children?.length)
                   const isFlyoutOpen = flyoutModuleId === mod.id
-                  const active =
+                  const routeActive =
                     mod.id === 'recruitment' ? isRecruitmentActive : false
+                  const iconProps = collapsedModuleIconProps(mod, routeActive, isFlyoutOpen)
 
                   return (
                     <button
@@ -521,13 +553,17 @@ export function Sidebar() {
                       onClick={handleCollapsedIconClick(mod)}
                       className={[
                         'flex h-12 w-12 items-center justify-center rounded-lg text-white transition-colors',
-                        active || isFlyoutOpen ? 'bg-white/10' : 'hover:bg-white/10',
+                        routeActive || isFlyoutOpen ? 'bg-white/10' : 'hover:bg-white/10',
                         !hasKids && mod.disabled ? 'cursor-not-allowed opacity-40' : '',
                       ].join(' ')}
                       aria-label={mod.label}
                       title={undefined}
                     >
-                      <Icon className="h-[22px] w-[22px] shrink-0" aria-hidden />
+                      <Icon
+                        className={['h-5 w-5', iconProps.className].filter(Boolean).join(' ')}
+                        style={iconProps.style}
+                        aria-hidden
+                      />
                     </button>
                   )
                 })}
