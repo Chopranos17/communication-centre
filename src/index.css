@@ -21,3 +21,12 @@
 .compose-quill .ql-editor {
   min-height: 200px;
 }
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
