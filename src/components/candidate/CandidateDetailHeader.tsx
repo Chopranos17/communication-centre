@@ -51,7 +51,7 @@ export function CandidateDetailHeader({
   return (
     <>
       <div
-        className="rounded-t-[var(--radius-md)] px-5 py-5 sm:px-6"
+        className="rounded-t-lg px-5 py-5 sm:px-6"
         style={{ background: 'var(--header-banner-bg)' }}
       >
         <div className="flex flex-wrap items-start gap-4">
@@ -104,7 +104,7 @@ export function CandidateDetailHeader({
                 </button>
                 {actionsOpen ? (
                   <div
-                    className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
+                    className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
                     role="menu"
                   >
                     <button

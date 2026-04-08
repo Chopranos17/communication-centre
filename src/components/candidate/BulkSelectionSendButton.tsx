@@ -82,7 +82,7 @@ export function BulkSelectionSendButton({
       <div className="relative inline-flex" ref={wrapRef}>
         {menuOpen ? (
           <div
-            className="absolute bottom-full right-0 z-[120] mb-1 min-w-[14rem] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-xl"
+            className="absolute bottom-full right-0 z-[120] mb-1 min-w-[14rem] overflow-hidden rounded-lg border border-gray-200/60 bg-white py-1 shadow-[var(--elevation-2)]"
             role="menu"
             aria-label="More bulk actions"
           >

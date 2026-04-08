@@ -321,7 +321,7 @@ export function Sidebar() {
       <div
         ref={flyoutPanelRef}
         role="menu"
-        className="fixed z-50 w-[240px] rounded-lg border border-white/10 bg-[#252836] shadow-xl shadow-black/30"
+        className="fixed z-50 w-[240px] rounded-lg border border-white/10 bg-[#252836] shadow-[var(--elevation-3)]"
         style={{ left: 64, top: flyoutTop }}
         onMouseEnter={cancelCloseFlyout}
         onMouseLeave={scheduleCloseFlyout}

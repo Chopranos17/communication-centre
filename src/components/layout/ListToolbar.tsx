@@ -7,8 +7,8 @@ type ListToolbarProps = {
 
 export function ListToolbar({ searchPlaceholder, end }: ListToolbarProps) {
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="relative min-w-0 flex-1 max-w-2xl">
+    <div className="mb-4 flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative min-w-0 w-full flex-1">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--icon-default)]">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
@@ -18,7 +18,7 @@ export function ListToolbar({ searchPlaceholder, end }: ListToolbarProps) {
         <input
           type="search"
           placeholder={searchPlaceholder}
-          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] py-2 pl-10 pr-3 text-[length:var(--body-m)] text-[var(--text-body)] placeholder:text-[var(--text-ghost)] shadow-sm focus:border-[var(--border-active)] focus:outline-none focus:ring-1 focus:ring-[var(--blue-500)]"
+          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] py-2 pl-10 pr-3 text-[length:var(--body-m)] text-[var(--text-body)] placeholder:text-[var(--text-ghost)] shadow-none focus:border-[var(--border-active)] focus:outline-none focus:ring-1 focus:ring-[var(--blue-500)]"
           aria-label="Search"
         />
       </div>

@@ -31,7 +31,7 @@ export function HiringFlowPlaceholder({ currentStage }: Props) {
   const active = activeStepIndex(currentStage)
 
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--elevation-1)]">
+    <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-6 shadow-[var(--elevation-1)]">
       <h2
         className="mb-6 text-[length:var(--title-xs)] font-bold text-[var(--text-title)]"
         style={{ fontWeight: 'var(--font-weight-bold)' }}
@@ -65,7 +65,7 @@ export function HiringFlowPlaceholder({ currentStage }: Props) {
           {STEPS.map((step, i) => (
             <div
               key={step.label}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--white)] px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border-card)] bg-[var(--white)] px-4 py-3"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span

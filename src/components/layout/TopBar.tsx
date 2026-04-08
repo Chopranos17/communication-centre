@@ -23,7 +23,7 @@ export function TopBar() {
   const personaInitial = personaLabel.slice(0, 1).toUpperCase()
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-gray-200 bg-white px-4">
+    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-gray-200/60 bg-white px-4">
       <span className="shrink-0 text-sm font-bold tracking-tight text-gray-900">Darwinbox</span>
 
       <div className="flex min-w-0 flex-1 justify-center px-2">
@@ -61,7 +61,7 @@ export function TopBar() {
         <div className="relative pl-1" ref={menuRef}>
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200/60 bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
             aria-expanded={menuOpen}
             aria-haspopup="listbox"
             aria-label="Account and role"
@@ -72,7 +72,7 @@ export function TopBar() {
 
           {menuOpen && (
             <div
-              className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg"
+              className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200/60 bg-white py-2 shadow-[var(--elevation-2)]"
               role="listbox"
               aria-label="Role"
             >

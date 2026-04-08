@@ -451,7 +451,7 @@ export function ReplyThreadModal({
                 return (
                   <div
                     key={row.id}
-                    className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--charcoal-10)]/60"
+                    className="rounded-lg border border-[var(--border-card)] bg-[var(--charcoal-10)]/60"
                     style={{ marginLeft: idx > 0 ? 12 : 0 }}
                   >
                     <button
@@ -721,7 +721,7 @@ export function ReplyThreadModal({
             aria-label="Close preview"
             onClick={() => setPreviewOpen(false)}
           />
-          <div className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-[var(--elevation-3)]">
+          <div className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-5 shadow-[var(--elevation-3)]">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h3 className="text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]">
                 Preview

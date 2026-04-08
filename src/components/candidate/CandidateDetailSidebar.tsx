@@ -9,7 +9,7 @@ export function CandidateDetailSidebar({ detail }: Props) {
 
   return (
     <aside className="w-full shrink-0 space-y-4 lg:w-[300px]">
-      <section className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
+      <section className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
         <h2
           className="mb-3 text-[length:var(--body-m)] font-bold text-[var(--text-title)]"
           style={{ fontWeight: 'var(--font-weight-bold)' }}
@@ -19,7 +19,7 @@ export function CandidateDetailSidebar({ detail }: Props) {
         <p className="text-[length:var(--body-m)] text-[var(--text-label)]">No tags added yet.</p>
       </section>
 
-      <section className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
+      <section className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
         <h2
           className="mb-3 text-[length:var(--body-m)] font-bold text-[var(--text-title)]"
           style={{ fontWeight: 'var(--font-weight-bold)' }}
@@ -29,7 +29,7 @@ export function CandidateDetailSidebar({ detail }: Props) {
         <p className="text-[length:var(--body-m)] text-[var(--text-label)]">Not specified</p>
       </section>
 
-      <section className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
+      <section className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
         <h2
           className="mb-3 text-[length:var(--body-m)] font-bold text-[var(--text-title)]"
           style={{ fontWeight: 'var(--font-weight-bold)' }}
@@ -39,7 +39,7 @@ export function CandidateDetailSidebar({ detail }: Props) {
         <p className="text-[length:var(--body-m)] text-[var(--text-label)]">No feedback recorded.</p>
       </section>
 
-      <section className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
+      <section className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
         <h2
           className="border-b border-[var(--border-subtle)] px-4 py-3 text-[length:var(--body-m)] font-bold text-[var(--text-title)]"
           style={{ fontWeight: 'var(--font-weight-bold)' }}

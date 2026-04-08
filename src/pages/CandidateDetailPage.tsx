@@ -38,7 +38,7 @@ const APP_DETAIL_PILLS = [
 
 function TabPanelPlaceholder({ title }: { title: string }) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center text-[length:var(--body-m)] text-[var(--text-label)]">
+    <div className="rounded-lg border border-dashed border-[var(--border-card)] bg-[var(--bg-surface)] p-8 text-center text-[length:var(--body-m)] text-[var(--text-label)]">
       {title} content will be available in a future iteration.
     </div>
   )
@@ -187,7 +187,7 @@ export function CandidateDetailPage() {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] shadow-[var(--elevation-1)]">
+      <div className="overflow-hidden rounded-lg border border-[var(--border-card)] shadow-[var(--elevation-1)]">
         <CandidateDetailHeader
           detail={detail}
           showCommunicationActions={canManageRecruitment}
@@ -253,7 +253,7 @@ export function CandidateDetailPage() {
                 </div>
                 {appPill === 'snapshot' ? (
                   <div className="space-y-4">
-                    <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
+                    <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
                       <h3
                         className="mb-4 text-[length:var(--body-m)] font-bold text-[var(--text-title)]"
                         style={{ fontWeight: 'var(--font-weight-bold)' }}
@@ -275,7 +275,7 @@ export function CandidateDetailPage() {
                         </div>
                       </dl>
                     </div>
-                    <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
+                    <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
                       <div className="mb-2 flex items-start justify-between gap-2">
                         <h3
                           className="text-[length:var(--body-m)] font-bold text-[var(--text-title)]"

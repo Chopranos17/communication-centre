@@ -371,7 +371,7 @@ export function JobDetailPage() {
     >
       {bulkToast ? (
         <div
-          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-lg"
+          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-[var(--elevation-2)]"
           role="status"
         >
           {bulkToast}
@@ -448,8 +448,8 @@ export function JobDetailPage() {
         </p>
       )}
 
-      <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
-        <div className="overflow-x-auto overscroll-x-contain rounded-[var(--radius-md)]">
+      <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
+        <div className="overflow-x-auto overscroll-x-contain rounded-lg">
           <table className="w-full min-w-[720px] border-collapse text-left text-[length:var(--body-m)]">
             <thead>
               <tr className="border-b border-[var(--border-subtle)] bg-[var(--blue-20)] text-[length:var(--body-s)] font-medium uppercase tracking-wide text-[var(--text-label)]">
@@ -560,7 +560,7 @@ export function JobDetailPage() {
             <div
               id="job-detail-row-menu-popover"
               role="menu"
-              className="fixed z-[200] min-w-[13.5rem] rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 text-left shadow-[var(--elevation-2)]"
+              className="fixed z-[200] min-w-[13.5rem] rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 text-left shadow-[var(--elevation-2)]"
               style={rowMenuPopoverStyle}
             >
               <Link

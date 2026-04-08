@@ -280,15 +280,18 @@ export function CandidatesPage() {
 
   return (
     <div
-      className={
+      className={[
+        "w-full min-w-0",
         canManageRecruitment && selected.size > 0
           ? "pb-[4.5rem] sm:pb-[4.25rem]"
-          : undefined
-      }
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       {bulkToast ? (
         <div
-          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-lg"
+          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-[var(--elevation-2)]"
           role="status"
         >
           {bulkToast}
@@ -354,30 +357,34 @@ export function CandidatesPage() {
         />
       ) : null}
 
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-left text-[length:var(--body-m)]">
+      <div className="w-full min-w-0 overflow-hidden rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
+        <table className="w-full table-fixed border-collapse text-left text-[length:var(--body-m)]">
             <thead>
               <tr className="border-b border-[var(--border-subtle)] bg-[var(--blue-20)] text-[length:var(--body-s)] font-medium uppercase tracking-wide text-[var(--text-label)]">
                 {canManageRecruitment ? (
-                  <th className="w-10 px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={() => {
-                        if (allSelected) clearSelection();
-                        else selectAll();
-                      }}
-                      aria-label="Select all"
-                      className="rounded border-[var(--border-default)]"
-                    />
+                  <th
+                    scope="col"
+                    className="w-[40px] min-w-[40px] max-w-[40px] p-0 align-middle"
+                  >
+                    <div className="flex h-10 items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={() => {
+                          if (allSelected) clearSelection();
+                          else selectAll();
+                        }}
+                        aria-label="Select all"
+                        className="shrink-0 rounded border-[var(--border-default)]"
+                      />
+                    </div>
                   </th>
                 ) : null}
-                <th className="px-3 py-2">Candidate</th>
-                <th className="px-3 py-2">Email &amp; Phone</th>
-                <th className="px-3 py-2">Job Applied</th>
-                <th className="px-3 py-2">Overall Status</th>
-                <th className="border-l border-[var(--border-subtle)] px-3 py-2">
+                <th className="w-[20%] px-3 py-2">Candidate</th>
+                <th className="w-[22%] px-3 py-2">Email &amp; Phone</th>
+                <th className="w-[28%] px-3 py-2">Job Applied</th>
+                <th className="w-[15%] px-3 py-2">Overall Status</th>
+                <th className="w-[15%] border-l border-[var(--border-subtle)] px-3 py-2">
                   Actions
                 </th>
               </tr>
@@ -406,49 +413,51 @@ export function CandidatesPage() {
                       className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]"
                     >
                       {canManageRecruitment ? (
-                        <td className="px-3 py-3 align-top">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(row.id)}
-                            onChange={() => toggle(row.id)}
-                            aria-label={`Select ${row.name}`}
-                            className="rounded border-[var(--border-default)]"
-                          />
+                        <td className="w-[40px] min-w-[40px] max-w-[40px] p-0 align-middle">
+                          <div className="flex min-h-[3.25rem] items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(row.id)}
+                              onChange={() => toggle(row.id)}
+                              aria-label={`Select ${row.name}`}
+                              className="shrink-0 rounded border-[var(--border-default)]"
+                            />
+                          </div>
                         </td>
                       ) : null}
-                      <td className="px-3 py-3">
+                      <td className="min-w-0 px-3 py-3">
                         <Link
                           to={`/recruitment/candidates/${row.id}`}
-                          className="font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
+                          className="block truncate font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
                         >
                           {row.name}
                         </Link>
-                        <div className="text-[length:var(--body-s)] text-[var(--text-label)]">
+                        <div className="truncate text-[length:var(--body-s)] text-[var(--text-label)]">
                           {row.id}
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-[var(--text-body)]">
-                        <div>{row.email}</div>
-                        <div className="text-[length:var(--body-s)] text-[var(--text-label)]">
+                      <td className="min-w-0 px-3 py-3 text-[var(--text-body)]">
+                        <div className="truncate">{row.email}</div>
+                        <div className="truncate text-[length:var(--body-s)] text-[var(--text-label)]">
                           {row.phone}
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-[var(--text-body)]">
-                        <div className="text-[length:var(--body-s)] text-[var(--text-label)]">
+                      <td className="min-w-0 px-3 py-3 text-[var(--text-body)]">
+                        <div className="truncate text-[length:var(--body-s)] text-[var(--text-label)]">
                           {row.department}
                         </div>
-                        <div>{row.job}</div>
-                        <div className="text-[length:var(--body-s)] text-[var(--text-label)]">
+                        <div className="truncate">{row.job}</div>
+                        <div className="truncate text-[length:var(--body-s)] text-[var(--text-label)]">
                           Multiple locations
                         </div>
                       </td>
-                      <td className="px-3 py-3 align-top">
-                        <span className="inline-flex rounded-md bg-[var(--yellow-50)] px-2 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--charcoal-600)]">
-                          {row.status}
+                      <td className="min-w-0 px-3 py-3 align-top">
+                        <span className="inline-flex max-w-full min-w-0 rounded-md bg-[var(--yellow-50)] px-2 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--charcoal-600)]">
+                          <span className="truncate">{row.status}</span>
                         </span>
                       </td>
-                      <td className="border-l border-[var(--border-subtle)] px-3 py-3 align-top">
-                        <div className="flex items-center gap-2">
+                      <td className="min-w-0 border-l border-[var(--border-subtle)] px-3 py-3 align-top">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
                           <button
                             type="button"
                             className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-[length:var(--body-s)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
@@ -485,7 +494,7 @@ export function CandidatesPage() {
                             </button>
                             {menuOpenId === row.id ? (
                               <div
-                                className="absolute right-0 top-full z-50 mt-1 min-w-[13.5rem] rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[13.5rem] rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
                                 role="menu"
                               >
                                 <Link
@@ -523,7 +532,6 @@ export function CandidatesPage() {
               )}
             </tbody>
           </table>
-        </div>
         <PaginationFooter from={1} to={rows.length} total={rows.length} />
       </div>
 

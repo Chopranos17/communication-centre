@@ -264,7 +264,7 @@ export function CommunicationsJobEmailSection({
   const toggleSection = () => setSectionOpen((o) => !o);
 
   return (
-    <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50">
+    <div className="mb-4 rounded-lg border border-gray-200/60 bg-gray-50 shadow-none">
       <div className="flex items-center justify-between gap-3 px-5 py-4">
         <button
           type="button"
@@ -289,7 +289,7 @@ export function CommunicationsJobEmailSection({
         <div className="flex shrink-0 items-center gap-2">
           {showNewEmailButton ? (
             <div ref={splitCommActionsRef} className="relative flex items-center">
-              <div className="inline-flex overflow-hidden rounded-[var(--radius-sm)] border border-black bg-black shadow-sm">
+              <div className="inline-flex overflow-hidden rounded-[var(--radius-sm)] border border-black bg-black shadow-none">
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 border-r border-white/25 px-4 py-1.5 text-[length:var(--body-s)] font-medium text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
@@ -322,7 +322,7 @@ export function CommunicationsJobEmailSection({
                   id="comm-actions-more-menu"
                   role="menu"
                   aria-labelledby="comm-actions-more-trigger"
-                  className="absolute right-0 top-full z-[60] mt-1 min-w-[12rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                  className="absolute right-0 top-full z-[60] mt-1 min-w-[12rem] rounded-lg border border-gray-200/60 bg-white py-1 shadow-[var(--elevation-2)]"
                 >
                   <button
                     type="button"
@@ -430,7 +430,7 @@ export function CommunicationsJobEmailSection({
                 <button
                   type="button"
                   onClick={() => onRetry()}
-                  className="rounded border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-50"
+                  className="rounded border border-gray-200/60 bg-white px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-50"
                 >
                   Retry
                 </button>
@@ -489,7 +489,7 @@ export function CommunicationsJobEmailSection({
                 style={tableScroll ? { maxHeight: SCROLL_MAX_HEIGHT_PX } : undefined}
               >
                 <div className="relative pl-9">
-                  <div className="absolute bottom-0 left-[13px] top-0 w-px bg-gray-200" />
+                  <div className="absolute bottom-0 left-[13px] top-0 w-px bg-gray-200/60" />
 
                   {visibleGroups.map((group) => {
                     const rows = group.rows;
@@ -703,16 +703,16 @@ export function CommunicationsJobEmailSection({
                               <>
                                 <div className="relative pb-1.5">
                                   <div
-                                    className="pointer-events-none absolute bottom-0 left-1 right-1 top-[6px] rounded-lg border border-gray-200 bg-white opacity-50"
+                                    className="pointer-events-none absolute bottom-0 left-1 right-1 top-[6px] rounded-lg border border-gray-200/60 bg-white opacity-50"
                                     aria-hidden
                                   />
                                   <div
-                                    className="pointer-events-none absolute bottom-0 left-0.5 right-0.5 top-[3px] rounded-lg border border-gray-200 bg-white opacity-75"
+                                    className="pointer-events-none absolute bottom-0 left-0.5 right-0.5 top-[3px] rounded-lg border border-gray-200/60 bg-white opacity-75"
                                     aria-hidden
                                   />
                                   <button
                                     type="button"
-                                    className="group relative z-[1] w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                    className="group relative z-[1] w-full cursor-pointer rounded-lg border border-gray-200/60 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                                     aria-expanded={expanded}
                                     onClick={() => toggleThread(group.key)}
                                   >
@@ -731,7 +731,7 @@ export function CommunicationsJobEmailSection({
                               <>
                                 <button
                                   type="button"
-                                  className="w-full cursor-pointer rounded-t-lg border border-b-0 border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                  className="w-full cursor-pointer rounded-t-lg border border-b-0 border-gray-200/60 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                                   aria-expanded={expanded}
                                   onClick={() => toggleThread(group.key)}
                                 >
@@ -744,10 +744,10 @@ export function CommunicationsJobEmailSection({
                                   </p>
                                 </button>
                                 <div
-                                  className={`border-x border-gray-200 bg-white ${
+                                  className={`border-x border-gray-200/60 bg-white ${
                                     !canThreadAct ||
                                     (!threadActions.reply && !threadActions.followUp)
-                                      ? "rounded-b-lg border-b border-gray-200"
+                                      ? "rounded-b-lg border-b border-gray-200/60"
                                       : ""
                                   }`}
                                 >
@@ -761,7 +761,7 @@ export function CommunicationsJobEmailSection({
                                         key={`${group.key}-${row.id}`}
                                         role="button"
                                         tabIndex={0}
-                                        className="cursor-pointer border-t border-gray-200 bg-gray-50 px-4 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                        className="cursor-pointer border-t border-gray-200/60 bg-gray-50 px-4 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openDetail(row);
@@ -809,11 +809,11 @@ export function CommunicationsJobEmailSection({
                                 </div>
                                 {canThreadAct &&
                                 (threadActions.reply || threadActions.followUp) ? (
-                                  <div className="flex gap-3 rounded-b-lg border border-t border-gray-200 bg-white px-4 py-2">
+                                  <div className="flex gap-3 rounded-b-lg border border-t border-gray-200/60 bg-white px-4 py-2">
                                     {threadActions.reply ? (
                                       <button
                                         type="button"
-                                        className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                                        className="flex items-center gap-1.5 rounded border border-gray-200/60 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onReply?.(rows);
@@ -826,7 +826,7 @@ export function CommunicationsJobEmailSection({
                                     {threadActions.followUp ? (
                                       <button
                                         type="button"
-                                        className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                                        className="flex items-center gap-1.5 rounded border border-gray-200/60 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onFollowUp?.(rows);
@@ -859,7 +859,7 @@ export function CommunicationsJobEmailSection({
                                 openDetail(latest);
                               }
                             }}
-                            className={`group cursor-pointer rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
+                            className={`group cursor-pointer rounded-lg border border-gray-200/60 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
                               latest.channel === "meeting" ? "" : ""
                             }`}
                           >

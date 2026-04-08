@@ -89,7 +89,7 @@ export function CommunicationFilterPanel({
       />
       <aside
         className={[
-          "fixed inset-y-0 right-0 z-[101] flex w-full max-w-[420px] flex-col bg-white shadow-[0_0_24px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-[101] flex w-full max-w-[420px] flex-col border-l border-gray-200/60 bg-white shadow-[var(--elevation-2)] transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "pointer-events-none translate-x-full",
         ].join(" ")}
         role="dialog"
@@ -97,7 +97,7 @@ export function CommunicationFilterPanel({
         aria-labelledby="comm-filter-panel-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
+        <header className="flex shrink-0 items-center justify-between border-b border-gray-200/60 px-6 py-4">
           <h2
             id="comm-filter-panel-title"
             className="text-lg font-semibold text-gray-900"
@@ -280,7 +280,7 @@ export function CommunicationFilterPanel({
           </div>
         </div>
 
-        <footer className="shrink-0 border-t border-gray-200 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-5">
+        <footer className="shrink-0 border-t border-gray-200/60 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <button
               type="button"
