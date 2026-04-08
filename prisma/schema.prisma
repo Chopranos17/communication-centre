@@ -63,8 +63,10 @@ model Job {
 
 model Communication {
   id                String  @id @default(cuid())
-  candidate_id      String
-  job_id            String
+  candidate_id      String?
+  job_id            String?
+  /// True when inbound SMS/WhatsApp could not be matched to a candidate (manual assignment later).
+  unmatched         Boolean @default(false)
   /// email | sms | whatsapp | meeting | system_notification
   channel           String
   /// outbound | inbound
@@ -87,8 +89,8 @@ model Communication {
   sent_at           DateTime @default(now())
   read_at           DateTime?
 
-  candidate      Candidate      @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
-  job            Job            @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  candidate      Candidate?      @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  job            Job?            @relation(fields: [job_id], references: [id], onDelete: Cascade)
   template       EmailTemplate? @relation(fields: [template_id], references: [id], onDelete: SetNull)
   meeting_detail Meeting?
 

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Resend } from "resend";
 import twilio from "twilio";
 import { prisma } from "../db";
@@ -53,6 +54,14 @@ export interface SendMessageResult extends VendorSendResult {
 
 const DEFAULT_EMAIL_FROM = "onboarding@resend.dev";
 
+let warnedMissingInboundReply: boolean = false;
+
+function inboundReplyToAddress(): string | undefined {
+  const raw = process.env.RESEND_INBOUND_ADDRESS?.trim();
+  if (!raw) return undefined;
+  return raw.replace(/^["']|["']$/g, "");
+}
+
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY?.trim();
   if (!key) return null;
@@ -89,14 +98,23 @@ export async function sendEmail(
   }
 
   const from = params.from?.trim() || DEFAULT_EMAIL_FROM;
+  /** Resend REST body uses `reply_to`; Node SDK property is `replyTo`. */
+  const replyToInbound = inboundReplyToAddress();
+  if (!replyToInbound && !warnedMissingInboundReply) {
+    warnedMissingInboundReply = true;
+    console.warn(
+      "[message-sender] RESEND_INBOUND_ADDRESS is missing or empty — outbound emails will not get a Reply-To; clients will reply to `from` (e.g. onboarding@resend.dev).",
+    );
+  }
 
   try {
     const { data, error } = await resend.emails.send({
       from,
       to: params.to,
-      ...(params.cc?.length ? { cc: params.cc } : {}),
       subject: params.subject,
       html: params.htmlBody,
+      ...(replyToInbound ? { replyTo: replyToInbound } : {}),
+      ...(params.cc?.length ? { cc: params.cc } : {}),
     });
 
     if (error) {

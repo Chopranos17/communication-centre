@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { io } from "socket.io-client";
 import { fetchCandidateCurrentJobEmails } from "../../api/candidatesClient";
 import { usePersona } from "../../context/PersonaContext";
 import type {
   CandidateCurrentJobEmails,
   CurrentJobEmailRow,
+  NewMessageSocketPayload,
 } from "../../api/candidatesClient";
+import { communicationToTimelineRow } from "../../utils/communicationTimelineRow";
 import { CommunicationsJobEmailSection } from "./CommunicationsJobEmailSection";
 import { ComposeEmailModal } from "./ComposeEmailModal";
 import type { ComposeEmailRecipient } from "./ComposeEmailModal";
@@ -101,6 +104,56 @@ export function CommunicationsCurrentJobSection({
   useEffect(() => {
     void load();
   }, [load, refreshSignal]);
+
+  useEffect(() => {
+    const socket = io({
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+    });
+    const onNew = (payload: NewMessageSocketPayload) => {
+      if (payload.communication.candidate_id !== candidateId) return;
+      const row = communicationToTimelineRow(payload.communication, null);
+      setData((prev) => {
+        if (!prev) return prev;
+        if (payload.communication.job_id === prev.currentJob?.id) {
+          if (prev.emails.some((e) => e.id === row.id)) return prev;
+          return { ...prev, emails: [row, ...prev.emails] };
+        }
+        const jobId = payload.job.id;
+        const idx = prev.otherJobEmailSections.findIndex(
+          (s) => s.job.id === jobId,
+        );
+        if (idx === -1) {
+          const section = {
+            job: {
+              id: payload.job.id,
+              title: payload.job.title,
+              jobCode: payload.job.job_code,
+            },
+            emails: [row],
+          };
+          const other = [...prev.otherJobEmailSections, section];
+          other.sort((a, b) => {
+            const ta = a.emails[0]?.sentAt;
+            const tb = b.emails[0]?.sentAt;
+            if (!ta || !tb) return 0;
+            return new Date(tb).getTime() - new Date(ta).getTime();
+          });
+          return { ...prev, otherJobEmailSections: other };
+        }
+        const sections = [...prev.otherJobEmailSections];
+        const sec = sections[idx];
+        if (sec.emails.some((e) => e.id === row.id)) return prev;
+        sections[idx] = { ...sec, emails: [row, ...sec.emails] };
+        return { ...prev, otherJobEmailSections: sections };
+      });
+    };
+    socket.on("new-message", onNew);
+    return () => {
+      socket.off("new-message", onNew);
+      socket.close();
+    };
+  }, [candidateId]);
 
   useEffect(() => {
     setDetailEmail(null);

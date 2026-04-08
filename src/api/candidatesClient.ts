@@ -105,6 +105,33 @@ export type CandidateCurrentJobEmails = {
   otherJobEmailSections: OtherJobEmailSection[]
 }
 
+/** Socket.io `new-message` payload from the inbound poller (server). */
+export type NewMessageSocketPayload = {
+  communication: {
+    id: string
+    candidate_id: string
+    job_id: string
+    channel: string
+    direction: string
+    sender_type: string
+    sender_id: string | null
+    sender_name: string | null
+    thread_id: string | null
+    from_address: string | null
+    to_address: string | null
+    cc_addresses: string | null
+    subject: string | null
+    body: string
+    template_id: string | null
+    delivery_status: string
+    vendor_message_id: string | null
+    sent_at: string
+    read_at: string | null
+  }
+  candidate: { id: string; name: string; email: string }
+  job: { id: string; title: string; job_code: string }
+}
+
 export async function fetchCandidateCurrentJobEmails(
   candidateId: string,
   jobId?: string,

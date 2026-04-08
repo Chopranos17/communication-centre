@@ -1,6 +1,10 @@
 import "dotenv/config";
+import { createServer } from "http";
 import express from "express";
+import { Server } from "socket.io";
 import { prisma } from "./db";
+import { setSocketIo } from "./socket-io";
+import { startPolling } from "./services/inbound-poller";
 import { sendEmail, sendMessage } from "./services/message-sender";
 
 function normalizeSmsToE164(raw: string): string {
@@ -142,7 +146,9 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         toAddress: row.to_address ?? "",
         deliveryStatus: row.delivery_status,
         threadId:
-          channel === "email" && row.thread_id ? row.thread_id : null,
+          channel === "email"
+            ? (row.thread_id?.trim() || row.id)
+            : null,
         meeting:
           channel === "meeting" && mtg
             ? {
@@ -1120,6 +1126,19 @@ app.get("/api/test-send", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ],
+    methods: ["GET", "POST"],
+  },
+});
+setSocketIo(io);
+
+httpServer.listen(PORT, () => {
   console.log(`API listening on http://localhost:${PORT}`);
+  startPolling();
 });
