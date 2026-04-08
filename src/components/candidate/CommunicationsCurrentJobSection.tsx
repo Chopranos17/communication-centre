@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { io } from "socket.io-client";
 import { fetchCandidateCurrentJobEmails } from "../../api/candidatesClient";
 import { usePersona } from "../../context/PersonaContext";
@@ -7,7 +13,18 @@ import type {
   CurrentJobEmailRow,
   NewMessageSocketPayload,
 } from "../../api/candidatesClient";
+import { FilterTabs } from "../layout/FilterTabs";
+import {
+  applyFullGlobalFilter,
+  applySearchAndPanelRowFilters,
+  countMessagesByChannel,
+  countNonDefaultPanelFilters,
+  DEFAULT_COMMUNICATION_FILTERS,
+  type ChannelFilterId,
+  type CommunicationFilters,
+} from "../../utils/communicationsTimelineFilter";
 import { communicationToTimelineRow } from "../../utils/communicationTimelineRow";
+import { CommunicationFilterPanel } from "./CommunicationFilterPanel";
 import { CommunicationsJobEmailSection } from "./CommunicationsJobEmailSection";
 import { ComposeEmailModal } from "./ComposeEmailModal";
 import type { ComposeEmailRecipient } from "./ComposeEmailModal";
@@ -18,11 +35,69 @@ import { ScheduleMeetingModal } from "./ScheduleMeetingModal";
 
 const EMPTY_EMAILS: CurrentJobEmailRow[] = [];
 
+export type CommunicationsFilterSummary = {
+  filtersActive: boolean;
+  filteredCount: number;
+  personaTotal: number;
+};
+
 /** Default recruiter row for 1:1 participants (aligned with `/api/employees` seed). */
 const DEFAULT_RECRUITER_PARTICIPANT = {
   name: "Atharva M",
   email: "atharva.m@darwinbox.in",
 };
+
+function IconSearchOutline({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle
+        cx="11"
+        cy="11"
+        r="6.25"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M16.5 16.5L20 20"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Outline funnel (matches Darwinbox-style filter control). */
+function IconFilterFunnelOutline({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M3 5.25h18l-6.75 8.46V18.5l-2.25 1.25v-6.29L3 5.25z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+const ICON_BUTTON_CLASS =
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--icon-default)] shadow-sm hover:bg-[var(--bg-surface-hover)] hover:text-[var(--icon-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-500)]";
 
 export function CommunicationsCurrentJobSection({
   candidateId,
@@ -37,6 +112,7 @@ export function CommunicationsCurrentJobSection({
   whatsappDisabled = false,
   smsDisabledTitle,
   whatsappDisabledTitle,
+  onCommunicationsFilterSummary,
 }: {
   candidateId: string;
   candidateName: string;
@@ -52,6 +128,7 @@ export function CommunicationsCurrentJobSection({
   whatsappDisabled?: boolean;
   smsDisabledTitle?: string;
   whatsappDisabledTitle?: string;
+  onCommunicationsFilterSummary?: (summary: CommunicationsFilterSummary) => void;
 }) {
   const [data, setData] = useState<CandidateCurrentJobEmails | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -67,8 +144,25 @@ export function CommunicationsCurrentJobSection({
     id: string;
     title: string;
   } | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [channelFilter, setChannelFilter] = useState<ChannelFilterId>("all");
+  const [panelFilters, setPanelFilters] = useState<CommunicationFilters>(() => ({
+    ...DEFAULT_COMMUNICATION_FILTERS,
+  }));
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const commToolbarRef = useRef<HTMLDivElement>(null);
 
   const { canManageRecruitment } = usePersona();
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
 
   const emailsForPersona = useMemo(() => {
     const list = data?.emails ?? EMPTY_EMAILS;
@@ -86,6 +180,119 @@ export function CommunicationsCurrentJobSection({
       }))
       .filter((section) => section.emails.length > 0);
   }, [data?.otherJobEmailSections, canManageRecruitment]);
+
+  const allPersonaRowsFlat = useMemo(
+    () => [
+      ...emailsForPersona,
+      ...otherJobSectionsForPersona.flatMap((s) => s.emails),
+    ],
+    [emailsForPersona, otherJobSectionsForPersona],
+  );
+
+  const personaGrandTotal = allPersonaRowsFlat.length;
+
+  const afterSearchAndPanelRowFilters = useMemo(
+    () =>
+      applySearchAndPanelRowFilters(
+        allPersonaRowsFlat,
+        debouncedSearch,
+        panelFilters,
+      ),
+    [allPersonaRowsFlat, debouncedSearch, panelFilters],
+  );
+
+  const channelCounts = useMemo(
+    () => countMessagesByChannel(afterSearchAndPanelRowFilters),
+    [afterSearchAndPanelRowFilters],
+  );
+
+  const filteredCurrentJobEmails = useMemo(
+    () =>
+      applyFullGlobalFilter(
+        emailsForPersona,
+        debouncedSearch,
+        panelFilters,
+        channelFilter,
+      ),
+    [emailsForPersona, debouncedSearch, panelFilters, channelFilter],
+  );
+
+  const filteredOtherSections = useMemo(
+    () =>
+      otherJobSectionsForPersona.map((section) => ({
+        ...section,
+        emails: applyFullGlobalFilter(
+          section.emails,
+          debouncedSearch,
+          panelFilters,
+          channelFilter,
+        ),
+      })),
+    [
+      otherJobSectionsForPersona,
+      debouncedSearch,
+      panelFilters,
+      channelFilter,
+    ],
+  );
+
+  const filteredGrandTotal = useMemo(() => {
+    let n = filteredCurrentJobEmails.length;
+    for (const s of filteredOtherSections) n += s.emails.length;
+    return n;
+  }, [filteredCurrentJobEmails, filteredOtherSections]);
+
+  const panelFilterBadgeCount = useMemo(
+    () => countNonDefaultPanelFilters(panelFilters),
+    [panelFilters],
+  );
+
+  const filtersActive = useMemo(
+    () =>
+      debouncedSearch !== "" ||
+      channelFilter !== "all" ||
+      countNonDefaultPanelFilters(panelFilters) > 0,
+    [debouncedSearch, channelFilter, panelFilters],
+  );
+
+  const clearGlobalFilters = useCallback(() => {
+    setSearchInput("");
+    setDebouncedSearch("");
+    setChannelFilter("all");
+    setPanelFilters({ ...DEFAULT_COMMUNICATION_FILTERS });
+    setSearchExpanded(false);
+  }, []);
+
+  const handleSearchBlur = useCallback(() => {
+    window.setTimeout(() => {
+      if (commToolbarRef.current?.contains(document.activeElement)) return;
+      if (!searchInputRef.current?.value.trim()) setSearchExpanded(false);
+    }, 0);
+  }, []);
+
+  const openSearch = useCallback(() => {
+    setSearchExpanded(true);
+    queueMicrotask(() => searchInputRef.current?.focus());
+  }, []);
+
+  const channelTabs = useMemo(
+    () => [
+      { id: "all" as const, label: "All", count: channelCounts.all },
+      { id: "email" as const, label: "Email", count: channelCounts.email },
+      { id: "sms" as const, label: "SMS", count: channelCounts.sms },
+      {
+        id: "whatsapp" as const,
+        label: "WhatsApp",
+        count: channelCounts.whatsapp,
+      },
+      {
+        id: "meeting" as const,
+        label: "Meeting",
+        count: channelCounts.meeting,
+      },
+    ],
+    [channelCounts],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,6 +365,42 @@ export function CommunicationsCurrentJobSection({
   useEffect(() => {
     setDetailEmail(null);
   }, [candidateId]);
+
+  useEffect(() => {
+    setSearchInput("");
+    setDebouncedSearch("");
+    setChannelFilter("all");
+    setPanelFilters({ ...DEFAULT_COMMUNICATION_FILTERS });
+    setFilterPanelOpen(false);
+    setSearchExpanded(false);
+  }, [candidateId]);
+
+  useEffect(() => {
+    setDetailEmail(null);
+  }, [
+    debouncedSearch,
+    channelFilter,
+    panelFilters.sortBy,
+    panelFilters.direction,
+    panelFilters.deliveryStatus,
+    panelFilters.dateRange,
+    panelFilters.senderType,
+  ]);
+
+  useEffect(() => {
+    if (!onCommunicationsFilterSummary || loading) return;
+    onCommunicationsFilterSummary({
+      filtersActive,
+      filteredCount: filteredGrandTotal,
+      personaTotal: personaGrandTotal,
+    });
+  }, [
+    onCommunicationsFilterSummary,
+    loading,
+    filtersActive,
+    filteredGrandTotal,
+    personaGrandTotal,
+  ]);
 
   const clearDetailEmail = useCallback(() => {
     setDetailEmail(null);
@@ -256,6 +499,76 @@ export function CommunicationsCurrentJobSection({
           onSent={() => void load()}
         />
       ) : null}
+
+      <div className="space-y-3">
+        <div
+          ref={commToolbarRef}
+          className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2"
+        >
+          <div className="min-w-0 flex-[1_1_0%]">
+            <FilterTabs
+              tabs={channelTabs}
+              activeId={channelFilter}
+              onChange={(id) => setChannelFilter(id as ChannelFilterId)}
+            />
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {searchExpanded ? (
+              <div className="relative w-[min(100%,20rem)] min-w-[10.5rem] sm:min-w-[12rem]">
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onBlur={handleSearchBlur}
+                  placeholder="Search messages..."
+                  className="h-9 w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] py-2 pl-3 pr-10 text-[length:var(--body-m)] text-[var(--text-body)] placeholder:text-[var(--text-ghost)] shadow-sm focus:border-[var(--border-active)] focus:outline-none focus:ring-1 focus:ring-[var(--blue-500)]"
+                  aria-label="Search messages"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--icon-default)]">
+                  <IconSearchOutline />
+                </span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={openSearch}
+                className={ICON_BUTTON_CLASS}
+                aria-label="Open search"
+              >
+                <IconSearchOutline />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setFilterPanelOpen(true)}
+              className={`relative ${ICON_BUTTON_CLASS}`}
+              aria-label="Sort and filters"
+            >
+              <IconFilterFunnelOutline />
+              {panelFilterBadgeCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--blue-500)] px-0.5 text-[10px] font-semibold leading-none text-white">
+                  {panelFilterBadgeCount > 9 ? "9+" : panelFilterBadgeCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        </div>
+        {!loading && !loadError && personaGrandTotal > 0 ? (
+          <p className="text-[length:var(--body-s)] text-[var(--text-label)]">
+            Showing {filteredGrandTotal} of {personaGrandTotal} messages
+          </p>
+        ) : null}
+      </div>
+
+      <CommunicationFilterPanel
+        isOpen={filterPanelOpen}
+        onClose={() => setFilterPanelOpen(false)}
+        filters={panelFilters}
+        onApply={(f) => setPanelFilters({ ...f })}
+        onReset={() => setPanelFilters({ ...DEFAULT_COMMUNICATION_FILTERS })}
+      />
+
       <CommunicationsJobEmailSection
         defaultSectionOpen
         jobTitle={jobTitle}
@@ -263,7 +576,9 @@ export function CommunicationsCurrentJobSection({
         jobCode={jobCode}
         titleSuffix=" (Current Job)"
         showNewEmailButton={canManageRecruitment}
-        emails={emailsForPersona}
+        emails={filteredCurrentJobEmails}
+        preGlobalEmailCount={emailsForPersona.length}
+        onClearGlobalFilters={clearGlobalFilters}
         loading={loading}
         loadError={loadError}
         onRetry={() => void load()}
@@ -319,9 +634,10 @@ export function CommunicationsCurrentJobSection({
               }
             : undefined
         }
+        timelineGroupOrder={panelFilters.sortBy}
       />
 
-      {otherJobSectionsForPersona.map((section) => (
+      {otherJobSectionsForPersona.map((section, idx) => (
         <CommunicationsJobEmailSection
           key={section.job.id}
           defaultSectionOpen={false}
@@ -329,7 +645,9 @@ export function CommunicationsCurrentJobSection({
           jobId={section.job.id}
           jobCode={section.job.jobCode}
           showNewEmailButton={false}
-          emails={section.emails}
+          emails={filteredOtherSections[idx]?.emails ?? []}
+          preGlobalEmailCount={section.emails.length}
+          onClearGlobalFilters={clearGlobalFilters}
           loading={false}
           onSelectEmail={setDetailEmail}
           onInvalidateDetail={clearDetailEmail}
@@ -353,6 +671,7 @@ export function CommunicationsCurrentJobSection({
               : undefined
           }
           emptyTimelineMessage={emptyTimelineCopy}
+          timelineGroupOrder={panelFilters.sortBy}
         />
       ))}
     </div>

@@ -3,6 +3,7 @@ import type { CurrentJobEmailRow } from "../../api/candidatesClient";
 import {
   buildTimelineMessagePreview,
   buildTimelineThreadGroups,
+  type TimelineGroupSortOrder,
   formatTimelineTime,
   getContactThreadActions,
   meetingStatusBadgeLabel,
@@ -47,6 +48,10 @@ type CommunicationsJobEmailSectionProps = {
   titleSuffix?: string | null;
   showNewEmailButton: boolean;
   emails: CurrentJobEmailRow[];
+  /** Row count before parent-level search/channel/direction filters (for empty states). */
+  preGlobalEmailCount?: number;
+  /** Resets parent search/channel/direction filters (shown when global filters hide all rows). */
+  onClearGlobalFilters?: () => void;
   loading?: boolean;
   loadError?: string | null;
   onRetry?: () => void;
@@ -81,6 +86,8 @@ type CommunicationsJobEmailSectionProps = {
   onFollowUp?: (threadRows: CurrentJobEmailRow[]) => void;
   /** Task 13: contact@ threads with candidate reply. */
   onReply?: (threadRows: CurrentJobEmailRow[]) => void;
+  /** Thread group ordering from Communications filter panel. */
+  timelineGroupOrder?: TimelineGroupSortOrder;
 };
 
 export function CommunicationsJobEmailSection({
@@ -91,6 +98,8 @@ export function CommunicationsJobEmailSection({
   titleSuffix,
   showNewEmailButton,
   emails,
+  preGlobalEmailCount,
+  onClearGlobalFilters,
   loading = false,
   loadError = null,
   onRetry,
@@ -114,7 +123,12 @@ export function CommunicationsJobEmailSection({
   candidateName = "",
   onFollowUp,
   onReply,
+  timelineGroupOrder = "newest",
 }: CommunicationsJobEmailSectionProps) {
+  const sourceEmailCount =
+    preGlobalEmailCount !== undefined ? preGlobalEmailCount : emails.length;
+  const isGlobalFilterEmpty = sourceEmailCount > 0 && emails.length === 0;
+
   const [sectionOpen, setSectionOpen] = useState(defaultSectionOpen);
   const [emailFilter, setEmailFilter] = useState<EmailTypeFilter>("all");
   const [expandedList, setExpandedList] = useState(false);
@@ -164,8 +178,8 @@ export function CommunicationsJobEmailSection({
   }, [moreMenuOpen]);
 
   const threadGroups = useMemo(
-    () => buildTimelineThreadGroups(filtered),
-    [filtered],
+    () => buildTimelineThreadGroups(filtered, timelineGroupOrder),
+    [filtered, timelineGroupOrder],
   );
 
   const visibleGroups = useMemo(() => {
@@ -222,30 +236,25 @@ export function CommunicationsJobEmailSection({
       {sectionOpen ? (
         <div className="bg-[var(--charcoal-10)] px-4 py-4 sm:px-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[length:var(--body-m)] font-medium text-[var(--text-label)]">
-                Email Type:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {FILTER_OPTIONS.map((opt) => {
-                  const active = emailFilter === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setEmailFilter(opt.id)}
-                      className={[
-                        "rounded-full border px-3 py-1 text-[length:var(--body-s)] font-medium transition-colors",
-                        active
-                          ? "border-[var(--blue-500)] bg-[var(--blue-50)] text-[var(--blue-600)]"
-                          : "border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)]",
-                      ].join(" ")}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {FILTER_OPTIONS.map((opt) => {
+                const active = emailFilter === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setEmailFilter(opt.id)}
+                    className={[
+                      "rounded-full border px-3 py-1 text-[length:var(--body-s)] font-medium transition-colors",
+                      active
+                        ? "border-[var(--blue-500)] bg-[var(--blue-50)] text-[var(--blue-600)]"
+                        : "border-[var(--charcoal-100)] bg-[var(--bg-surface)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)]",
+                    ].join(" ")}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
             {showNewEmailButton ? (
               <div
@@ -372,10 +381,50 @@ export function CommunicationsJobEmailSection({
             <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
               {missingJobMessage}
             </p>
-          ) : showBody && emails.length === 0 ? (
+          ) : showBody && sourceEmailCount === 0 ? (
             <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
               {emptyTimelineMessage}
             </p>
+          ) : showBody && isGlobalFilterEmpty ? (
+            <div
+              className="flex flex-col items-center justify-center gap-3 py-10 text-center"
+              role="status"
+            >
+              <span className="text-[var(--icon-default)]" aria-hidden>
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="mx-auto"
+                >
+                  <path
+                    d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 9h8M8 13h5"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <p className="max-w-sm text-[length:var(--body-m)] text-[var(--text-body)]">
+                No messages match your filters
+              </p>
+              {onClearGlobalFilters ? (
+                <button
+                  type="button"
+                  onClick={() => onClearGlobalFilters()}
+                  className="text-[length:var(--body-m)] font-medium text-[var(--text-link)] underline hover:text-[var(--text-link-hover)]"
+                >
+                  Clear filters
+                </button>
+              ) : null}
+            </div>
           ) : showBody && filtered.length === 0 ? (
             <p className="text-[length:var(--body-m)] text-[var(--text-label)]">
               {emptyFilterMessage}

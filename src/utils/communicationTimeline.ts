@@ -7,12 +7,15 @@ export type TimelineThreadGroup = {
   rows: CurrentJobEmailRow[]
 }
 
+export type TimelineGroupSortOrder = "newest" | "oldest";
+
 /**
  * Group flat timeline rows into threads (email + same threadId) and singletons (SMS/WhatsApp,
- * standalone email). Sort groups by latest activity (newest first). PRD §4.5 / Task 12.
+ * standalone email). Sort groups by latest activity. PRD §4.5 / Task 12.
  */
 export function buildTimelineThreadGroups(
   rows: CurrentJobEmailRow[],
+  groupOrder: TimelineGroupSortOrder = "newest",
 ): TimelineThreadGroup[] {
   const emailRows = rows.filter((r) => r.channel === "email")
   const otherRows = rows.filter((r) => r.channel !== "email")
@@ -55,7 +58,8 @@ export function buildTimelineThreadGroups(
     const maxB = Math.max(
       ...b.rows.map((x) => new Date(x.sentAt).getTime()),
     )
-    return maxB - maxA
+    const cmp = maxB - maxA
+    return groupOrder === "newest" ? cmp : -cmp
   })
 
   return groups

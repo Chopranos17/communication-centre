@@ -7,7 +7,10 @@ import {
   CandidateDetailTabs,
   type CandidateMainTabId,
 } from '../components/candidate/CandidateDetailTabs'
-import { CommunicationsCurrentJobSection } from '../components/candidate/CommunicationsCurrentJobSection'
+import {
+  CommunicationsCurrentJobSection,
+  type CommunicationsFilterSummary,
+} from '../components/candidate/CommunicationsCurrentJobSection'
 import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { usePersona } from '../context/PersonaContext'
@@ -52,6 +55,8 @@ export function CandidateDetailPage() {
   const [smsModalOpen, setSmsModalOpen] = useState(false)
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
   const [communicationsRefresh, setCommunicationsRefresh] = useState(0)
+  const [commFilterStats, setCommFilterStats] =
+    useState<CommunicationsFilterSummary | null>(null)
   const { canManageRecruitment } = usePersona()
 
   const bumpCommunications = useCallback(() => {
@@ -91,6 +96,14 @@ export function CandidateDetailPage() {
       setMainTab(TAB_QUERY_TO_MAIN[raw])
     }
   }, [searchParams])
+
+  useEffect(() => {
+    setCommFilterStats(null)
+  }, [detail?.id])
+
+  useEffect(() => {
+    if (mainTab !== 'communications') setCommFilterStats(null)
+  }, [mainTab])
 
   const smsToDisplay = useMemo(() => {
     if (!detail) return ''
@@ -305,7 +318,9 @@ export function CandidateDetailPage() {
                     Communications
                   </h2>
                   <span className="text-[length:var(--body-s)] text-[var(--text-label)]">
-                    {detail.communicationCount} total touchpoints (all channels)
+                    {commFilterStats?.filtersActive
+                      ? `${commFilterStats.filteredCount} of ${commFilterStats.personaTotal} touchpoints (all channels)`
+                      : `${detail.communicationCount} total touchpoints (all channels)`}
                   </span>
                 </div>
                 <CommunicationsCurrentJobSection
@@ -341,6 +356,7 @@ export function CandidateDetailPage() {
                         ? 'Candidate has no phone or WhatsApp number.'
                         : undefined
                   }
+                  onCommunicationsFilterSummary={setCommFilterStats}
                 />
               </div>
             ) : null}
