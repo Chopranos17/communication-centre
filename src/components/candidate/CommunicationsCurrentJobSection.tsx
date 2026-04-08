@@ -652,6 +652,12 @@ export function CommunicationsCurrentJobSection({
           onSelectEmail={setDetailEmail}
           onInvalidateDetail={clearDetailEmail}
           candidateName={candidateName}
+          onSendSms={canManageRecruitment ? onSendSms : undefined}
+          onSendWhatsApp={canManageRecruitment ? onSendWhatsApp : undefined}
+          smsDisabled={smsDisabled}
+          whatsappDisabled={whatsappDisabled}
+          smsDisabledTitle={smsDisabledTitle}
+          whatsappDisabledTitle={whatsappDisabledTitle}
           onFollowUp={
             canManageRecruitment
               ? (rows) =>

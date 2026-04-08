@@ -7,30 +7,30 @@ type Props = {
   className?: string;
 };
 
-const vb = "0 0 24 24";
+const vb = "0 0 12 12";
+const sw = 1.25;
 
-/** 12×12 logical box — size via `className` (e.g. h-3 w-3). */
+/** 12×12 viewBox — size via `className` (e.g. h-3 w-3). */
 export function ChannelTimelineIcon({ channel, filterBucket, className }: Props) {
   const cn = className ?? "h-3 w-3";
+
+  const gear = (
+    <>
+      <circle cx={6} cy={6} r={2} stroke="currentColor" strokeWidth={sw} />
+      <path
+        stroke="currentColor"
+        strokeWidth={sw}
+        strokeLinecap="round"
+        d="M6 1.25v1.5M6 9.25v1.5M1.25 6h1.5M9.25 6h1.5M2.6 2.6l1.06 1.06M8.34 8.34l1.06 1.06M9.4 2.6l-1.06 1.06M3.66 8.34l-1.06 1.06"
+      />
+    </>
+  );
 
   if (channel === "system") {
     return (
       <span className={`inline-flex shrink-0 ${cn}`} title="System" aria-hidden>
         <svg viewBox={vb} fill="none" className="h-full w-full" aria-hidden>
-          <path
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 15a3 3 0 100-6 3 3 0 000 6z"
-          />
-          <path
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"
-          />
+          {gear}
         </svg>
       </span>
     );
@@ -39,20 +39,7 @@ export function ChannelTimelineIcon({ channel, filterBucket, className }: Props)
     return (
       <span className={`inline-flex shrink-0 ${cn}`} title="System" aria-hidden>
         <svg viewBox={vb} fill="none" className="h-full w-full" aria-hidden>
-          <path
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 15a3 3 0 100-6 3 3 0 000 6z"
-          />
-          <path
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"
-          />
+          {gear}
         </svg>
       </span>
     );
@@ -63,10 +50,10 @@ export function ChannelTimelineIcon({ channel, filterBucket, className }: Props)
         <svg viewBox={vb} fill="none" className="h-full w-full" aria-hidden>
           <path
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth={sw}
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8.5z"
+            d="M10.25 5.75c0 2-2.25 3.75-5 3.75-.6 0-1.17-.08-1.7-.22L2.25 10l.85-1.65a4.1 4.1 0 01-.6-2.1c0-2 2.25-3.75 5-3.75s5 1.75 5 3.75z"
           />
         </svg>
       </span>
@@ -78,10 +65,10 @@ export function ChannelTimelineIcon({ channel, filterBucket, className }: Props)
         <svg viewBox={vb} fill="none" className="h-full w-full" aria-hidden>
           <path
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth={sw}
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            d="M4 2.25V1M8 2.25V1M2.75 4.5h6.5M2.5 10.75h7a1 1 0 001-1v-5a1 1 0 00-1-1h-7a1 1 0 00-1 1v5a1 1 0 001 1z"
           />
         </svg>
       </span>
@@ -93,18 +80,12 @@ export function ChannelTimelineIcon({ channel, filterBucket, className }: Props)
         <svg viewBox={vb} fill="none" className="h-full w-full" aria-hidden>
           <path
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth={sw}
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8.5z"
+            d="M3 2.25h5.25a1 1 0 011 1v4.25a1 1 0 01-1 1H5.5L3.6 10.6V8.5H3a1 1 0 01-1-1v-4a1 1 0 011-1z"
           />
-          <path
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M8 13h.01M12 13h.01M16 13h.01"
-          />
+          <circle cx="4.65" cy="5.75" r="0.55" fill="currentColor" />
         </svg>
       </span>
     );
@@ -114,17 +95,17 @@ export function ChannelTimelineIcon({ channel, filterBucket, className }: Props)
       <svg viewBox={vb} fill="none" className="h-full w-full" aria-hidden>
         <path
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth={sw}
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+          d="M2.25 3.25h7.5c.55 0 1 .45 1 1v4.5c0 .55-.45 1-1 1h-7.5c-.55 0-1-.45-1-1v-4.5c0-.55.45-1 1-1z"
         />
         <path
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth={sw}
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M22 6l-10 7L2 6"
+          d="M10.75 4.25l-3.5 2.5-3.5-2.5"
         />
       </svg>
     </span>

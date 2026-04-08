@@ -45,7 +45,7 @@ export function ChannelTypeBadge({
       </span>
     );
   }
-  // email
+  // email (system-initiated: show channel type "Email", not a second "System" next to actor name)
   if (filterBucket === "system") {
     if (senderType === "CRM") {
       return (
@@ -55,8 +55,8 @@ export function ChannelTypeBadge({
       );
     }
     return (
-      <span className={`${pill} bg-gray-100 text-gray-800 ${extra}`} title="System email">
-        System
+      <span className={`${pill} bg-blue-100 text-blue-800 ${extra}`} title="Email">
+        Email
       </span>
     );
   }

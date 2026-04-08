@@ -190,45 +190,67 @@ export function meetingChannelLabel(ch: string): string {
   return m[ch] ?? ch;
 }
 
+function startOfDay(x: Date): Date {
+  return new Date(x.getFullYear(), x.getMonth(), x.getDate());
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return startOfDay(a).getTime() === startOfDay(b).getTime();
+}
+
+function yesterday(ref: Date): Date {
+  const d = new Date(ref);
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
+/** True when `date` is 2–6 calendar days before `ref` (not today/yesterday). */
+function isWithinDays(date: Date, ref: Date, n: number): boolean {
+  const dayMs = 86400000;
+  const diffDays = Math.round(
+    (startOfDay(ref).getTime() - startOfDay(date).getTime()) / dayMs,
+  );
+  return diffDays >= 2 && diffDays < n;
+}
+
 /**
  * Timeline list timestamps: always includes time; relative labels for recent dates.
  * Same day → "Today, 3:42 PM"; yesterday → "Yesterday, …"; within prior 7 days → "Mon, …";
- * older same year → "6 Apr, 10:00 AM"; other year → "15 Dec 2025, 9:00 AM".
+ * older same year → "6 Apr, 3:42 PM"; other year → "15 Dec 2025, 9:00 AM".
  */
 export function formatTimelineTime(iso: string, now = new Date()): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
 
-  const timeStr = d.toLocaleTimeString(undefined, {
+  const timeStr = date.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 
-  const startOf = (x: Date) =>
-    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-
-  const t0 = startOf(now);
-  const t = startOf(d);
-  const dayMs = 86400000;
-  const diffDays = Math.round((t0 - t) / dayMs);
-
-  if (diffDays === 0) {
+  if (isSameDay(date, now)) {
     return `Today, ${timeStr}`;
   }
-  if (diffDays === 1) {
+  if (isSameDay(date, yesterday(now))) {
     return `Yesterday, ${timeStr}`;
   }
-  if (diffDays >= 2 && diffDays < 7) {
-    const wk = d.toLocaleDateString(undefined, { weekday: "short" });
-    return `${wk}, ${timeStr}`;
+  if (isWithinDays(date, now, 7)) {
+    const day = date.toLocaleDateString("en-US", { weekday: "short" });
+    return `${day}, ${timeStr}`;
   }
-
-  const day = d.getDate();
-  const mon = d.toLocaleDateString(undefined, { month: "short" });
-  if (d.getFullYear() === now.getFullYear()) {
-    return `${day} ${mon}, ${timeStr}`;
+  if (date.getFullYear() === now.getFullYear()) {
+    const d = date.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+    });
+    return `${d}, ${timeStr}`;
   }
-  return `${day} ${mon} ${d.getFullYear()}, ${timeStr}`;
+  const d = date.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return `${d}, ${timeStr}`;
 }
 
 /** Third row preview for meeting cards: "30 min · Google Meet · with …". */

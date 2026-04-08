@@ -7,7 +7,6 @@ import {
   formatMeetingTimelineFooter,
   formatTimelineTime,
   getContactThreadActions,
-  meetingStatusBadgeLabel,
   stripHtml,
 } from "../../utils/communicationTimeline";
 import {
@@ -17,7 +16,6 @@ import {
 } from "./CommunicationToolbarIcons";
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { ChannelTypeBadge } from "./ChannelTypeBadge";
-import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 export type EmailTypeFilter = "all" | "system" | "user";
@@ -82,35 +80,9 @@ function ChevronDownIcon({ className }: { className?: string }) {
 
 function InboundBadge() {
   return (
-    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
       Inbound
     </span>
-  );
-}
-
-function MailGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-      />
-      <path
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M22 6l-10 7L2 6"
-      />
-    </svg>
   );
 }
 
@@ -126,6 +98,16 @@ function threadParentDisplayName(
     (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
   );
   return sorted[0]?.senderLabel ?? "—";
+}
+
+function formatSenderTypeLabel(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "—";
+  return t
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
 }
 
 type CommunicationsJobEmailSectionProps = {
@@ -206,13 +188,11 @@ export function CommunicationsJobEmailSection({
   const [sectionOpen, setSectionOpen] = useState(defaultSectionOpen);
   const [emailFilter, setEmailFilter] = useState<EmailTypeFilter>("all");
   const [expandedList, setExpandedList] = useState(false);
-  const [expandedThreadKeys, setExpandedThreadKeys] = useState<
-    Record<string, boolean>
-  >({});
+  const [expandedThreadIds, setExpandedThreadIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [cardMenuGroupKey, setCardMenuGroupKey] = useState<string | null>(null);
   const splitCommActionsRef = useRef<HTMLDivElement>(null);
-  const cardMenuRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(
     () => (emails.length ? filterEmails(emails, emailFilter) : []),
@@ -226,7 +206,7 @@ export function CommunicationsJobEmailSection({
 
   useEffect(() => {
     setExpandedList(false);
-    setExpandedThreadKeys({});
+    setExpandedThreadIds(new Set());
   }, [emailFilter, emailListKey]);
 
   useEffect(() => {
@@ -252,25 +232,6 @@ export function CommunicationsJobEmailSection({
     };
   }, [moreMenuOpen]);
 
-  useEffect(() => {
-    if (!cardMenuGroupKey) return;
-    const onDocMouseDown = (e: MouseEvent) => {
-      const el = cardMenuRef.current;
-      if (el && !el.contains(e.target as Node)) {
-        setCardMenuGroupKey(null);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setCardMenuGroupKey(null);
-    };
-    document.addEventListener("mousedown", onDocMouseDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocMouseDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [cardMenuGroupKey]);
-
   const threadGroups = useMemo(
     () => buildTimelineThreadGroups(filtered, timelineGroupOrder),
     [filtered, timelineGroupOrder],
@@ -292,30 +253,34 @@ export function CommunicationsJobEmailSection({
   const openDetail = onSelectEmail ?? (() => {});
 
   const toggleThread = (key: string) => {
-    setExpandedThreadKeys((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setExpandedThreadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
   const toggleSection = () => setSectionOpen((o) => !o);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-slate-50 shadow-sm">
-      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:px-5">
+    <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between gap-3 px-5 py-4">
         <button
           type="button"
           onClick={toggleSection}
           className="min-w-0 flex-1 text-left"
           aria-expanded={sectionOpen}
         >
-          <span className="text-sm font-bold text-gray-900 sm:text-base">
+          <span className="font-medium text-gray-900">
             {jobTitle}
             {titleSuffix ? (
-              <span className="font-medium text-gray-600">{titleSuffix}</span>
+              <span className="text-sm font-normal text-gray-500">
+                {titleSuffix}
+              </span>
             ) : null}
             {jobCode ? (
-              <span className="ml-2 text-sm font-normal text-gray-500">
+              <span className="ml-2 text-xs font-normal text-gray-400">
                 {jobCode}
               </span>
             ) : null}
@@ -415,11 +380,11 @@ export function CommunicationsJobEmailSection({
           <button
             type="button"
             onClick={toggleSection}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100"
+            className="flex h-6 w-6 items-center justify-center"
             aria-label={sectionOpen ? "Collapse job section" : "Expand job section"}
           >
             <ChevronDownIcon
-              className={`h-4 w-4 transition-transform duration-200 ${
+              className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
                 sectionOpen ? "rotate-180" : ""
               }`}
             />
@@ -428,8 +393,8 @@ export function CommunicationsJobEmailSection({
       </div>
 
       {sectionOpen ? (
-        <div className="px-4 py-4 sm:px-5">
-          <div className="mb-4 flex flex-wrap gap-2">
+        <div className="px-5 pb-5">
+          <div className="mb-5 flex flex-wrap gap-1">
             {FILTER_OPTIONS.map((opt) => {
               const active = emailFilter === opt.id;
               return (
@@ -530,7 +495,7 @@ export function CommunicationsJobEmailSection({
                     const rows = group.rows;
                     const latest = rows[rows.length - 1];
                     const isThread = rows.length > 1;
-                    const expanded = Boolean(expandedThreadKeys[group.key]);
+                    const expanded = expandedThreadIds.has(group.key);
                     const ch = latest.channel ?? "email";
                     const { subjectPart } = buildTimelineMessagePreview(latest);
                     const bodyOneLine = stripHtml(latest.body)
@@ -553,7 +518,7 @@ export function CommunicationsJobEmailSection({
                         stripHtml(latest.body).replace(/\s+/g, " ").trim() ||
                         "—";
                       return (
-                        <div key={group.key} className="relative mb-6">
+                        <div key={group.key} className="relative mb-5">
                           <div
                             className="absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-gray-50 bg-gray-100"
                             aria-hidden
@@ -569,7 +534,7 @@ export function CommunicationsJobEmailSection({
                             onClick={() => openDetail(latest)}
                           >
                             <span className="text-xs italic text-gray-400">
-                              System · {systemText}
+                              {systemText}
                             </span>
                             <span className="ml-2 text-[11px] text-gray-400">
                               {formatTimelineTime(latest.sentAt)}
@@ -590,259 +555,317 @@ export function CommunicationsJobEmailSection({
                       (latest.channel === "sms" ||
                         latest.channel === "whatsapp") &&
                       latest.direction === "inbound";
-                    const showEmailCardMenu = latest.channel === "email";
+                    const showEmailHoverActions =
+                      latest.channel === "email" &&
+                      !isThread &&
+                      canThreadAct &&
+                      (threadActions.reply || threadActions.followUp);
 
-                    return (
-                      <Fragment key={group.key}>
-                        <div className="relative mb-6">
-                          <div
-                            className={`absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-gray-50 ${dot.circle}`}
-                            aria-hidden
-                          >
-                            <ChannelTimelineIcon
-                              channel={ch}
-                              filterBucket={latest.filterBucket}
-                              className={`h-3 w-3 ${dot.icon}`}
-                            />
-                          </div>
+                    const timelineCircle = (
+                      <div
+                        className={`absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-gray-50 ${dot.circle}`}
+                        aria-hidden
+                      >
+                        <ChannelTimelineIcon
+                          channel={ch}
+                          filterBucket={latest.filterBucket}
+                          className={`h-3 w-3 ${dot.icon}`}
+                        />
+                      </div>
+                    );
 
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            aria-expanded={isThread ? expanded : undefined}
-                            onClick={() => {
-                              if (isThread) toggleThread(group.key);
-                              else openDetail(latest);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                if (isThread) toggleThread(group.key);
-                                else openDetail(latest);
-                              }
-                            }}
-                            className="group relative cursor-pointer rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
-                          >
-                            <div className="flex items-baseline justify-between gap-2 pr-14">
-                              <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5">
-                                <span className="text-sm font-medium text-gray-900">
-                                  {displayName}
-                                </span>
-                                <ChannelTypeBadge
-                                  channel={ch}
-                                  filterBucket={latest.filterBucket}
-                                  senderType={latest.senderType}
-                                />
-                                {latest.direction === "inbound" &&
-                                latest.channel !== "meeting" ? (
-                                  <InboundBadge />
-                                ) : null}
-                                {isThread ? (
-                                  <span className="text-xs text-gray-400">
-                                    {rows.length} messages in thread
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div className="flex shrink-0 items-center gap-1.5">
-                                <span className="text-xs text-gray-400">
-                                  {formatTimelineTime(latest.sentAt)}
-                                </span>
-                                <DeliveryStatusGlyph
-                                  status={latest.deliveryStatus}
-                                  size="sm"
-                                />
-                                {isThread ? (
-                                  <ChevronDownIcon
-                                    className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${
-                                      expanded ? "rotate-180" : ""
-                                    }`}
-                                  />
-                                ) : null}
-                              </div>
-                            </div>
-
-                            {latest.channel === "email" ? (
-                              <p className="mt-1 truncate text-sm font-medium text-gray-900">
-                                {subjectPart}
-                              </p>
-                            ) : null}
-                            {latest.channel === "meeting" ? (
-                              <div className="mt-1 flex min-w-0 items-start gap-2">
-                                <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
-                                  {meetingSubject}
-                                </span>
-                                {latest.meeting ? (
-                                  <span
-                                    className="shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-purple-800"
-                                    title="Meeting status"
-                                  >
-                                    {meetingStatusBadgeLabel(
-                                      latest.meeting.status,
-                                    )}
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : null}
-
-                            <p className="mt-0.5 truncate text-sm text-gray-500">
-                              {latest.channel === "meeting"
-                                ? meetingFooter
-                                : bodyOneLine || "—"}
-                            </p>
-
-                            {/* Last in DOM so hit-testing stacks above the header row; avoid fake Reply/FU that only opened detail. */}
-                            <div
-                              className={`pointer-events-none absolute right-2 top-2 z-20 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 ${
-                                latest.channel === "meeting" ? "hidden" : ""
-                              }`}
-                            >
-                              {canThreadAct && threadActions.followUp ? (
+                    const headerLine1 = (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {displayName}
+                          </span>
+                          <ChannelTypeBadge
+                            channel={ch}
+                            filterBucket={latest.filterBucket}
+                            senderType={latest.senderType}
+                          />
+                          {latest.direction === "inbound" &&
+                          latest.channel !== "meeting" ? (
+                            <InboundBadge />
+                          ) : null}
+                          {isThread ? (
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                              {rows.length} messages
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {showEmailHoverActions ? (
+                            <div className="mr-2 hidden items-center gap-1 group-hover:flex">
+                              {threadActions.reply ? (
                                 <button
                                   type="button"
-                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
-                                  title="Follow up"
-                                  aria-label="Follow up on this thread"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onFollowUp?.(rows);
-                                  }}
-                                >
-                                  <IconFollowUp className="h-4 w-4" />
-                                </button>
-                              ) : null}
-                              {canThreadAct && threadActions.reply ? (
-                                <button
-                                  type="button"
-                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
-                                  title="Reply"
-                                  aria-label="Reply in thread"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onReply?.(rows);
-                                  }}
-                                >
-                                  <IconReply className="h-4 w-4" />
-                                </button>
-                              ) : null}
-                              {showEmailCardMenu ? (
-                                <div
-                                  className="relative"
-                                  ref={
-                                    cardMenuGroupKey === group.key
-                                      ? cardMenuRef
-                                      : undefined
-                                  }
-                                >
-                                  <button
-                                    type="button"
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
-                                    title="More"
-                                    aria-label="More actions"
-                                    aria-expanded={
-                                      cardMenuGroupKey === group.key
-                                    }
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCardMenuGroupKey((k) =>
-                                        k === group.key ? null : group.key,
-                                      );
-                                    }}
-                                  >
-                                    <IconMoreVertical className="h-4 w-4" />
-                                  </button>
-                                  {cardMenuGroupKey === group.key ? (
-                                    <div
-                                      className="absolute right-0 top-full z-[50] mt-1 min-w-[10rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
-                                      role="menu"
-                                    >
-                                      <button
-                                        type="button"
-                                        role="menuitem"
-                                        className="flex w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setCardMenuGroupKey(null);
-                                          openDetail(latest);
-                                        }}
-                                      >
-                                        View details
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              ) : null}
-                              {showHoverSmsWaReply ? (
-                                <button
-                                  type="button"
-                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
+                                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-100"
                                   title="Reply"
                                   aria-label="Reply"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    openDetail(latest);
+                                    onReply?.([latest]);
                                   }}
                                 >
-                                  <IconReply className="h-4 w-4" />
+                                  <IconReply className="h-3.5 w-3.5 text-gray-400" />
+                                </button>
+                              ) : null}
+                              {threadActions.followUp ? (
+                                <button
+                                  type="button"
+                                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-100"
+                                  title="Follow up"
+                                  aria-label="Follow up"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onFollowUp?.([latest]);
+                                  }}
+                                >
+                                  <IconFollowUp className="h-3.5 w-3.5 text-gray-400" />
                                 </button>
                               ) : null}
                             </div>
-                          </div>
-
-                          {isThread && expanded ? (
-                            <div className="mb-6 ml-5 mt-1.5 space-y-2.5 border-l border-gray-200 pl-5">
-                              {rows.map((row) => {
-                                const prev = buildTimelineMessagePreview(row);
-                                const childBody = stripHtml(row.body)
-                                  .replace(/\s+/g, " ")
-                                  .trim();
-                                return (
-                                  <div
-                                    key={`${group.key}-${row.id}`}
-                                    role="button"
-                                    tabIndex={0}
-                                    className="cursor-pointer rounded-lg bg-gray-50 px-3.5 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openDetail(row);
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        openDetail(row);
+                          ) : null}
+                          {showHoverSmsWaReply ? (
+                            <div className="mr-2 hidden items-center gap-1 group-hover:flex">
+                              <button
+                                type="button"
+                                className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-100"
+                                title="Reply"
+                                aria-label="Reply"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (latest.channel === "whatsapp") {
+                                    if (!whatsappDisabled && onSendWhatsApp) {
+                                      onSendWhatsApp();
+                                      return;
                                     }
-                                    }}
-                                  >
-                                    <div className="mb-0.5 flex items-baseline justify-between gap-2">
-                                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                                        <MailGlyph className="h-2.5 w-2.5 shrink-0 text-gray-400" />
-                                        <span className="text-xs text-gray-600">
-                                          {row.senderLabel}
-                                        </span>
-                                        {row.direction === "inbound" ? (
-                                          <InboundBadge />
-                                        ) : null}
-                                      </div>
-                                      <div className="flex shrink-0 items-center gap-1.5">
-                                        <span className="text-[11px] text-gray-400">
-                                          {formatTimelineTime(row.sentAt)}
-                                        </span>
-                                        <DeliveryStatusGlyph
-                                          status={row.deliveryStatus}
-                                          size="sm"
-                                        />
-                                      </div>
-                                    </div>
-                                    <p className="mb-0.5 truncate text-xs font-medium text-gray-900">
-                                      {prev.subjectPart}
-                                    </p>
-                                    <p className="truncate text-xs text-gray-400">
-                                      {childBody || "—"}
-                                    </p>
-                                  </div>
-                                );
-                              })}
+                                  } else if (latest.channel === "sms") {
+                                    if (!smsDisabled && onSendSms) {
+                                      onSendSms();
+                                      return;
+                                    }
+                                  }
+                                  openDetail(latest);
+                                }}
+                              >
+                                <IconReply className="h-3.5 w-3.5 text-gray-400" />
+                              </button>
                             </div>
                           ) : null}
+                          <span className="text-xs text-gray-400">
+                            {formatTimelineTime(latest.sentAt)}
+                          </span>
+                          {isThread ? (
+                            <ChevronDownIcon
+                              className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 ${
+                                expanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+
+                    const contentBlock =
+                      latest.channel === "email" ? (
+                        <>
+                          <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                            {subjectPart}
+                          </p>
+                          <p className="truncate text-sm text-gray-500">
+                            {bodyOneLine || "—"}
+                          </p>
+                        </>
+                      ) : latest.channel === "meeting" ? (
+                        <>
+                          <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                            {meetingSubject}
+                          </p>
+                          <p className="truncate text-xs text-gray-400">
+                            {meetingFooter}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1.5 truncate text-sm text-gray-500">
+                          {bodyOneLine || "—"}
+                        </p>
+                      );
+
+                    if (isThread && latest.channel === "email") {
+                      return (
+                        <Fragment key={group.key}>
+                          <div className="relative mb-5">
+                            {timelineCircle}
+                            {!expanded ? (
+                              <>
+                                <div className="relative pb-1.5">
+                                  <div
+                                    className="pointer-events-none absolute bottom-0 left-1 right-1 top-[6px] rounded-lg border border-gray-200 bg-white opacity-50"
+                                    aria-hidden
+                                  />
+                                  <div
+                                    className="pointer-events-none absolute bottom-0 left-0.5 right-0.5 top-[3px] rounded-lg border border-gray-200 bg-white opacity-75"
+                                    aria-hidden
+                                  />
+                                  <button
+                                    type="button"
+                                    className="group relative z-[1] w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                    aria-expanded={expanded}
+                                    onClick={() => toggleThread(group.key)}
+                                  >
+                                    {headerLine1}
+                                    <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                                      {subjectPart}
+                                    </p>
+                                    <p className="truncate text-sm text-gray-500">
+                                      {bodyOneLine || "—"}
+                                    </p>
+                                  </button>
+                                </div>
+                                <div className="h-1.5" aria-hidden />
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className="w-full cursor-pointer rounded-t-lg border border-b-0 border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                  aria-expanded={expanded}
+                                  onClick={() => toggleThread(group.key)}
+                                >
+                                  {headerLine1}
+                                  <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                                    {subjectPart}
+                                  </p>
+                                  <p className="truncate text-sm text-gray-500">
+                                    {bodyOneLine || "—"}
+                                  </p>
+                                </button>
+                                <div
+                                  className={`border-x border-gray-200 bg-white ${
+                                    !canThreadAct ||
+                                    (!threadActions.reply && !threadActions.followUp)
+                                      ? "rounded-b-lg border-b border-gray-200"
+                                      : ""
+                                  }`}
+                                >
+                                  {rows.map((row) => {
+                                    const prev = buildTimelineMessagePreview(row);
+                                    const childBody = stripHtml(row.body)
+                                      .replace(/\s+/g, " ")
+                                      .trim();
+                                    return (
+                                      <div
+                                        key={`${group.key}-${row.id}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        className="cursor-pointer border-t border-gray-200 bg-gray-50 px-4 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openDetail(row);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            openDetail(row);
+                                          }
+                                        }}
+                                      >
+                                        <div className="mb-1 flex items-center justify-between">
+                                          <div className="flex items-center gap-1.5">
+                                            <div
+                                              className="h-[5px] w-[5px] shrink-0 rounded-full bg-blue-300"
+                                              aria-hidden
+                                            />
+                                            <span className="text-xs text-gray-600">
+                                              {formatSenderTypeLabel(
+                                                row.senderType,
+                                              )}
+                                            </span>
+                                            <span className="text-[11px] text-gray-400">
+                                              ·
+                                            </span>
+                                            <span className="text-[11px] text-gray-400">
+                                              {row.direction === "inbound"
+                                                ? "Inbound"
+                                                : "Outbound"}
+                                            </span>
+                                          </div>
+                                          <span className="text-[11px] text-gray-400">
+                                            {formatTimelineTime(row.sentAt)}
+                                          </span>
+                                        </div>
+                                        <p className="truncate pl-[11px] text-xs font-medium text-gray-900">
+                                          {prev.subjectPart}
+                                        </p>
+                                        <p className="truncate pl-[11px] text-xs text-gray-400">
+                                          {childBody || "—"}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {canThreadAct &&
+                                (threadActions.reply || threadActions.followUp) ? (
+                                  <div className="flex gap-3 rounded-b-lg border border-t border-gray-200 bg-white px-4 py-2">
+                                    {threadActions.reply ? (
+                                      <button
+                                        type="button"
+                                        className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onReply?.(rows);
+                                        }}
+                                      >
+                                        <IconReply className="h-3 w-3" />
+                                        Reply
+                                      </button>
+                                    ) : null}
+                                    {threadActions.followUp ? (
+                                      <button
+                                        type="button"
+                                        className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onFollowUp?.(rows);
+                                        }}
+                                      >
+                                        <IconFollowUp className="h-3 w-3" />
+                                        Follow up
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                        </Fragment>
+                      );
+                    }
+
+                    return (
+                      <Fragment key={group.key}>
+                        <div className="relative mb-5">
+                          {timelineCircle}
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openDetail(latest)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                openDetail(latest);
+                              }
+                            }}
+                            className={`group cursor-pointer rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
+                              latest.channel === "meeting" ? "" : ""
+                            }`}
+                          >
+                            {headerLine1}
+                            {contentBlock}
+                          </div>
                         </div>
                       </Fragment>
                     );
