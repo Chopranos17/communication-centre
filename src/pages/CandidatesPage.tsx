@@ -4,6 +4,16 @@ import {
   fetchCandidates,
   type CandidateListRow,
 } from "../api/candidatesClient";
+import {
+  BulkChannelMessageModal,
+  type BulkChannelRecipient,
+} from "../components/candidate/BulkChannelMessageModal";
+import {
+  BulkScheduleMeetingModal,
+  type BulkMeetingRecipient,
+} from "../components/candidate/BulkScheduleMeetingModal";
+import { BulkSelectionSendButton } from "../components/candidate/BulkSelectionSendButton";
+import type { BulkSendChannel } from "../components/candidate/BulkSelectionSendButton";
 import { ComposeEmailModal } from "../components/candidate/ComposeEmailModal";
 import type { ComposeEmailRecipient } from "../components/candidate/ComposeEmailModal";
 import { SendChannelMessageModal } from "../components/candidate/SendChannelMessageModal";
@@ -25,6 +35,17 @@ export function CandidatesPage() {
     row: CandidateListRow;
     variant: "sms" | "whatsapp";
   } | null>(null);
+  const [bulkChannel, setBulkChannel] = useState<{
+    variant: "sms" | "whatsapp";
+    recipients: BulkChannelRecipient[];
+    skippedNoContact: number;
+    skippedReason: "phone" | "whatsapp";
+  } | null>(null);
+  const [bulkMeetingOpen, setBulkMeetingOpen] = useState(false);
+  const [bulkMeetingRecipients, setBulkMeetingRecipients] = useState<
+    BulkMeetingRecipient[]
+  >([]);
+  const [bulkToast, setBulkToast] = useState<string | null>(null);
   const { canManageRecruitment } = usePersona();
 
   const rowMap = useMemo(
@@ -87,9 +108,19 @@ export function CandidatesPage() {
       setComposeOpen(false);
       setComposeFromRowId(null);
       setChannelModal(null);
+      setBulkChannel(null);
+      setBulkMeetingOpen(false);
+      setBulkMeetingRecipients([]);
+      setBulkToast(null);
       setMenuOpenId(null);
     }
   }, [canManageRecruitment, clearSelection]);
+
+  useEffect(() => {
+    if (!bulkToast) return;
+    const t = window.setTimeout(() => setBulkToast(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [bulkToast]);
 
   const allSelected = rows.length > 0 && selected.size === rows.length;
 
@@ -148,6 +179,121 @@ export function CandidatesPage() {
   const primaryJobId = composeRecipients[0]?.jobId ?? "";
   const primaryJobTitle = composeRecipients[0]?.jobTitle ?? "";
 
+  const selectedRows = useMemo(
+    () =>
+      [...selected]
+        .map((id) => rowMap.get(id))
+        .filter((r): r is CandidateListRow => Boolean(r)),
+    [selected, rowMap],
+  );
+
+  const bulkEmailEligibleCount = useMemo(
+    () =>
+      selectedRows.filter((r) => Boolean(r.currentJobId && r.email.trim()))
+        .length,
+    [selectedRows],
+  );
+
+  const bulkSmsEligibleCount = useMemo(
+    () =>
+      selectedRows.filter((r) =>
+        Boolean(r.currentJobId && r.phone?.trim()),
+      ).length,
+    [selectedRows],
+  );
+
+  const bulkWhatsAppEligibleCount = useMemo(
+    () =>
+      selectedRows.filter((r) =>
+        Boolean(r.currentJobId && r.whatsappNumber?.trim()),
+      ).length,
+    [selectedRows],
+  );
+
+  const bulkMeetingEligibleCount = bulkEmailEligibleCount;
+
+  const bulkMeetingJobTitleLabel = useMemo(() => {
+    if (bulkMeetingRecipients.length === 0) return "";
+    const titles = new Set(
+      bulkMeetingRecipients
+        .map((r) => rowMap.get(r.candidateId)?.jobTitle)
+        .filter(Boolean),
+    );
+    if (titles.size <= 1) return [...titles][0] ?? "Job";
+    return "Multiple job applications";
+  }, [bulkMeetingRecipients, rowMap]);
+
+  const activateBulkChannel = useCallback(
+    (channel: BulkSendChannel) => {
+      if (channel === "email") {
+        const eligible = selectedRows.filter(
+          (r) => r.currentJobId && r.email.trim(),
+        );
+        if (eligible.length === 0) return;
+        openComposeFromSelection();
+        return;
+      }
+      if (channel === "sms") {
+        const withJob = selectedRows.filter((r) => r.currentJobId);
+        const recipients: BulkChannelRecipient[] = withJob
+          .filter((r) => r.phone?.trim())
+          .map((r) => ({
+            candidateId: r.id,
+            name: r.name,
+            jobId: r.currentJobId!,
+            address: r.phone!.trim(),
+          }));
+        const skippedNoContact = withJob.filter(
+          (r) => !r.phone?.trim(),
+        ).length;
+        if (recipients.length === 0) return;
+        setBulkChannel({
+          variant: "sms",
+          recipients,
+          skippedNoContact,
+          skippedReason: "phone",
+        });
+        return;
+      }
+      if (channel === "whatsapp") {
+        const withJob = selectedRows.filter((r) => r.currentJobId);
+        const recipients: BulkChannelRecipient[] = withJob
+          .filter((r) => r.whatsappNumber?.trim())
+          .map((r) => ({
+            candidateId: r.id,
+            name: r.name,
+            jobId: r.currentJobId!,
+            address: r.whatsappNumber!.trim(),
+          }));
+        const skippedNoContact = withJob.filter(
+          (r) => !r.whatsappNumber?.trim(),
+        ).length;
+        if (recipients.length === 0) return;
+        setBulkChannel({
+          variant: "whatsapp",
+          recipients,
+          skippedNoContact,
+          skippedReason: "whatsapp",
+        });
+        return;
+      }
+      if (channel === "meeting") {
+        const recipients: BulkMeetingRecipient[] = selectedRows
+          .filter((r) => r.currentJobId && r.email.trim())
+          .map((r) => ({
+            candidateId: r.id,
+            name: r.name,
+            email: r.email.trim(),
+            jobId: r.currentJobId!,
+          }));
+        if (recipients.length === 0) return;
+        setBulkMeetingRecipients(recipients);
+        setBulkMeetingOpen(true);
+      }
+    },
+    [selectedRows, openComposeFromSelection],
+  );
+
   return (
     <div
       className={
@@ -156,6 +302,14 @@ export function CandidatesPage() {
           : undefined
       }
     >
+      {bulkToast ? (
+        <div
+          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-lg"
+          role="status"
+        >
+          {bulkToast}
+        </div>
+      ) : null}
       <PageHeader title="All Candidates" />
 
       <ListToolbar searchPlaceholder="Search by Name, Email, Phone, Candidate ID" />
@@ -183,6 +337,35 @@ export function CandidatesPage() {
           jobId={primaryJobId}
           jobTitle={primaryJobTitle}
           recipients={composeRecipients}
+          onSent={() => void load()}
+          onBulkComplete={(msg) => setBulkToast(msg)}
+        />
+      ) : null}
+
+      {canManageRecruitment && bulkChannel ? (
+        <BulkChannelMessageModal
+          open
+          onClose={() => setBulkChannel(null)}
+          variant={bulkChannel.variant}
+          jobIdFallback={bulkChannel.recipients[0]?.jobId ?? ""}
+          initialRecipients={bulkChannel.recipients}
+          skippedNoContactCount={bulkChannel.skippedNoContact}
+          skippedReason={bulkChannel.skippedReason}
+          onComplete={(msg) => setBulkToast(msg)}
+          onSent={() => void load()}
+        />
+      ) : null}
+
+      {canManageRecruitment && bulkMeetingOpen && bulkMeetingRecipients.length > 0 ? (
+        <BulkScheduleMeetingModal
+          open
+          onClose={() => {
+            setBulkMeetingOpen(false);
+            setBulkMeetingRecipients([]);
+          }}
+          jobTitle={bulkMeetingJobTitleLabel || "Job"}
+          initialRecipients={bulkMeetingRecipients}
+          onComplete={(msg) => setBulkToast(msg)}
           onSent={() => void load()}
         />
       ) : null}
@@ -471,36 +654,33 @@ export function CandidatesPage() {
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                const eligible = [...selected]
-                  .map((id) => rowMap.get(id))
-                  .filter(
-                    (r): r is CandidateListRow =>
-                      Boolean(r?.currentJobId && r.email.trim()),
-                  );
-                if (eligible.length === 0) return;
-                openComposeFromSelection();
-              }}
-              title={
-                [...selected].every((id) => {
-                  const r = rowMap.get(id);
-                  return r?.currentJobId && r.email.trim();
-                })
-                  ? undefined
-                  : "Some selected candidates have no current job or email; only eligible recipients will be included."
+            <BulkSelectionSendButton
+              emailDisabled={bulkEmailEligibleCount === 0}
+              emailTooltip={
+                bulkEmailEligibleCount === 0
+                  ? "No selected candidates have a current job and email."
+                  : undefined
               }
-              className="rounded border border-[var(--blue-400)] bg-[var(--blue-500)] px-4 py-1.5 text-[length:var(--body-m)] font-medium text-[var(--white)] hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={
-                [...selected].every((id) => {
-                  const r = rowMap.get(id);
-                  return !(r?.currentJobId && r.email.trim());
-                })
+              smsDisabled={bulkSmsEligibleCount === 0}
+              smsTooltip={
+                bulkSmsEligibleCount === 0
+                  ? "No selected candidates have phone numbers."
+                  : undefined
               }
-            >
-              Send Email
-            </button>
+              whatsappDisabled={bulkWhatsAppEligibleCount === 0}
+              whatsappTooltip={
+                bulkWhatsAppEligibleCount === 0
+                  ? "No selected candidates have WhatsApp numbers."
+                  : undefined
+              }
+              meetingDisabled={bulkMeetingEligibleCount === 0}
+              meetingTooltip={
+                bulkMeetingEligibleCount === 0
+                  ? "No selected candidates have a current job and email."
+                  : undefined
+              }
+              onActivate={activateBulkChannel}
+            />
           </div>
         </div>
       ) : null}

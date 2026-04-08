@@ -364,6 +364,8 @@ app.get("/api/jobs/:jobId", async (req, res) => {
       id: l.candidate.id,
       name: l.candidate.name,
       email: l.candidate.email,
+      phone: l.candidate.phone ?? "",
+      whatsappNumber: l.candidate.whatsapp_number ?? "",
       jobCount: countMap.get(l.candidate_id) ?? 1,
     }));
 

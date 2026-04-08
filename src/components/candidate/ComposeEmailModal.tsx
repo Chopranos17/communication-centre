@@ -83,6 +83,8 @@ type ComposeEmailModalProps = {
   jobTitle: string;
   recipients: ComposeEmailRecipient[];
   onSent: () => void;
+  /** After bulk send completes, for parent toast / banner. */
+  onBulkComplete?: (summary: string) => void;
 };
 
 function buildEffectiveRecipients(
@@ -116,6 +118,7 @@ export function ComposeEmailModal({
   jobTitle,
   recipients,
   onSent,
+  onBulkComplete,
 }: ComposeEmailModalProps) {
   const isBulk = recipients.length > 1;
   const [dedupeUnique, setDedupeUnique] = useState(true);
@@ -158,6 +161,11 @@ export function ComposeEmailModal({
   const [banner, setBanner] = useState<{
     type: "success" | "error";
     text: string;
+  } | null>(null);
+  const [bulkSendSummary, setBulkSendSummary] = useState<{
+    sent: number;
+    failed: number;
+    lastError?: string;
   } | null>(null);
 
   const quillModules = useMemo(
@@ -220,6 +228,7 @@ export function ComposeEmailModal({
     setDedupeUnique(true);
     setSkipMultiJob(false);
     setSendProgress(null);
+    setBulkSendSummary(null);
   }, [open, recipientKey]);
 
   useEffect(() => {
@@ -372,13 +381,25 @@ export function ComposeEmailModal({
 
     setSending(false);
     setSendProgress(null);
+    onSent();
+
+    if (recipients.length > 1) {
+      setBulkSendSummary({
+        sent: successCount,
+        failed: failCount,
+        lastError: lastError || undefined,
+      });
+      let s = `Sent to ${successCount} candidate${successCount === 1 ? "" : "s"}`;
+      if (failCount > 0) s += `. ${failCount} failed`;
+      onBulkComplete?.(s);
+      return;
+    }
 
     if (failCount === 0) {
       setBanner({
         type: "success",
         text: emailSuccessCandidateCount(successCount),
       });
-      onSent();
       setTimeout(() => {
         onClose();
       }, 1200);
@@ -393,7 +414,6 @@ export function ComposeEmailModal({
         type: successCount > 0 ? "success" : "error",
         text,
       });
-      onSent();
     }
   }, [
     subject,
@@ -407,18 +427,21 @@ export function ComposeEmailModal({
     sendFrom,
     onSent,
     onClose,
+    recipients.length,
+    onBulkComplete,
   ]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (sending) return;
       if (previewOpen) setPreviewOpen(false);
       else onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose, previewOpen]);
+  }, [open, onClose, previewOpen, sending]);
 
   useEffect(() => {
     if (!open) return;
@@ -476,6 +499,27 @@ export function ComposeEmailModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {bulkSendSummary ? (
+            <div className="space-y-4 text-[length:var(--body-m)] text-[var(--text-body)]">
+              <p className="font-medium text-[var(--text-title)]">Summary</p>
+              <ul className="list-none space-y-2">
+                <li>
+                  ✓ Sent: {bulkSendSummary.sent} candidate
+                  {bulkSendSummary.sent === 1 ? "" : "s"}
+                </li>
+                <li>
+                  ✗ Failed: {bulkSendSummary.failed}
+                  {bulkSendSummary.lastError &&
+                  bulkSendSummary.failed > 0 ? (
+                    <span className="mt-1 block text-[length:var(--body-s)] text-[var(--text-error)]">
+                      {emailVendorError(bulkSendSummary.lastError)}
+                    </span>
+                  ) : null}
+                </li>
+              </ul>
+            </div>
+          ) : (
+            <>
           {banner ? (
             <div
               className={
@@ -732,51 +776,67 @@ export function ComposeEmailModal({
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-5 py-4">
-          <button
-            type="button"
-            onClick={() => setPreviewOpen(true)}
-            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
-          >
-            Preview
-          </button>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={
-                sending ||
-                (isBulk && effectiveRecipients.length === 0) ||
-                (!isBulk && !primaryRecipient?.candidateEmail?.trim())
-              }
-              aria-busy={sending}
-              onClick={() => void handleSend()}
-              className="inline-flex min-w-[7rem] items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {sending ? (
-                <span className="inline-flex items-center gap-2">
-                  <LoadingSpinner
-                    size="sm"
-                    aria-hidden
-                    className="border-white border-t-transparent"
-                  />
-                  {sendProgress
-                    ? `Sending ${sendProgress.current} of ${sendProgress.total}…`
-                    : "Sending…"}
-                </span>
-              ) : (
-                "Send"
-              )}
-            </button>
-          </div>
+          {bulkSendSummary ? (
+            <div className="flex w-full justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)]"
+              >
+                Done
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+              >
+                Preview
+              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    sending ||
+                    (isBulk && effectiveRecipients.length === 0) ||
+                    (!isBulk && !primaryRecipient?.candidateEmail?.trim())
+                  }
+                  aria-busy={sending}
+                  onClick={() => void handleSend()}
+                  className="inline-flex min-w-[7rem] items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {sending ? (
+                    <span className="inline-flex items-center gap-2">
+                      <LoadingSpinner
+                        size="sm"
+                        aria-hidden
+                        className="border-white border-t-transparent"
+                      />
+                      {sendProgress
+                        ? `Sending to candidate ${sendProgress.current} of ${sendProgress.total}…`
+                        : "Sending…"}
+                    </span>
+                  ) : (
+                    "Send"
+                  )}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

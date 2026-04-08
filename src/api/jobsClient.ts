@@ -11,6 +11,8 @@ export type JobDetailCandidateRow = {
   id: string
   name: string
   email: string
+  phone: string
+  whatsappNumber: string
   /** Number of job applications (CandidateJob rows) for multi-job bulk filter */
   jobCount: number
 }
