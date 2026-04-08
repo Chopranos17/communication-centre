@@ -87,15 +87,13 @@ export function CandidateDetailPage() {
   }, [load])
 
   useEffect(() => {
-    setMainTab('overview')
-  }, [candidateId])
-
-  useEffect(() => {
     const raw = searchParams.get('tab')
     if (raw && TAB_QUERY_TO_MAIN[raw]) {
       setMainTab(TAB_QUERY_TO_MAIN[raw])
+    } else {
+      setMainTab('overview')
     }
-  }, [searchParams])
+  }, [candidateId, searchParams])
 
   useEffect(() => {
     setCommFilterStats(null)

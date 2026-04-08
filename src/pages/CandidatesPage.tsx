@@ -12,11 +12,23 @@ import {
   BulkScheduleMeetingModal,
   type BulkMeetingRecipient,
 } from "../components/candidate/BulkScheduleMeetingModal";
-import { BulkSelectionSendButton } from "../components/candidate/BulkSelectionSendButton";
+import {
+  BulkSelectionSendButton,
+  type BulkOverflowMenuItem,
+} from "../components/candidate/BulkSelectionSendButton";
 import type { BulkSendChannel } from "../components/candidate/BulkSelectionSendButton";
 import { ComposeEmailModal } from "../components/candidate/ComposeEmailModal";
 import type { ComposeEmailRecipient } from "../components/candidate/ComposeEmailModal";
-import { SendChannelMessageModal } from "../components/candidate/SendChannelMessageModal";
+
+const CANDIDATES_BULK_SECONDARY_MENU: BulkOverflowMenuItem[] = [
+  { label: "Move to another opening", disabled: true },
+  { label: "Delete", disabled: true },
+  { label: "Blacklist", disabled: true },
+  { label: "Copy to another opening", disabled: true },
+  { label: "Star Selected Candidates", disabled: true },
+  { label: "Unstar Selected Candidates", disabled: true },
+  { label: "Add Tags", disabled: true },
+];
 import { PageHeader } from "../components/layout/PageHeader";
 import { ListToolbar } from "../components/layout/ListToolbar";
 import { PaginationFooter } from "../components/layout/PaginationFooter";
@@ -31,10 +43,6 @@ export function CandidatesPage() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeFromRowId, setComposeFromRowId] = useState<string | null>(null);
-  const [channelModal, setChannelModal] = useState<{
-    row: CandidateListRow;
-    variant: "sms" | "whatsapp";
-  } | null>(null);
   const [bulkChannel, setBulkChannel] = useState<{
     variant: "sms" | "whatsapp";
     recipients: BulkChannelRecipient[];
@@ -107,7 +115,6 @@ export function CandidatesPage() {
       clearSelection();
       setComposeOpen(false);
       setComposeFromRowId(null);
-      setChannelModal(null);
       setBulkChannel(null);
       setBulkMeetingOpen(false);
       setBulkMeetingRecipients([]);
@@ -171,11 +178,6 @@ export function CandidatesPage() {
     setComposeOpen(true);
   }, []);
 
-  const openComposeFromRow = useCallback((candidateId: string) => {
-    setComposeFromRowId(candidateId);
-    setComposeOpen(true);
-  }, []);
-
   const primaryJobId = composeRecipients[0]?.jobId ?? "";
   const primaryJobTitle = composeRecipients[0]?.jobTitle ?? "";
 
@@ -193,24 +195,6 @@ export function CandidatesPage() {
         .length,
     [selectedRows],
   );
-
-  const bulkSmsEligibleCount = useMemo(
-    () =>
-      selectedRows.filter((r) =>
-        Boolean(r.currentJobId && r.phone?.trim()),
-      ).length,
-    [selectedRows],
-  );
-
-  const bulkWhatsAppEligibleCount = useMemo(
-    () =>
-      selectedRows.filter((r) =>
-        Boolean(r.currentJobId && r.whatsappNumber?.trim()),
-      ).length,
-    [selectedRows],
-  );
-
-  const bulkMeetingEligibleCount = bulkEmailEligibleCount;
 
   const bulkMeetingJobTitleLabel = useMemo(() => {
     if (bulkMeetingRecipients.length === 0) return "";
@@ -370,29 +354,6 @@ export function CandidatesPage() {
         />
       ) : null}
 
-      {canManageRecruitment && channelModal?.row.currentJobId ? (
-        <SendChannelMessageModal
-          open={Boolean(channelModal)}
-          onClose={() => setChannelModal(null)}
-          variant={channelModal.variant}
-          candidateId={channelModal.row.id}
-          candidateName={channelModal.row.name}
-          jobId={channelModal.row.currentJobId}
-          toDisplay={
-            channelModal.variant === "whatsapp"
-              ? `${channelModal.row.name} · ${
-                  channelModal.row.whatsappNumber?.trim() ||
-                  channelModal.row.phone?.trim() ||
-                  "—"
-                }`
-              : `${channelModal.row.name} · ${
-                  channelModal.row.phone?.trim() || "—"
-                }`
-          }
-          onSent={() => void load()}
-        />
-      ) : null}
-
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-left text-[length:var(--body-m)]">
@@ -439,17 +400,6 @@ export function CandidatesPage() {
                 </tr>
               ) : (
                 rows.map((row) => {
-                  const canEmail =
-                    Boolean(row.currentJobId) && Boolean(row.email.trim());
-                  const canSms =
-                    Boolean(row.currentJobId) &&
-                    Boolean(row.phone?.trim());
-                  const canWhatsApp =
-                    Boolean(row.currentJobId) &&
-                    Boolean(
-                      row.whatsappNumber?.trim() || row.phone?.trim(),
-                    );
-
                   return (
                     <tr
                       key={row.id}
@@ -552,75 +502,16 @@ export function CandidatesPage() {
                                   className="block px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
                                   onClick={() => setMenuOpenId(null)}
                                 >
-                                  View Application Log
+                                  View Activity Log
                                 </Link>
-                                {canManageRecruitment ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      disabled={!canEmail}
-                                      title={
-                                        !canEmail
-                                          ? !row.currentJobId
-                                            ? "No current job application."
-                                            : "Candidate has no email address."
-                                          : undefined
-                                      }
-                                      className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                                      onClick={() => {
-                                        if (!canEmail) return;
-                                        setMenuOpenId(null);
-                                        openComposeFromRow(row.id);
-                                      }}
-                                    >
-                                      Send Email
-                                    </button>
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      disabled={!canWhatsApp}
-                                      title={
-                                        !canWhatsApp
-                                          ? !row.currentJobId
-                                            ? "No current job application."
-                                            : "Candidate has no phone or WhatsApp number."
-                                          : undefined
-                                      }
-                                      className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                                      onClick={() => {
-                                        if (!canWhatsApp) return;
-                                        setMenuOpenId(null);
-                                        setChannelModal({
-                                          row,
-                                          variant: "whatsapp",
-                                        });
-                                      }}
-                                    >
-                                      Send WhatsApp
-                                    </button>
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      disabled={!canSms}
-                                      title={
-                                        !canSms
-                                          ? !row.currentJobId
-                                            ? "No current job application."
-                                            : "Candidate has no valid phone number for SMS."
-                                          : undefined
-                                      }
-                                      className="block w-full px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                                      onClick={() => {
-                                        if (!canSms) return;
-                                        setMenuOpenId(null);
-                                        setChannelModal({ row, variant: "sms" });
-                                      }}
-                                    >
-                                      Send SMS
-                                    </button>
-                                  </>
-                                ) : null}
+                                <Link
+                                  role="menuitem"
+                                  to={`/recruitment/candidates/${row.id}?tab=communications`}
+                                  className="block px-3 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+                                  onClick={() => setMenuOpenId(null)}
+                                >
+                                  View Communications
+                                </Link>
                               </div>
                             ) : null}
                           </div>
@@ -638,19 +529,18 @@ export function CandidatesPage() {
 
       {canManageRecruitment && selected.size > 0 ? (
         <div
-          className="fixed inset-x-0 bottom-0 z-[100] flex flex-wrap items-center justify-between gap-3 border-t border-[var(--charcoal-600)] bg-[var(--charcoal-700)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--elevation-3)] sm:px-6"
+          className="fixed inset-x-0 bottom-0 z-[100] flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-[#1e2132] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--elevation-3)] sm:px-6"
           role="region"
           aria-label="Bulk actions for selected candidates"
         >
-          <span className="text-[length:var(--body-m)] font-medium text-[var(--white)]">
-            {selected.size}/{rows.length} Record
-            {selected.size === 1 ? "" : "s"} Selected
+          <span className="text-sm font-medium text-white">
+            {selected.size}/{rows.length} Records Selected
           </span>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={clearSelection}
-              className="rounded border border-[var(--charcoal-300)] bg-transparent px-4 py-1.5 text-[length:var(--body-m)] font-medium text-[var(--white)] hover:bg-[var(--charcoal-600)]"
+              className="rounded-none border border-white bg-transparent px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
             >
               Cancel
             </button>
@@ -661,25 +551,8 @@ export function CandidatesPage() {
                   ? "No selected candidates have a current job and email."
                   : undefined
               }
-              smsDisabled={bulkSmsEligibleCount === 0}
-              smsTooltip={
-                bulkSmsEligibleCount === 0
-                  ? "No selected candidates have phone numbers."
-                  : undefined
-              }
-              whatsappDisabled={bulkWhatsAppEligibleCount === 0}
-              whatsappTooltip={
-                bulkWhatsAppEligibleCount === 0
-                  ? "No selected candidates have WhatsApp numbers."
-                  : undefined
-              }
-              meetingDisabled={bulkMeetingEligibleCount === 0}
-              meetingTooltip={
-                bulkMeetingEligibleCount === 0
-                  ? "No selected candidates have a current job and email."
-                  : undefined
-              }
               onActivate={activateBulkChannel}
+              secondaryMenuItems={CANDIDATES_BULK_SECONDARY_MENU}
             />
           </div>
         </div>
