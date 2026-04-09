@@ -6,6 +6,7 @@ import { JobOpeningsPage } from './pages/JobOpeningsPage'
 import { JobDetailPage } from './pages/JobDetailPage'
 import { CandidatesPage } from './pages/CandidatesPage'
 import { CandidateDetailPage } from './pages/CandidateDetailPage'
+import { CommunicationAnalyticsPage } from './pages/CommunicationAnalyticsPage'
 
 export default function App() {
   return (
@@ -19,6 +20,10 @@ export default function App() {
               <Route path="/recruitment/jobs/:jobId" element={<JobDetailPage />} />
               <Route path="/recruitment/candidates" element={<CandidatesPage />} />
               <Route path="/recruitment/candidates/:candidateId" element={<CandidateDetailPage />} />
+              <Route
+                path="/recruitment/communication-analytics"
+                element={<CommunicationAnalyticsPage />}
+              />
               <Route path="*" element={<Navigate to="/recruitment/job-openings" replace />} />
             </Route>
           </Routes>
