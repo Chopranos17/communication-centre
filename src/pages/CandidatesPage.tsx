@@ -34,6 +34,23 @@ import { ListToolbar } from "../components/layout/ListToolbar";
 import { PaginationFooter } from "../components/layout/PaginationFooter";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { usePersona } from "../context/PersonaContext";
+import {
+  sdsButtonIconTertiarySm,
+  sdsButtonLink,
+  sdsButtonSecondary,
+  sdsButtonSecondarySm,
+} from "../lib/sdsButtonClasses";
+import {
+  candidateStatusPillClass,
+  sdsDataTable,
+  sdsDataTableCheckbox,
+  sdsDataTableHeadRow,
+  sdsDataTableRow,
+  sdsDataTableRowSelected,
+  sdsDataTableShell,
+  sdsDataTableTd,
+  sdsDataTableTh,
+} from "../lib/sdsTableClasses";
 
 export function CandidatesPage() {
   const [rows, setRows] = useState<CandidateListRow[]>([]);
@@ -291,7 +308,7 @@ export function CandidatesPage() {
     >
       {bulkToast ? (
         <div
-          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-[var(--elevation-2)]"
+          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-[var(--elevation-2)]"
           role="status"
         >
           {bulkToast}
@@ -307,7 +324,7 @@ export function CandidatesPage() {
           <button
             type="button"
             onClick={() => void load()}
-            className="font-medium text-[var(--text-link)] underline hover:text-[var(--text-link-hover)]"
+            className={sdsButtonLink}
           >
             Retry
           </button>
@@ -357,10 +374,10 @@ export function CandidatesPage() {
         />
       ) : null}
 
-      <div className="w-full min-w-0 overflow-hidden rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
-        <table className="w-full table-fixed border-collapse text-left text-[length:var(--body-m)]">
+      <div className={sdsDataTableShell}>
+        <table className={`${sdsDataTable} table-fixed`}>
             <thead>
-              <tr className="border-b border-[var(--border-subtle)] bg-[var(--blue-20)] text-[length:var(--body-s)] font-medium uppercase tracking-wide text-[var(--text-label)]">
+              <tr className={sdsDataTableHeadRow}>
                 {canManageRecruitment ? (
                   <th
                     scope="col"
@@ -375,16 +392,18 @@ export function CandidatesPage() {
                           else selectAll();
                         }}
                         aria-label="Select all"
-                        className="shrink-0 rounded border-[var(--border-default)]"
+                        className={sdsDataTableCheckbox}
                       />
                     </div>
                   </th>
                 ) : null}
-                <th className="w-[20%] px-3 py-2">Candidate</th>
-                <th className="w-[22%] px-3 py-2">Email &amp; Phone</th>
-                <th className="w-[28%] px-3 py-2">Job Applied</th>
-                <th className="w-[15%] px-3 py-2">Overall Status</th>
-                <th className="w-[15%] border-l border-[var(--border-subtle)] px-3 py-2">
+                <th className={`w-[20%] ${sdsDataTableTh}`}>Candidate</th>
+                <th className={`w-[22%] ${sdsDataTableTh}`}>Email &amp; Phone</th>
+                <th className={`w-[28%] ${sdsDataTableTh}`}>Job Applied</th>
+                <th className={`w-[15%] ${sdsDataTableTh}`}>Overall Status</th>
+                <th
+                  className={`w-[15%] border-l border-[#e0e0e0] ${sdsDataTableTh}`}
+                >
                   Actions
                 </th>
               </tr>
@@ -394,7 +413,7 @@ export function CandidatesPage() {
                 <tr>
                   <td
                     colSpan={canManageRecruitment ? 6 : 5}
-                    className="px-3 py-8 text-center text-[var(--text-label)]"
+                    className={`${sdsDataTableTd} text-center text-[#4d4d4d] py-8`}
                   >
                     <span
                       className="inline-flex items-center justify-center gap-2"
@@ -407,25 +426,31 @@ export function CandidatesPage() {
                 </tr>
               ) : (
                 rows.map((row) => {
+                  const isSelected = selected.has(row.id);
                   return (
                     <tr
                       key={row.id}
-                      className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]"
+                      className={[
+                        sdsDataTableRow,
+                        isSelected ? sdsDataTableRowSelected : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                     >
                       {canManageRecruitment ? (
                         <td className="w-[40px] min-w-[40px] max-w-[40px] p-0 align-middle">
                           <div className="flex min-h-[3.25rem] items-center justify-center">
                             <input
                               type="checkbox"
-                              checked={selected.has(row.id)}
+                              checked={isSelected}
                               onChange={() => toggle(row.id)}
                               aria-label={`Select ${row.name}`}
-                              className="shrink-0 rounded border-[var(--border-default)]"
+                              className={sdsDataTableCheckbox}
                             />
                           </div>
                         </td>
                       ) : null}
-                      <td className="min-w-0 px-3 py-3">
+                      <td className={`min-w-0 ${sdsDataTableTd}`}>
                         <Link
                           to={`/recruitment/candidates/${row.id}`}
                           className="block truncate font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
@@ -436,13 +461,13 @@ export function CandidatesPage() {
                           {row.id}
                         </div>
                       </td>
-                      <td className="min-w-0 px-3 py-3 text-[var(--text-body)]">
+                      <td className={`min-w-0 ${sdsDataTableTd}`}>
                         <div className="truncate">{row.email}</div>
                         <div className="truncate text-[length:var(--body-s)] text-[var(--text-label)]">
                           {row.phone}
                         </div>
                       </td>
-                      <td className="min-w-0 px-3 py-3 text-[var(--text-body)]">
+                      <td className={`min-w-0 ${sdsDataTableTd}`}>
                         <div className="truncate text-[length:var(--body-s)] text-[var(--text-label)]">
                           {row.department}
                         </div>
@@ -451,16 +476,18 @@ export function CandidatesPage() {
                           Multiple locations
                         </div>
                       </td>
-                      <td className="min-w-0 px-3 py-3 align-top">
-                        <span className="inline-flex max-w-full min-w-0 rounded-md bg-[var(--yellow-50)] px-2 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--charcoal-600)]">
+                      <td className={`min-w-0 align-top ${sdsDataTableTd}`}>
+                        <span className={candidateStatusPillClass(row.status)}>
                           <span className="truncate">{row.status}</span>
                         </span>
                       </td>
-                      <td className="min-w-0 border-l border-[var(--border-subtle)] px-3 py-3 align-top">
+                      <td
+                        className={`min-w-0 border-l border-[#e0e0e0] align-top ${sdsDataTableTd}`}
+                      >
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-[length:var(--body-s)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+                            className={sdsButtonSecondarySm}
                           >
                             Shortlist
                           </button>
@@ -470,7 +497,7 @@ export function CandidatesPage() {
                           >
                             <button
                               type="button"
-                              className="flex h-8 w-8 items-center justify-center rounded text-[var(--icon-default)] hover:bg-[var(--bg-surface-hover)]"
+                              className={sdsButtonIconTertiarySm}
                               aria-label="More actions"
                               aria-expanded={menuOpenId === row.id}
                               aria-haspopup="menu"
@@ -494,7 +521,7 @@ export function CandidatesPage() {
                             </button>
                             {menuOpenId === row.id ? (
                               <div
-                                className="absolute right-0 top-full z-50 mt-1 min-w-[13.5rem] rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[13.5rem] rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
                                 role="menu"
                               >
                                 <Link
@@ -548,7 +575,7 @@ export function CandidatesPage() {
             <button
               type="button"
               onClick={clearSelection}
-              className="rounded-none border border-white bg-transparent px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              className={`${sdsButtonSecondary} rounded-none px-4`}
             >
               Cancel
             </button>

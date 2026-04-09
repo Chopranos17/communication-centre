@@ -23,6 +23,7 @@ import {
   IconRecruitment,
   type SidebarIconComponent,
 } from './SidebarIcons'
+import { sdsInput } from '../../lib/sdsFormClasses'
 
 const STORAGE_KEY = 'sidebar-expanded'
 /** Darwinbox primary blue — active Recruitment module icon */
@@ -348,7 +349,7 @@ export function Sidebar() {
       <div
         ref={flyoutPanelRef}
         role="menu"
-        className="fixed z-50 w-[240px] rounded-lg border border-white/10 bg-[#252836] shadow-[var(--elevation-3)]"
+        className="fixed z-50 w-[240px] rounded-sds-8 border border-white/10 bg-[#252836] shadow-[var(--elevation-3)]"
         style={{ left: 64, top: flyoutTop }}
         onMouseEnter={cancelCloseFlyout}
         onMouseLeave={scheduleCloseFlyout}
@@ -393,7 +394,7 @@ export function Sidebar() {
       >
         <button
           type="button"
-          className="absolute right-0 top-1/2 z-30 flex h-10 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-r-md bg-[#1a1d2e] text-white/60 transition-colors hover:bg-[#2a2d3e]"
+          className="absolute right-0 top-1/2 z-30 flex h-10 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-r-sds-4 bg-[#1a1d2e] text-white/60 transition-colors hover:bg-[#2a2d3e]"
           aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
           onClick={() => setExpanded((e) => !e)}
         >
@@ -416,7 +417,7 @@ export function Sidebar() {
                 <input
                   type="search"
                   placeholder="All Apps"
-                  className="w-full rounded-md border-0 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  className={`${sdsInput} w-full`}
                 />
               </label>
             </div>
@@ -524,7 +525,7 @@ export function Sidebar() {
               <div className="flex justify-center pt-2">
                 <button
                   type="button"
-                  className="flex h-12 w-12 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/10"
+                  className="flex h-12 w-12 items-center justify-center rounded-sds-8 text-white transition-colors hover:bg-white/10"
                   aria-label="All Apps"
                 >
                   <IconAllApps className="h-5 w-5 text-white/50" aria-hidden />
@@ -552,7 +553,7 @@ export function Sidebar() {
                       onMouseLeave={hasKids ? handleCollapsedIconLeave : undefined}
                       onClick={handleCollapsedIconClick(mod)}
                       className={[
-                        'flex h-12 w-12 items-center justify-center rounded-lg text-white transition-colors',
+                        'flex h-12 w-12 items-center justify-center rounded-sds-8 text-white transition-colors',
                         routeActive || isFlyoutOpen ? 'bg-white/10' : 'hover:bg-white/10',
                         !hasKids && mod.disabled ? 'cursor-not-allowed opacity-40' : '',
                       ].join(' ')}

@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  sdsButtonPrimary,
+  sdsButtonSecondaryIcon,
+  sdsMenuItemBtn,
+} from "../../lib/sdsButtonClasses";
 
 export type BulkSendChannel = "email" | "sms" | "whatsapp" | "meeting";
 
@@ -74,7 +79,7 @@ export function BulkSelectionSendButton({
         disabled={emailDisabled}
         title={emailTooltip}
         onClick={onSendEmail}
-        className="rounded-none bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+        className={`${sdsButtonPrimary} rounded-none px-4`}
       >
         Send Email
       </button>
@@ -82,7 +87,7 @@ export function BulkSelectionSendButton({
       <div className="relative inline-flex" ref={wrapRef}>
         {menuOpen ? (
           <div
-            className="absolute bottom-full right-0 z-[120] mb-1 min-w-[14rem] overflow-hidden rounded-lg border border-gray-200/60 bg-white py-1 shadow-[var(--elevation-2)]"
+            className="absolute bottom-full right-0 z-[120] mb-1 min-w-[14rem] overflow-hidden rounded-sds-8 border border-[#e0e0e0]/60 bg-white py-1 shadow-[var(--elevation-2)]"
             role="menu"
             aria-label="More bulk actions"
           >
@@ -92,13 +97,13 @@ export function BulkSelectionSendButton({
                 type="button"
                 role="menuitem"
                 onClick={() => pickChannel(o.id)}
-                className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                className={sdsMenuItemBtn}
               >
                 {o.label}
               </button>
             ))}
             <div
-              className="my-1 border-t border-gray-100"
+              className="my-1 border-t border-[#f5f5f5]"
               role="separator"
               aria-hidden
             />
@@ -114,7 +119,7 @@ export function BulkSelectionSendButton({
                       item.onClick?.();
                       setMenuOpen(false);
                     }}
-                    className="w-full cursor-pointer px-4 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                    className={sdsMenuItemBtn}
                   >
                     {item.label}
                   </button>
@@ -126,7 +131,7 @@ export function BulkSelectionSendButton({
                   role="menuitem"
                   aria-disabled="true"
                   title="Coming soon"
-                  className="cursor-not-allowed px-4 py-2.5 text-sm text-gray-400"
+                  className="cursor-not-allowed px-4 py-2.5 text-sm text-[#aaaaaa]"
                 >
                   {item.label}
                 </div>
@@ -141,7 +146,7 @@ export function BulkSelectionSendButton({
           aria-haspopup="menu"
           aria-label="More bulk actions"
           onClick={() => setMenuOpen((v) => !v)}
-          className="inline-flex min-w-[2rem] items-center justify-center rounded-none px-2 py-2 text-white hover:text-white"
+          className={`${sdsButtonSecondaryIcon} rounded-none`}
         >
           <span className="text-xl leading-none" aria-hidden>
             ⋮

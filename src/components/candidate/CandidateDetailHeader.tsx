@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CandidateDetail } from '../../api/candidatesClient'
+import {
+  sdsButtonIconTertiary,
+  sdsButtonIconTertiaryXs,
+  sdsButtonLink,
+  sdsMenuItemBtn,
+} from '../../lib/sdsButtonClasses'
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -51,13 +57,12 @@ export function CandidateDetailHeader({
   return (
     <>
       <div
-        className="rounded-t-lg px-5 py-5 sm:px-6"
+        className="font-darwin rounded-t-sds-8 px-5 py-5 sm:px-6"
         style={{ background: 'var(--header-banner-bg)' }}
       >
         <div className="flex flex-wrap items-start gap-4">
           <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--white)] text-[length:var(--title-xs)] font-bold text-[var(--charcoal-700)]"
-            style={{ fontWeight: 'var(--font-weight-bold)' }}
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white text-title-xs font-bold text-[#292929]"
             aria-hidden
           >
             {initials(detail.name)}
@@ -65,21 +70,18 @@ export function CandidateDetailHeader({
           <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                <h1
-                  className="text-[length:var(--title-m)] leading-10 text-[var(--text-negative)]"
-                  style={{ fontWeight: 'var(--font-weight-bold)' }}
-                >
+                <h1 className="text-title-m font-bold leading-10 text-white">
                   {detail.name}
                 </h1>
-                <span className="inline-flex rounded-md bg-[var(--yellow-50)] px-2 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--charcoal-600)]">
+                <span className="inline-flex rounded-sds-4 bg-[var(--yellow-50)] px-2 py-0.5 text-body-s font-medium text-[var(--charcoal-600)]">
                   {detail.statusLabel}
                 </span>
               </div>
-              <p className="mt-1 flex flex-wrap items-center gap-1 text-[length:var(--body-m)] leading-6 text-[var(--text-negative)] opacity-95">
+              <p className="mt-1 flex flex-wrap items-center gap-1 text-body-m font-book leading-6 text-white/95">
                 <span>{jobLine}</span>
                 <button
                   type="button"
-                  className="inline-flex h-5 w-5 items-center justify-center rounded text-[var(--blue-100)] hover:bg-[var(--blue-600)]"
+                  className={`${sdsButtonIconTertiaryXs} text-[#0183FF] hover:bg-[#E6F3FF]`}
                   aria-label="Job match score information"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -93,7 +95,7 @@ export function CandidateDetailHeader({
                 <button
                   type="button"
                   onClick={() => setActionsOpen((o) => !o)}
-                  className="flex h-9 w-9 items-center justify-center rounded text-[var(--blue-100)] hover:bg-[var(--blue-600)]"
+                  className={`${sdsButtonIconTertiary} text-[#0183FF] hover:bg-[#E6F3FF]`}
                   aria-expanded={actionsOpen}
                   aria-haspopup="menu"
                   aria-label="Candidate actions"
@@ -104,7 +106,7 @@ export function CandidateDetailHeader({
                 </button>
                 {actionsOpen ? (
                   <div
-                    className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
+                    className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
                     role="menu"
                   >
                     <button
@@ -118,7 +120,7 @@ export function CandidateDetailHeader({
                           setActionsOpen(false)
                         }
                       }}
-                      className="block w-full px-4 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)] disabled:cursor-not-allowed disabled:opacity-50"
+                      className={sdsMenuItemBtn}
                     >
                       Send SMS
                     </button>
@@ -133,7 +135,7 @@ export function CandidateDetailHeader({
                           setActionsOpen(false)
                         }
                       }}
-                      className="block w-full px-4 py-2 text-left text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--charcoal-10)] disabled:cursor-not-allowed disabled:opacity-50"
+                      className={sdsMenuItemBtn}
                     >
                       Send WhatsApp
                     </button>
@@ -145,7 +147,7 @@ export function CandidateDetailHeader({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border border-t-0 border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3 text-[length:var(--body-m)] sm:px-6">
+      <div className="font-darwin flex flex-wrap items-center gap-x-6 gap-y-2 border border-t-0 border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3 text-body-m sm:px-6">
         <span className="inline-flex items-center gap-1.5 text-[var(--text-body)]">
           <svg
             className="shrink-0 text-[var(--icon-default)]"
@@ -200,7 +202,7 @@ export function CandidateDetailHeader({
         </span>
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-[length:var(--body-m)] font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
+          className={sdsButtonLink}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
@@ -209,7 +211,7 @@ export function CandidateDetailHeader({
         </button>
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-[length:var(--body-m)] font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
+          className={sdsButtonLink}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />

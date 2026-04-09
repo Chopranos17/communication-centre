@@ -30,6 +30,31 @@ import {
 } from "../../utils/sendFeedbackMessages";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import {
+  sdsBtnBase,
+  sdsBtnTertiary,
+  sdsButtonLink,
+  sdsButtonPrimary,
+  sdsButtonSecondary,
+  sdsMenuItemBtn,
+} from "../../lib/sdsButtonClasses";
+import {
+  sdsModalBackdrop,
+  sdsModalBody,
+  sdsModalCloseButton,
+  sdsModalContainer,
+  sdsModalDismissLayer,
+  sdsModalFooterToolbar,
+  sdsModalHeader,
+  sdsModalNestedBackdrop,
+  sdsModalNestedContainer,
+  sdsModalTitle,
+} from "../../lib/sdsModalClasses";
+import {
+  sdsInput,
+  sdsLabel,
+  sdsSelectWFull,
+} from "../../lib/sdsFormClasses";
 
 const CONTACT_FROM = "contact@darwinbox.in";
 const CC_QUICK_RECRUITER = "recruiter.cc@darwinbox.in";
@@ -392,33 +417,26 @@ export function ReplyThreadModal({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[115] flex justify-end"
+      className={sdsModalBackdrop}
       role="dialog"
       aria-modal="true"
       aria-labelledby="reply-thread-title"
     >
       <button
         type="button"
-        className="absolute inset-0 z-0 bg-[var(--bg-overlay)]"
+        className={sdsModalDismissLayer}
         aria-label="Close reply"
         onClick={onClose}
       />
-      <div
-        className="relative z-10 flex h-full w-full max-w-[640px] flex-col bg-[var(--bg-surface)] shadow-[var(--elevation-3)]"
-        style={{ minWidth: "min(100%, 520px)" }}
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
-          <h2
-            id="reply-thread-title"
-            className="pr-2 text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]"
-            style={{ fontWeight: "var(--font-weight-bold)" }}
-          >
+      <div className={sdsModalContainer}>
+        <div className={sdsModalHeader}>
+          <h2 id="reply-thread-title" className={sdsModalTitle}>
             Reply — {candidateName}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-[var(--charcoal-400)] hover:bg-[var(--charcoal-10)] hover:text-[var(--text-body)]"
+            className={sdsModalCloseButton}
             aria-label="Close"
           >
             <span className="text-xl leading-none" aria-hidden>
@@ -427,7 +445,7 @@ export function ReplyThreadModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className={sdsModalBody}>
           {banner ? (
             <div
               className={
@@ -451,13 +469,13 @@ export function ReplyThreadModal({
                 return (
                   <div
                     key={row.id}
-                    className="rounded-lg border border-[var(--border-card)] bg-[var(--charcoal-10)]/60"
+                    className="rounded-sds-8 border border-[var(--border-card)] bg-[var(--charcoal-10)]/60"
                     style={{ marginLeft: idx > 0 ? 12 : 0 }}
                   >
                     <button
                       type="button"
                       onClick={() => toggleMsg(row.id)}
-                      className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-[var(--charcoal-10)]"
+                      className={`${sdsBtnBase} ${sdsBtnTertiary} flex w-full items-start gap-2 px-3 py-2 text-left font-medium text-[#131313]`}
                       aria-expanded={exp}
                     >
                       <span
@@ -504,11 +522,11 @@ export function ReplyThreadModal({
           </div>
 
           <div className="space-y-4 border-t border-[var(--border-subtle)] pt-4 text-[length:var(--body-m)]">
-            <p className="text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+            <p className={sdsLabel}>
               Your reply
             </p>
             <div>
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 Send From
               </span>
               <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
@@ -517,7 +535,7 @@ export function ReplyThreadModal({
             </div>
 
             <div>
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 To
               </span>
               <p className="break-all rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
@@ -526,7 +544,7 @@ export function ReplyThreadModal({
             </div>
 
             <div>
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 CC
               </span>
               <div className="mb-2 flex flex-wrap gap-3">
@@ -559,7 +577,7 @@ export function ReplyThreadModal({
                       <span className="max-w-[200px] truncate">{em}</span>
                       <button
                         type="button"
-                        className="text-[var(--charcoal-400)] hover:text-[var(--text-error)]"
+                        className={`${sdsButtonLink} min-h-[1.25rem] p-0.5 text-[var(--charcoal-400)] hover:text-[var(--text-error)]`}
                         aria-label={`Remove ${em}`}
                         onClick={() => removeCc(em)}
                       >
@@ -579,7 +597,7 @@ export function ReplyThreadModal({
                   }}
                   onFocus={() => setEmpOpen(true)}
                   placeholder="Search employees by name or email"
-                  className="w-full rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)] text-[var(--text-body)] outline-none focus:border-[var(--blue-500)] focus:ring-1 focus:ring-[var(--blue-500)]"
+                  className={`${sdsInput} w-full`}
                   autoComplete="off"
                 />
                 {empOpen && empHits.length > 0 ? (
@@ -591,7 +609,7 @@ export function ReplyThreadModal({
                       <li key={e.id}>
                         <button
                           type="button"
-                          className="w-full px-3 py-2 text-left text-[length:var(--body-m)] hover:bg-[var(--charcoal-10)]"
+                          className={sdsMenuItemBtn}
                           onClick={() => addCc(e.email)}
                         >
                           <span className="font-medium">{e.name}</span>
@@ -608,7 +626,7 @@ export function ReplyThreadModal({
 
             <div>
               <label
-                className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]"
+                className={`mb-1 block ${sdsLabel}`}
                 htmlFor="reply-template"
               >
                 Template
@@ -617,7 +635,7 @@ export function ReplyThreadModal({
                 id="reply-template"
                 value={templateId}
                 onChange={(e) => handleTemplateChange(e.target.value)}
-                className="w-full rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)] text-[var(--text-body)] outline-none focus:border-[var(--blue-500)] focus:ring-1 focus:ring-[var(--blue-500)]"
+                className={sdsSelectWFull}
               >
                 <option value="">None</option>
                 {templates.map((t) => (
@@ -627,15 +645,13 @@ export function ReplyThreadModal({
                 ))}
               </select>
               {templatesError ? (
-                <p className="mt-1 text-[length:var(--body-s)] text-[var(--text-error)]">
-                  {templatesError}
-                </p>
+                <p className="mt-0.5 text-body-s text-red-500">{templatesError}</p>
               ) : null}
             </div>
 
             <div>
               <label
-                className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]"
+                className={`mb-1 block ${sdsLabel}`}
                 htmlFor="reply-subject"
               >
                 Subject
@@ -645,16 +661,16 @@ export function ReplyThreadModal({
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)] text-[var(--text-body)] outline-none focus:border-[var(--blue-500)] focus:ring-1 focus:ring-[var(--blue-500)]"
+                className={`${sdsInput} w-full`}
                 placeholder="Subject"
               />
             </div>
 
             <div>
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 Body
               </span>
-              <div className="compose-quill rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-surface)] focus-within:border-[var(--blue-500)] focus-within:ring-1 focus-within:ring-[var(--blue-500)]">
+              <div className="compose-quill rounded-sds-4 border border-[#e0e0e0] bg-white focus-within:border-[#0183FF] focus-within:outline-none">
                 <ReactQuill
                   theme="snow"
                   value={bodyHtml}
@@ -668,11 +684,11 @@ export function ReplyThreadModal({
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-5 py-4">
+        <div className={sdsModalFooterToolbar}>
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+            className={`${sdsButtonSecondary} px-4`}
           >
             Preview
           </button>
@@ -680,7 +696,7 @@ export function ReplyThreadModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+              className={`${sdsButtonSecondary} px-4`}
             >
               Cancel
             </button>
@@ -689,7 +705,7 @@ export function ReplyThreadModal({
               disabled={sending || !candidateEmail.trim()}
               aria-busy={sending}
               onClick={() => void handleSend()}
-              className="inline-flex min-w-[7rem] items-center justify-center rounded border border-[var(--blue-500)] bg-[var(--blue-500)] px-5 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+              className={`${sdsButtonPrimary} inline-flex min-w-[7rem] justify-center px-5 disabled:opacity-50`}
             >
               {sending ? (
                 <span className="inline-flex items-center gap-2">
@@ -710,42 +726,44 @@ export function ReplyThreadModal({
 
       {previewOpen ? (
         <div
-          className="absolute inset-0 z-[120] flex items-center justify-center p-4"
+          className={sdsModalNestedBackdrop}
           role="dialog"
           aria-modal="true"
           aria-label="Email preview"
         >
           <button
             type="button"
-            className="absolute inset-0 bg-black/40"
+            className={sdsModalDismissLayer}
             aria-label="Close preview"
             onClick={() => setPreviewOpen(false)}
           />
-          <div className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-5 shadow-[var(--elevation-3)]">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]">
-                Preview
-              </h3>
+          <div className={sdsModalNestedContainer}>
+            <div className={sdsModalHeader}>
+              <h3 className={sdsModalTitle}>Preview</h3>
               <button
                 type="button"
                 onClick={() => setPreviewOpen(false)}
-                className="text-[var(--charcoal-400)] hover:text-[var(--text-body)]"
+                className={sdsModalCloseButton}
                 aria-label="Close preview"
               >
-                ×
+                <span className="text-xl leading-none" aria-hidden>
+                  ×
+                </span>
               </button>
             </div>
-            <p className="mb-1 text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
-              Subject
-            </p>
-            <p className="mb-4 font-medium text-[var(--text-body)]">{previewSubject}</p>
-            <p className="mb-1 text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
-              Body
-            </p>
-            <div
-              className="max-w-none text-[length:var(--body-m)] leading-relaxed text-[var(--text-body)] [&_a]:text-[var(--blue-500)] [&_li]:my-1 [&_p]:my-2 [&_ul]:my-2"
-              dangerouslySetInnerHTML={{ __html: previewBody }}
-            />
+            <div className={sdsModalBody}>
+              <p className="mb-1 text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                Subject
+              </p>
+              <p className="mb-4 font-medium text-[var(--text-body)]">{previewSubject}</p>
+              <p className="mb-1 text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                Body
+              </p>
+              <div
+                className="max-w-none text-[length:var(--body-m)] leading-relaxed text-[var(--text-body)] [&_a]:text-[var(--blue-500)] [&_li]:my-1 [&_p]:my-2 [&_ul]:my-2"
+                dangerouslySetInnerHTML={{ __html: previewBody }}
+              />
+            </div>
           </div>
         </div>
       ) : null}

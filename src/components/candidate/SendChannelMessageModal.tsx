@@ -10,6 +10,21 @@ import {
   smsVendorError,
 } from "../../utils/sendFeedbackMessages";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import {
+  sdsButtonPrimary,
+  sdsButtonSecondary,
+} from "../../lib/sdsButtonClasses";
+import {
+  sdsModalBackdrop,
+  sdsModalBody,
+  sdsModalCloseButton,
+  sdsModalContainer,
+  sdsModalDismissLayer,
+  sdsModalFooter,
+  sdsModalHeader,
+  sdsModalTitle,
+} from "../../lib/sdsModalClasses";
+import { sdsLabel, sdsTextarea } from "../../lib/sdsFormClasses";
 
 const SMS_FROM =
   import.meta.env.VITE_SMS_SENDER_LABEL ?? "Twilio SMS (Sender ID)";
@@ -123,33 +138,26 @@ export function SendChannelMessageModal({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[110] flex justify-end"
+      className={sdsModalBackdrop}
       role="dialog"
       aria-modal="true"
       aria-labelledby="channel-compose-title"
     >
       <button
         type="button"
-        className="absolute inset-0 z-0 bg-[var(--bg-overlay)]"
+        className={sdsModalDismissLayer}
         aria-label="Close compose"
         onClick={onClose}
       />
-      <div
-        className="relative z-10 flex h-full w-full max-w-[500px] flex-col bg-[var(--bg-surface)] shadow-[var(--elevation-3)]"
-        style={{ minWidth: "min(100%, 450px)" }}
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
-          <h2
-            id="channel-compose-title"
-            className="pr-2 text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]"
-            style={{ fontWeight: "var(--font-weight-bold)" }}
-          >
+      <div className={sdsModalContainer}>
+        <div className={sdsModalHeader}>
+          <h2 id="channel-compose-title" className={sdsModalTitle}>
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-[var(--charcoal-400)] hover:bg-[var(--charcoal-10)] hover:text-[var(--text-body)]"
+            className={sdsModalCloseButton}
             aria-label="Close"
           >
             <span className="text-xl leading-none" aria-hidden>
@@ -158,7 +166,7 @@ export function SendChannelMessageModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className={sdsModalBody}>
           {variant === "whatsapp" ? (
             <div
               className="mb-4 rounded-[var(--radius-md)] border border-[var(--blue-200)] bg-[var(--blue-50)] px-3 py-2 text-[length:var(--body-s)] text-[var(--charcoal-700)]"
@@ -184,7 +192,7 @@ export function SendChannelMessageModal({
 
           <div className="space-y-4 text-[length:var(--body-m)]">
             <div>
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 From
               </span>
               <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
@@ -192,7 +200,7 @@ export function SendChannelMessageModal({
               </p>
             </div>
             <div>
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 To
               </span>
               <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
@@ -201,7 +209,7 @@ export function SendChannelMessageModal({
             </div>
             <div>
               <label
-                className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]"
+                className={`mb-1 block ${sdsLabel}`}
                 htmlFor="channel-msg-text"
               >
                 Message
@@ -211,18 +219,18 @@ export function SendChannelMessageModal({
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={8}
-                className="w-full resize-y rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)] text-[var(--text-body)] outline-none focus:border-[var(--blue-500)] focus:ring-1 focus:ring-[var(--blue-500)]"
+                className={`${sdsTextarea} w-full`}
                 placeholder="Type your message…"
               />
             </div>
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
+        <div className={sdsModalFooter}>
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--charcoal-10)]"
+            className={`${sdsButtonSecondary} px-4`}
           >
             Cancel
           </button>
@@ -231,7 +239,7 @@ export function SendChannelMessageModal({
             disabled={sending || !text.trim()}
             aria-busy={sending}
             onClick={() => void send()}
-            className="inline-flex min-w-[7rem] items-center justify-center rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+            className={`${sdsButtonPrimary} inline-flex min-w-[7rem] justify-center px-4 disabled:opacity-50`}
           >
             {sending ? (
               <span className="inline-flex items-center gap-2">

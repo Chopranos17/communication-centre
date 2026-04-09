@@ -11,6 +11,13 @@ import {
 } from "../../utils/sendFeedbackMessages";
 import { smsSegmentHint } from "../../utils/smsSegments";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import {
+  sdsButtonIconTertiary,
+  sdsButtonLink,
+  sdsButtonPrimary,
+  sdsButtonSecondary,
+} from "../../lib/sdsButtonClasses";
+import { sdsHelpText, sdsLabel, sdsTextarea } from "../../lib/sdsFormClasses";
 
 const SMS_FROM =
   import.meta.env.VITE_SMS_SENDER_LABEL ?? "Twilio SMS (Sender ID)";
@@ -210,7 +217,7 @@ export function BulkChannelMessageModal({
             type="button"
             onClick={onClose}
             disabled={phase === "sending"}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-[var(--charcoal-400)] hover:bg-[var(--charcoal-10)] hover:text-[var(--text-body)] disabled:opacity-40"
+            className={`${sdsButtonIconTertiary} disabled:opacity-40`}
             aria-label="Close"
           >
             <span className="text-xl leading-none" aria-hidden>
@@ -305,7 +312,7 @@ export function BulkChannelMessageModal({
                         </div>
                         <button
                           type="button"
-                          className="shrink-0 text-[var(--charcoal-400)] hover:text-[var(--text-error)]"
+                          className={`${sdsButtonLink} shrink-0 p-0.5 text-[var(--charcoal-400)] hover:text-[var(--text-error)]`}
                           aria-label={`Remove ${r.name}`}
                           onClick={() => removeRecipient(r.candidateId)}
                         >
@@ -324,7 +331,7 @@ export function BulkChannelMessageModal({
 
               <div className="space-y-4 text-[length:var(--body-m)]">
                 <div>
-                  <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                  <span className={`mb-1 block ${sdsLabel}`}>
                     From
                   </span>
                   <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
@@ -333,7 +340,7 @@ export function BulkChannelMessageModal({
                 </div>
                 <div>
                   <label
-                    className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]"
+                    className={`mb-1 block ${sdsLabel}`}
                     htmlFor="bulk-channel-msg"
                   >
                     Message
@@ -344,17 +351,17 @@ export function BulkChannelMessageModal({
                     onChange={(e) => setText(e.target.value)}
                     rows={8}
                     maxLength={variant === "whatsapp" ? WHATSAPP_MAX : undefined}
-                    className="w-full resize-y rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)] text-[var(--text-body)] outline-none focus:border-[var(--blue-500)] focus:ring-1 focus:ring-[var(--blue-500)]"
+                    className={`${sdsTextarea} w-full`}
                     placeholder="Type your message…"
                   />
                   {variant === "sms" ? (
-                    <p className="mt-1 text-[length:var(--body-s)] text-[var(--text-label)]">
+                    <p className={sdsHelpText}>
                       {smsHint.charCount}/{smsHint.unitLimit} (
                       {smsHint.segments} segment
                       {smsHint.segments === 1 ? "" : "s"})
                     </p>
                   ) : (
-                    <p className="mt-1 text-[length:var(--body-s)] text-[var(--text-label)]">
+                    <p className={sdsHelpText}>
                       {text.length}/{WHATSAPP_MAX}
                     </p>
                   )}
@@ -369,7 +376,7 @@ export function BulkChannelMessageModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)]"
+              className={`${sdsButtonPrimary} px-4`}
             >
               Done
             </button>
@@ -378,7 +385,7 @@ export function BulkChannelMessageModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--charcoal-10)]"
+                className={`${sdsButtonSecondary} px-4`}
               >
                 Cancel
               </button>
@@ -390,7 +397,7 @@ export function BulkChannelMessageModal({
                   (variant === "whatsapp" && text.length > WHATSAPP_MAX)
                 }
                 onClick={() => void handleSend()}
-                className="inline-flex min-w-[7rem] items-center justify-center rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+                className={`${sdsButtonPrimary} inline-flex min-w-[7rem] justify-center px-4 disabled:opacity-50`}
               >
                 Send
               </button>

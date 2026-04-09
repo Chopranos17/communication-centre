@@ -17,6 +17,17 @@ import {
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { ChannelTypeBadge } from "./ChannelTypeBadge";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import {
+  sdsButtonIconTertiaryMini,
+  sdsButtonLink,
+  sdsButtonPrimarySplitLeft,
+  sdsButtonPrimarySplitRight,
+  sdsButtonSecondaryCompact,
+  sdsButtonSecondarySm,
+  sdsMenuItemBtn,
+  sdsPillMdSelected,
+  sdsPillMdUnselected,
+} from "../../lib/sdsButtonClasses";
 
 export type EmailTypeFilter = "all" | "system" | "user";
 
@@ -80,7 +91,7 @@ function ChevronDownIcon({ className }: { className?: string }) {
 
 function InboundBadge() {
   return (
-    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+    <span className="rounded-full bg-[#E6F3FF] px-2 py-0.5 text-[11px] font-medium text-[#0169CC]">
       Inbound
     </span>
   );
@@ -264,7 +275,7 @@ export function CommunicationsJobEmailSection({
   const toggleSection = () => setSectionOpen((o) => !o);
 
   return (
-    <div className="rounded-lg border border-[#e0e0e0] bg-[#f5f5f5] shadow-none">
+    <div className="rounded-sds-8 border border-[#e0e0e0] bg-white shadow-none">
       <div className="flex items-center justify-between gap-3 px-5 py-4">
         <button
           type="button"
@@ -272,15 +283,15 @@ export function CommunicationsJobEmailSection({
           className="min-w-0 flex-1 text-left"
           aria-expanded={sectionOpen}
         >
-          <span className="font-medium text-gray-900">
+          <span className="font-medium text-[#131313]">
             {jobTitle}
             {titleSuffix ? (
-              <span className="text-sm font-normal text-gray-500">
+              <span className="text-sm font-normal text-[#4d4d4d]">
                 {titleSuffix}
               </span>
             ) : null}
             {jobCode ? (
-              <span className="ml-2 text-xs font-normal text-gray-400">
+              <span className="ml-2 text-xs font-normal text-[#aaaaaa]">
                 {jobCode}
               </span>
             ) : null}
@@ -289,17 +300,21 @@ export function CommunicationsJobEmailSection({
         <div className="flex shrink-0 items-center gap-2">
           {showNewEmailButton ? (
             <div ref={splitCommActionsRef} className="relative flex items-center">
-              <div className="inline-flex overflow-hidden rounded-[var(--radius-sm)] border border-black bg-black shadow-none">
+              <div
+                className="grid w-max max-w-full grid-cols-[auto_auto] overflow-hidden rounded-sds-4 border border-[#131313] shadow-none"
+                role="group"
+                aria-label="Email actions"
+              >
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 border-r border-white/25 px-4 py-1.5 text-[length:var(--body-s)] font-medium text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={sdsButtonPrimarySplitLeft}
                   disabled={Boolean(newEmailDisabled || !onNewEmail)}
                   title={
                     newEmailDisabled ? (newEmailDisabledTitle ?? "") : "Email"
                   }
                   onClick={() => onNewEmail?.()}
                 >
-                  <span className="text-sm font-medium leading-none" aria-hidden>
+                  <span className="text-body-m font-medium leading-none" aria-hidden>
                     +
                   </span>
                   <span>Email</span>
@@ -307,7 +322,7 @@ export function CommunicationsJobEmailSection({
                 <button
                   type="button"
                   id="comm-actions-more-trigger"
-                  className="inline-flex shrink-0 items-center justify-center px-2 py-1.5 text-white hover:bg-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  className={sdsButtonPrimarySplitRight}
                   aria-expanded={moreMenuOpen}
                   aria-haspopup="menu"
                   aria-controls="comm-actions-more-menu"
@@ -322,12 +337,12 @@ export function CommunicationsJobEmailSection({
                   id="comm-actions-more-menu"
                   role="menu"
                   aria-labelledby="comm-actions-more-trigger"
-                  className="absolute right-0 top-full z-[60] mt-1 min-w-[12rem] rounded-lg border border-gray-200/60 bg-white py-1 shadow-[var(--elevation-2)]"
+                  className="absolute right-0 top-full z-[60] mt-1 min-w-[12rem] rounded-sds-8 border border-[#e0e0e0]/60 bg-white py-1 shadow-[var(--elevation-2)]"
                 >
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full px-4 py-2.5 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`${sdsMenuItemBtn} font-medium`}
                     disabled={Boolean(smsDisabled || !onSendSms)}
                     title={smsDisabled ? smsDisabledTitle : undefined}
                     onClick={() => {
@@ -340,7 +355,7 @@ export function CommunicationsJobEmailSection({
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full px-4 py-2.5 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`${sdsMenuItemBtn} font-medium`}
                     disabled={Boolean(whatsappDisabled || !onSendWhatsApp)}
                     title={whatsappDisabled ? whatsappDisabledTitle : undefined}
                     onClick={() => {
@@ -355,7 +370,7 @@ export function CommunicationsJobEmailSection({
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full px-4 py-2.5 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`${sdsMenuItemBtn} font-medium`}
                     disabled={Boolean(
                       scheduleMeetingDisabled || !onScheduleMeeting,
                     )}
@@ -380,11 +395,11 @@ export function CommunicationsJobEmailSection({
           <button
             type="button"
             onClick={toggleSection}
-            className="flex h-6 w-6 items-center justify-center"
+            className={sdsButtonIconTertiaryMini}
             aria-label={sectionOpen ? "Collapse job section" : "Expand job section"}
           >
             <ChevronDownIcon
-              className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+              className={`h-4 w-4 text-[#aaaaaa] transition-transform duration-200 ${
                 sectionOpen ? "rotate-180" : ""
               }`}
             />
@@ -394,7 +409,7 @@ export function CommunicationsJobEmailSection({
 
       {sectionOpen ? (
         <div className="px-5 pb-5">
-          <div className="mb-5 flex flex-wrap gap-1">
+          <div className="mb-5 flex flex-wrap gap-2">
             {FILTER_OPTIONS.map((opt) => {
               const active = emailFilter === opt.id;
               return (
@@ -402,12 +417,9 @@ export function CommunicationsJobEmailSection({
                   key={opt.id}
                   type="button"
                   onClick={() => setEmailFilter(opt.id)}
-                  className={[
-                    "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-                    active
-                      ? "border-gray-300 bg-white text-gray-900"
-                      : "border-transparent bg-white/70 text-gray-600 hover:bg-white",
-                  ].join(" ")}
+                  className={
+                    active ? sdsPillMdSelected : sdsPillMdUnselected
+                  }
                 >
                   {opt.label}
                 </button>
@@ -417,7 +429,7 @@ export function CommunicationsJobEmailSection({
 
           {loading ? (
             <div
-              className="flex items-center gap-2 py-6 text-sm text-gray-500"
+              className="flex items-center gap-2 py-6 text-sm text-[#4d4d4d]"
               role="status"
             >
               <LoadingSpinner size="sm" aria-hidden />
@@ -425,27 +437,27 @@ export function CommunicationsJobEmailSection({
             </div>
           ) : loadError ? (
             <div className="space-y-2">
-              <p className="text-sm text-red-600">{loadError}</p>
+              <p className="text-sm text-[#d32f2f]">{loadError}</p>
               {onRetry ? (
                 <button
                   type="button"
                   onClick={() => onRetry()}
-                  className="rounded border border-gray-200/60 bg-white px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-50"
+                  className={sdsButtonSecondarySm}
                 >
                   Retry
                 </button>
               ) : null}
             </div>
           ) : missingJobMessage ? (
-            <p className="text-sm text-gray-500">{missingJobMessage}</p>
+            <p className="text-sm text-[#4d4d4d]">{missingJobMessage}</p>
           ) : showBody && sourceEmailCount === 0 ? (
-            <p className="text-sm text-gray-500">{emptyTimelineMessage}</p>
+            <p className="text-sm text-[#4d4d4d]">{emptyTimelineMessage}</p>
           ) : showBody && isGlobalFilterEmpty ? (
             <div
               className="flex flex-col items-center justify-center gap-3 py-10 text-center"
               role="status"
             >
-              <span className="text-gray-400" aria-hidden>
+              <span className="text-[#aaaaaa]" aria-hidden>
                 <svg
                   width="40"
                   height="40"
@@ -467,29 +479,29 @@ export function CommunicationsJobEmailSection({
                   />
                 </svg>
               </span>
-              <p className="max-w-sm text-sm text-gray-700">
+              <p className="max-w-sm text-sm text-[#4d4d4d]">
                 No messages match your filters
               </p>
               {onClearGlobalFilters ? (
                 <button
                   type="button"
                   onClick={() => onClearGlobalFilters()}
-                  className="text-sm font-medium text-blue-600 underline hover:text-blue-700"
+                  className={sdsButtonLink}
                 >
                   Clear filters
                 </button>
               ) : null}
             </div>
           ) : showBody && filtered.length === 0 ? (
-            <p className="text-sm text-gray-500">{emptyFilterMessage}</p>
+            <p className="text-sm text-[#4d4d4d]">{emptyFilterMessage}</p>
           ) : showBody ? (
             <>
               <div
-                className={tableScroll ? "overflow-y-auto rounded-lg" : ""}
+                className={tableScroll ? "overflow-y-auto rounded-sds-8" : ""}
                 style={tableScroll ? { maxHeight: SCROLL_MAX_HEIGHT_PX } : undefined}
               >
                 <div className="relative pl-9">
-                  <div className="absolute bottom-0 left-[13px] top-0 w-px bg-gray-200/60" />
+                  <div className="absolute bottom-0 left-[13px] top-0 w-px bg-[#e0e0e0]/60" />
 
                   {visibleGroups.map((group) => {
                     const rows = group.rows;
@@ -520,12 +532,12 @@ export function CommunicationsJobEmailSection({
                       return (
                         <div key={group.key} className="relative mb-5">
                           <div
-                            className="absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-gray-50 bg-gray-100"
+                            className="absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-[#f5f5f5] bg-[#f5f5f5]"
                             aria-hidden
                           >
                             <ChannelTimelineIcon
                               channel="system"
-                              className="h-3 w-3 text-gray-400"
+                              className="h-3 w-3 text-[#aaaaaa]"
                             />
                           </div>
                           <button
@@ -533,10 +545,10 @@ export function CommunicationsJobEmailSection({
                             className="w-full py-1.5 text-left"
                             onClick={() => openDetail(latest)}
                           >
-                            <span className="text-xs italic text-gray-400">
+                            <span className="text-xs italic text-[#aaaaaa]">
                               {systemText}
                             </span>
-                            <span className="ml-2 text-[11px] text-gray-400">
+                            <span className="ml-2 text-[11px] text-[#aaaaaa]">
                               {formatTimelineTime(latest.sentAt)}
                             </span>
                           </button>
@@ -563,7 +575,7 @@ export function CommunicationsJobEmailSection({
 
                     const timelineCircle = (
                       <div
-                        className={`absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-gray-50 ${dot.circle}`}
+                        className={`absolute -left-9 top-0.5 z-[1] flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-[#f5f5f5] ${dot.circle}`}
                         aria-hidden
                       >
                         <ChannelTimelineIcon
@@ -577,7 +589,7 @@ export function CommunicationsJobEmailSection({
                     const headerLine1 = (
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">
+                          <span className="text-sm font-medium text-[#131313]">
                             {displayName}
                           </span>
                           <ChannelTypeBadge
@@ -590,7 +602,7 @@ export function CommunicationsJobEmailSection({
                             <InboundBadge />
                           ) : null}
                           {isThread ? (
-                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                            <span className="rounded-full bg-[#f5f5f5] px-2 py-0.5 text-[11px] font-medium text-[#4d4d4d]">
                               {rows.length} messages
                             </span>
                           ) : null}
@@ -601,7 +613,7 @@ export function CommunicationsJobEmailSection({
                               {threadActions.reply ? (
                                 <button
                                   type="button"
-                                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-100"
+                                  className={sdsButtonIconTertiaryMini}
                                   title="Reply"
                                   aria-label="Reply"
                                   onClick={(e) => {
@@ -609,13 +621,13 @@ export function CommunicationsJobEmailSection({
                                     onReply?.([latest]);
                                   }}
                                 >
-                                  <IconReply className="h-3.5 w-3.5 text-gray-400" />
+                                  <IconReply className="h-3.5 w-3.5 text-[#aaaaaa]" />
                                 </button>
                               ) : null}
                               {threadActions.followUp ? (
                                 <button
                                   type="button"
-                                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-100"
+                                  className={sdsButtonIconTertiaryMini}
                                   title="Follow up"
                                   aria-label="Follow up"
                                   onClick={(e) => {
@@ -623,7 +635,7 @@ export function CommunicationsJobEmailSection({
                                     onFollowUp?.([latest]);
                                   }}
                                 >
-                                  <IconFollowUp className="h-3.5 w-3.5 text-gray-400" />
+                                  <IconFollowUp className="h-3.5 w-3.5 text-[#aaaaaa]" />
                                 </button>
                               ) : null}
                             </div>
@@ -632,7 +644,7 @@ export function CommunicationsJobEmailSection({
                             <div className="mr-2 hidden items-center gap-1 group-hover:flex">
                               <button
                                 type="button"
-                                className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-100"
+                                className={sdsButtonIconTertiaryMini}
                                 title="Reply"
                                 aria-label="Reply"
                                 onClick={(e) => {
@@ -651,16 +663,16 @@ export function CommunicationsJobEmailSection({
                                   openDetail(latest);
                                 }}
                               >
-                                <IconReply className="h-3.5 w-3.5 text-gray-400" />
+                                <IconReply className="h-3.5 w-3.5 text-[#aaaaaa]" />
                               </button>
                             </div>
                           ) : null}
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-[#aaaaaa]">
                             {formatTimelineTime(latest.sentAt)}
                           </span>
                           {isThread ? (
                             <ChevronDownIcon
-                              className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 ${
+                              className={`h-3.5 w-3.5 shrink-0 text-[#aaaaaa] transition-transform duration-200 ${
                                 expanded ? "rotate-180" : ""
                               }`}
                             />
@@ -672,24 +684,24 @@ export function CommunicationsJobEmailSection({
                     const contentBlock =
                       latest.channel === "email" ? (
                         <>
-                          <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                          <p className="mt-1.5 truncate text-sm font-medium text-[#131313]">
                             {subjectPart}
                           </p>
-                          <p className="truncate text-sm text-gray-500">
+                          <p className="truncate text-sm text-[#4d4d4d]">
                             {bodyOneLine || "—"}
                           </p>
                         </>
                       ) : latest.channel === "meeting" ? (
                         <>
-                          <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                          <p className="mt-1.5 truncate text-sm font-medium text-[#131313]">
                             {meetingSubject}
                           </p>
-                          <p className="truncate text-xs text-gray-400">
+                          <p className="truncate text-xs text-[#aaaaaa]">
                             {meetingFooter}
                           </p>
                         </>
                       ) : (
-                        <p className="mt-1.5 truncate text-sm text-gray-500">
+                        <p className="mt-1.5 truncate text-sm text-[#4d4d4d]">
                           {bodyOneLine || "—"}
                         </p>
                       );
@@ -703,24 +715,24 @@ export function CommunicationsJobEmailSection({
                               <>
                                 <div className="relative pb-1.5">
                                   <div
-                                    className="pointer-events-none absolute bottom-0 left-1 right-1 top-[6px] rounded-lg border border-gray-200/60 bg-white opacity-50"
+                                    className="pointer-events-none absolute bottom-0 left-1 right-1 top-[6px] rounded-sds-8 border border-[#e0e0e0]/60 bg-white opacity-50"
                                     aria-hidden
                                   />
                                   <div
-                                    className="pointer-events-none absolute bottom-0 left-0.5 right-0.5 top-[3px] rounded-lg border border-gray-200/60 bg-white opacity-75"
+                                    className="pointer-events-none absolute bottom-0 left-0.5 right-0.5 top-[3px] rounded-sds-8 border border-[#e0e0e0]/60 bg-white opacity-75"
                                     aria-hidden
                                   />
                                   <button
                                     type="button"
-                                    className="group relative z-[1] w-full cursor-pointer rounded-lg border border-gray-200/60 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                    className="group relative z-[1] w-full cursor-pointer rounded-sds-8 border border-[#e0e0e0]/60 bg-white px-4 py-3 text-left transition-colors hover:border-[#e0e0e0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0183FF]"
                                     aria-expanded={expanded}
                                     onClick={() => toggleThread(group.key)}
                                   >
                                     {headerLine1}
-                                    <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                                    <p className="mt-1.5 truncate text-sm font-medium text-[#131313]">
                                       {subjectPart}
                                     </p>
-                                    <p className="truncate text-sm text-gray-500">
+                                    <p className="truncate text-sm text-[#4d4d4d]">
                                       {bodyOneLine || "—"}
                                     </p>
                                   </button>
@@ -731,23 +743,23 @@ export function CommunicationsJobEmailSection({
                               <>
                                 <button
                                   type="button"
-                                  className="w-full cursor-pointer rounded-t-lg border border-b-0 border-gray-200/60 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                  className="w-full cursor-pointer rounded-t-sds-8 border border-b-0 border-[#e0e0e0]/60 bg-white px-4 py-3 text-left transition-colors hover:bg-[#f5f5f5]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0183FF]"
                                   aria-expanded={expanded}
                                   onClick={() => toggleThread(group.key)}
                                 >
                                   {headerLine1}
-                                  <p className="mt-1.5 truncate text-sm font-medium text-gray-900">
+                                  <p className="mt-1.5 truncate text-sm font-medium text-[#131313]">
                                     {subjectPart}
                                   </p>
-                                  <p className="truncate text-sm text-gray-500">
+                                  <p className="truncate text-sm text-[#4d4d4d]">
                                     {bodyOneLine || "—"}
                                   </p>
                                 </button>
                                 <div
-                                  className={`border-x border-gray-200/60 bg-white ${
+                                  className={`border-x border-[#e0e0e0]/60 bg-white ${
                                     !canThreadAct ||
                                     (!threadActions.reply && !threadActions.followUp)
-                                      ? "rounded-b-lg border-b border-gray-200/60"
+                                      ? "rounded-b-sds-8 border-b border-[#e0e0e0]/60"
                                       : ""
                                   }`}
                                 >
@@ -761,7 +773,7 @@ export function CommunicationsJobEmailSection({
                                         key={`${group.key}-${row.id}`}
                                         role="button"
                                         tabIndex={0}
-                                        className="cursor-pointer border-t border-gray-200/60 bg-gray-50 px-4 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                        className="cursor-pointer border-t border-[#e0e0e0]/60 bg-[#f5f5f5] px-4 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0183FF]"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openDetail(row);
@@ -779,28 +791,28 @@ export function CommunicationsJobEmailSection({
                                               className="h-[5px] w-[5px] shrink-0 rounded-full bg-blue-300"
                                               aria-hidden
                                             />
-                                            <span className="text-xs text-gray-600">
+                                            <span className="text-xs text-[#4d4d4d]">
                                               {formatSenderTypeLabel(
                                                 row.senderType,
                                               )}
                                             </span>
-                                            <span className="text-[11px] text-gray-400">
+                                            <span className="text-[11px] text-[#aaaaaa]">
                                               ·
                                             </span>
-                                            <span className="text-[11px] text-gray-400">
+                                            <span className="text-[11px] text-[#aaaaaa]">
                                               {row.direction === "inbound"
                                                 ? "Inbound"
                                                 : "Outbound"}
                                             </span>
                                           </div>
-                                          <span className="text-[11px] text-gray-400">
+                                          <span className="text-[11px] text-[#aaaaaa]">
                                             {formatTimelineTime(row.sentAt)}
                                           </span>
                                         </div>
-                                        <p className="truncate pl-[11px] text-xs font-medium text-gray-900">
+                                        <p className="truncate pl-[11px] text-xs font-medium text-[#131313]">
                                           {prev.subjectPart}
                                         </p>
-                                        <p className="truncate pl-[11px] text-xs text-gray-400">
+                                        <p className="truncate pl-[11px] text-xs text-[#aaaaaa]">
                                           {childBody || "—"}
                                         </p>
                                       </div>
@@ -809,11 +821,11 @@ export function CommunicationsJobEmailSection({
                                 </div>
                                 {canThreadAct &&
                                 (threadActions.reply || threadActions.followUp) ? (
-                                  <div className="flex gap-3 rounded-b-lg border border-t border-gray-200/60 bg-white px-4 py-2">
+                                  <div className="flex gap-3 rounded-b-sds-8 border border-t border-[#e0e0e0]/60 bg-white px-4 py-2">
                                     {threadActions.reply ? (
                                       <button
                                         type="button"
-                                        className="flex items-center gap-1.5 rounded border border-gray-200/60 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                                        className={`${sdsButtonSecondaryCompact} inline-flex gap-1.5`}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onReply?.(rows);
@@ -826,7 +838,7 @@ export function CommunicationsJobEmailSection({
                                     {threadActions.followUp ? (
                                       <button
                                         type="button"
-                                        className="flex items-center gap-1.5 rounded border border-gray-200/60 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                                        className={`${sdsButtonSecondaryCompact} inline-flex gap-1.5`}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onFollowUp?.(rows);
@@ -859,7 +871,7 @@ export function CommunicationsJobEmailSection({
                                 openDetail(latest);
                               }
                             }}
-                            className={`group cursor-pointer rounded-lg border border-gray-200/60 bg-white px-4 py-3 text-left transition-colors hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
+                            className={`group cursor-pointer rounded-sds-8 border border-[#e0e0e0]/60 bg-white px-4 py-3 text-left transition-colors hover:border-[#e0e0e0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0183FF] ${
                               latest.channel === "meeting" ? "" : ""
                             }`}
                           >
@@ -878,7 +890,7 @@ export function CommunicationsJobEmailSection({
                   <button
                     type="button"
                     onClick={() => setExpandedList(true)}
-                    className="text-sm font-medium text-blue-600 hover:underline"
+                    className={sdsButtonLink}
                   >
                     Show more
                   </button>

@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CommunicationFilters } from "../../utils/communicationsTimelineFilter";
 import { DEFAULT_COMMUNICATION_FILTERS } from "../../utils/communicationsTimelineFilter";
+import {
+  sdsButtonLink,
+  sdsButtonPrimary,
+  sdsButtonSecondary,
+} from "../../lib/sdsButtonClasses";
+import {
+  sdsModalBackdrop,
+  sdsModalBody,
+  sdsModalCloseButton,
+  sdsModalContainer,
+  sdsModalDismissLayer,
+  sdsModalFooterToolbar,
+  sdsModalHeader,
+  sdsModalTitle,
+} from "../../lib/sdsModalClasses";
+import { sdsLabel, sdsSelectWFull } from "../../lib/sdsFormClasses";
 
 /**
  * Filter payload for the panel (single source of truth: `communicationsTimelineFilter.ts`).
@@ -27,7 +43,7 @@ export interface CommunicationFilterPanelProps {
 function selectChevron() {
   return (
     <span
-      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4d4d4d]"
       aria-hidden
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -77,37 +93,33 @@ export function CommunicationFilterPanel({
 
   const sectionClass = "mb-6";
 
+  if (!isOpen) return null;
+
   const panel = (
-    <>
-      <div
-        className={[
-          "fixed inset-0 z-[100] bg-black/30 transition-opacity duration-300 ease-in-out",
-          isOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        ].join(" ")}
-        aria-hidden={!isOpen}
+    <div
+      className={sdsModalBackdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="comm-filter-panel-title"
+    >
+      <button
+        type="button"
+        className={sdsModalDismissLayer}
+        aria-label="Close filters"
         onClick={onClose}
       />
-      <aside
-        className={[
-          "fixed inset-y-0 right-0 z-[101] flex w-full max-w-[420px] flex-col border-l border-gray-200/60 bg-white shadow-[var(--elevation-2)] transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "pointer-events-none translate-x-full",
-        ].join(" ")}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="comm-filter-panel-title"
+      <div
+        className={sdsModalContainer}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-gray-200/60 px-6 py-4">
-          <h2
-            id="comm-filter-panel-title"
-            className="text-lg font-semibold text-gray-900"
-          >
+        <header className={sdsModalHeader}>
+          <h2 id="comm-filter-panel-title" className={sdsModalTitle}>
             Sort and Filters
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            className={sdsModalCloseButton}
             aria-label="Close"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -121,27 +133,27 @@ export function CommunicationFilterPanel({
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className={sdsModalBody}>
           <div className={sectionClass}>
-            <p className="mb-2 text-sm font-medium text-gray-700">Sort by</p>
+            <p className={`mb-2 ${sdsLabel}`}>Sort by</p>
             <div className="flex flex-col gap-3">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+              <label className="flex cursor-pointer items-center gap-2 text-body-s text-[#131313]">
                 <input
                   type="radio"
                   name="comm-sort"
                   checked={draft.sortBy === "newest"}
                   onChange={() => setDraft((d) => ({ ...d, sortBy: "newest" }))}
-                  className="h-4 w-4 border-gray-300 text-gray-900"
+                  className="h-4 w-4 border-[#e0e0e0] text-[#131313]"
                 />
                 Latest first
               </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+              <label className="flex cursor-pointer items-center gap-2 text-body-s text-[#131313]">
                 <input
                   type="radio"
                   name="comm-sort"
                   checked={draft.sortBy === "oldest"}
                   onChange={() => setDraft((d) => ({ ...d, sortBy: "oldest" }))}
-                  className="h-4 w-4 border-gray-300 text-gray-900"
+                  className="h-4 w-4 border-[#e0e0e0] text-[#131313]"
                 />
                 Oldest first
               </label>
@@ -149,9 +161,9 @@ export function CommunicationFilterPanel({
           </div>
 
           <div className={sectionClass}>
-            <p className="mb-2 text-sm font-medium text-gray-700">Direction</p>
+            <p className={`mb-2 ${sdsLabel}`}>Direction</p>
             <div className="flex flex-col gap-3">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+              <label className="flex cursor-pointer items-center gap-2 text-body-s text-[#131313]">
                 <input
                   type="radio"
                   name="comm-direction"
@@ -159,11 +171,11 @@ export function CommunicationFilterPanel({
                   onChange={() =>
                     setDraft((d) => ({ ...d, direction: "all" }))
                   }
-                  className="h-4 w-4 border-gray-300 text-gray-900"
+                  className="h-4 w-4 border-[#e0e0e0] text-[#131313]"
                 />
                 All
               </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+              <label className="flex cursor-pointer items-center gap-2 text-body-s text-[#131313]">
                 <input
                   type="radio"
                   name="comm-direction"
@@ -171,11 +183,11 @@ export function CommunicationFilterPanel({
                   onChange={() =>
                     setDraft((d) => ({ ...d, direction: "outbound" }))
                   }
-                  className="h-4 w-4 border-gray-300 text-gray-900"
+                  className="h-4 w-4 border-[#e0e0e0] text-[#131313]"
                 />
                 Outbound
               </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+              <label className="flex cursor-pointer items-center gap-2 text-body-s text-[#131313]">
                 <input
                   type="radio"
                   name="comm-direction"
@@ -183,7 +195,7 @@ export function CommunicationFilterPanel({
                   onChange={() =>
                     setDraft((d) => ({ ...d, direction: "inbound" }))
                   }
-                  className="h-4 w-4 border-gray-300 text-gray-900"
+                  className="h-4 w-4 border-[#e0e0e0] text-[#131313]"
                 />
                 Inbound
               </label>
@@ -193,7 +205,7 @@ export function CommunicationFilterPanel({
           <div className={sectionClass}>
             <label
               htmlFor="comm-delivery-status"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className={`mb-2 block ${sdsLabel}`}
             >
               Delivery Status
             </label>
@@ -208,7 +220,7 @@ export function CommunicationFilterPanel({
                       .value as CommunicationFilters["deliveryStatus"],
                   }))
                 }
-                className="w-full appearance-none rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm text-gray-900"
+                className={`${sdsSelectWFull} appearance-none pr-10`}
               >
                 <option value="all">All</option>
                 <option value="sent">Sent</option>
@@ -223,7 +235,7 @@ export function CommunicationFilterPanel({
           <div className={sectionClass}>
             <label
               htmlFor="comm-date-range"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className={`mb-2 block ${sdsLabel}`}
             >
               Date Range
             </label>
@@ -238,7 +250,7 @@ export function CommunicationFilterPanel({
                       .value as CommunicationFilters["dateRange"],
                   }))
                 }
-                className="w-full appearance-none rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm text-gray-900"
+                className={`${sdsSelectWFull} appearance-none pr-10`}
               >
                 <option value="all">All time</option>
                 <option value="7d">Last 7 days</option>
@@ -252,7 +264,7 @@ export function CommunicationFilterPanel({
           <div className={sectionClass}>
             <label
               htmlFor="comm-sender-type"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className={`mb-2 block ${sdsLabel}`}
             >
               Sender
             </label>
@@ -267,7 +279,7 @@ export function CommunicationFilterPanel({
                       .value as CommunicationFilters["senderType"],
                   }))
                 }
-                className="w-full appearance-none rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm text-gray-900"
+                className={`${sdsSelectWFull} appearance-none pr-10`}
               >
                 <option value="all">All</option>
                 <option value="recruiter">Recruiter</option>
@@ -280,35 +292,33 @@ export function CommunicationFilterPanel({
           </div>
         </div>
 
-        <footer className="shrink-0 border-t border-gray-200/60 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <footer className={sdsModalFooterToolbar}>
+          <button
+            type="button"
+            onClick={resetDraftToDefault}
+            className={`${sdsButtonLink} text-left`}
+          >
+            Reset to default
+          </button>
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              onClick={resetDraftToDefault}
-              className="cursor-pointer text-left text-sm text-gray-500 hover:underline"
+              onClick={onClose}
+              className={`${sdsButtonSecondary} px-6`}
             >
-              Reset to default
+              Cancel
             </button>
-            <div className="flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-gray-300 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={applyDraft}
-                className="rounded-md bg-gray-900 px-6 py-2 text-sm font-medium text-white hover:bg-gray-800"
-              >
-                Apply
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={applyDraft}
+              className={`${sdsButtonPrimary} px-6`}
+            >
+              Apply
+            </button>
           </div>
         </footer>
-      </aside>
-    </>
+      </div>
+    </div>
   );
 
   return createPortal(panel, document.body);

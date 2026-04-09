@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { sdsButtonSecondarySm } from '../../lib/sdsButtonClasses'
+import { sdsSelect } from '../../lib/sdsFormClasses'
 
 type PaginationFooterProps = {
   from: number
@@ -26,7 +28,7 @@ export function PaginationFooter({ from, to, total }: PaginationFooterProps) {
       <div className="flex items-center justify-center gap-2 sm:justify-end">
         <span className="text-[var(--text-label-lighter)]">Rows per page</span>
         <select
-          className="rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-[var(--text-body)]"
+          className={sdsSelect}
           aria-label="Rows per page"
           defaultValue={10}
         >
@@ -53,7 +55,7 @@ function PageBtn({
       type="button"
       disabled={disabled}
       aria-label={label}
-      className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-[var(--text-body)] disabled:opacity-40"
+      className={`${sdsButtonSecondarySm} disabled:opacity-40`}
     >
       {children}
     </button>

@@ -5,6 +5,17 @@ import { FilterTabs } from '../components/layout/FilterTabs'
 import { ListToolbar } from '../components/layout/ListToolbar'
 import { PageHeader } from '../components/layout/PageHeader'
 import { PaginationFooter } from '../components/layout/PaginationFooter'
+import { sdsButtonIconTertiary, sdsButtonPrimary } from '../lib/sdsButtonClasses'
+import {
+  jobOpeningStatusPillClass,
+  sdsDataTable,
+  sdsDataTableCheckbox,
+  sdsDataTableHeadRow,
+  sdsDataTableRow,
+  sdsDataTableShell,
+  sdsDataTableTd,
+  sdsDataTableTh,
+} from '../lib/sdsTableClasses'
 
 const JOB_TABS = [
   { id: 'all', label: 'All Openings', count: 2549 },
@@ -30,16 +41,8 @@ function StatusBadge({
   label: string
   variant: 'open' | 'draft' | 'hold'
 }) {
-  const border =
-    variant === 'open'
-      ? 'border-l-[var(--status-open)]'
-      : variant === 'hold'
-        ? 'border-l-amber-500'
-        : 'border-l-[var(--status-draft)]'
   return (
-    <span
-      className={`inline-flex max-w-full min-w-0 items-center rounded border border-[var(--border-subtle)] border-l-4 ${border} bg-[var(--charcoal-5)] px-2 py-0.5 text-[length:var(--body-s)] font-medium text-[var(--text-body)]`}
-    >
+    <span className={jobOpeningStatusPillClass(variant)}>
       <span className="truncate">{label}</span>
     </span>
   )
@@ -85,17 +88,13 @@ export function JobOpeningsPage() {
           <div className="flex items-center gap-1">
             <button
               type="button"
-              className="inline-flex items-center rounded-md px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--btn-cta-text)] shadow-none transition-opacity hover:opacity-95"
-              style={{
-                background: 'var(--btn-cta-bg)',
-                fontWeight: 'var(--font-weight-bold)',
-              }}
+              className={sdsButtonPrimary}
             >
               + CREATE JOB
             </button>
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--icon-default)] hover:bg-[var(--bg-surface-hover)]"
+              className={sdsButtonIconTertiary}
               aria-label="More actions"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -118,10 +117,10 @@ export function JobOpeningsPage() {
         <p className="mb-4 text-[length:var(--body-m)] text-[var(--text-error)]">{loadError}</p>
       ) : null}
 
-      <div className="w-full min-w-0 overflow-hidden rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
-        <table className="w-full table-fixed border-collapse text-left text-[length:var(--body-m)]">
+      <div className={sdsDataTableShell}>
+        <table className={`${sdsDataTable} table-fixed`}>
             <thead>
-              <tr className="border-b border-[var(--border-subtle)] bg-[var(--blue-20)] text-[length:var(--body-s)] font-medium uppercase tracking-wide text-[var(--text-label)]">
+              <tr className={sdsDataTableHeadRow}>
                 <th
                   scope="col"
                   className="w-[40px] min-w-[40px] max-w-[40px] p-0 align-middle"
@@ -130,31 +129,31 @@ export function JobOpeningsPage() {
                     <input
                       type="checkbox"
                       aria-label="Select all"
-                      className="shrink-0 rounded border-[var(--border-default)]"
+                      className={sdsDataTableCheckbox}
                     />
                   </div>
                 </th>
-                <th className="w-[50%] px-3 py-2">Job Title &amp; Code</th>
-                <th className="w-[25%] px-3 py-2">Status</th>
-                <th className="w-[25%] px-3 py-2">Location</th>
+                <th className={`w-[50%] ${sdsDataTableTh}`}>Job Title &amp; Code</th>
+                <th className={`w-[25%] ${sdsDataTableTh}`}>Status</th>
+                <th className={`w-[25%] ${sdsDataTableTh}`}>Location</th>
               </tr>
             </thead>
             <tbody>
               {visibleJobs.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]"
+                  className={sdsDataTableRow}
                 >
                   <td className="w-[40px] min-w-[40px] max-w-[40px] p-0 align-middle">
                     <div className="flex min-h-[3.25rem] items-center justify-center">
                       <input
                         type="checkbox"
                         aria-label={`Select ${row.title}`}
-                        className="shrink-0 rounded border-[var(--border-default)]"
+                        className={sdsDataTableCheckbox}
                       />
                     </div>
                   </td>
-                  <td className="min-w-0 px-3 py-3">
+                  <td className={`min-w-0 ${sdsDataTableTd}`}>
                     <Link
                       to={`/recruitment/jobs/${row.id}`}
                       className="block truncate font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline"
@@ -163,13 +162,13 @@ export function JobOpeningsPage() {
                     </Link>
                     <div className="truncate text-[length:var(--body-s)] text-[var(--text-label)]">{row.job_code}</div>
                   </td>
-                  <td className="min-w-0 px-3 py-3 align-top">
+                  <td className={`min-w-0 align-top ${sdsDataTableTd}`}>
                     <StatusBadge
                       label={row.status.replace(/_/g, ' ')}
                       variant={statusVariant(row.status)}
                     />
                   </td>
-                  <td className="min-w-0 truncate px-3 py-3 text-[var(--text-body)]">{row.location}</td>
+                  <td className={`min-w-0 truncate ${sdsDataTableTd}`}>{row.location}</td>
                 </tr>
               ))}
             </tbody>

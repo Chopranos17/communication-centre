@@ -19,7 +19,7 @@ export function DeliveryStatusGlyph({ status, className, size = "md" }: Props) {
       <span className={wrap} title="Delivered" aria-label="Delivered">
         <svg
           viewBox="0 0 18 14"
-          className={sm ? "h-3.5 w-3.5 text-blue-500" : "h-[14px] w-[18px] text-[var(--blue-500)]"}
+          className={sm ? "h-3.5 w-3.5 text-[#0183FF]" : "h-[14px] w-[18px] text-[var(--blue-500)]"}
           aria-hidden
           fill="none"
         >
@@ -46,7 +46,7 @@ export function DeliveryStatusGlyph({ status, className, size = "md" }: Props) {
       <span className={wrap} title="Sent" aria-label="Sent">
         <svg
           viewBox="0 0 14 14"
-          className={sm ? "h-3.5 w-3.5 text-gray-400" : "h-[14px] w-[14px] text-[var(--charcoal-400)]"}
+          className={sm ? "h-3.5 w-3.5 text-[#aaaaaa]" : "h-[14px] w-[14px] text-[var(--charcoal-400)]"}
           aria-hidden
           fill="none"
         >
@@ -66,7 +66,7 @@ export function DeliveryStatusGlyph({ status, className, size = "md" }: Props) {
       <span className={wrap} title="Failed" aria-label="Failed">
         <svg
           viewBox="0 0 24 24"
-          className={sm ? "h-3.5 w-3.5 text-red-500" : "h-[14px] w-[14px] text-[var(--red-500)]"}
+          className={sm ? "h-3.5 w-3.5 text-[#d32f2f]" : "h-[14px] w-[14px] text-[var(--red-500)]"}
           aria-hidden
           fill="currentColor"
         >
@@ -77,7 +77,7 @@ export function DeliveryStatusGlyph({ status, className, size = "md" }: Props) {
   }
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-0.5 text-gray-400 ${sm ? "text-[11px]" : "text-[length:10px] font-semibold uppercase tracking-wide text-[var(--charcoal-400)]"} ${className ?? ""}`}
+      className={`inline-flex shrink-0 items-center gap-0.5 text-[#aaaaaa] ${sm ? "text-[11px]" : "text-[length:10px] font-semibold uppercase tracking-wide text-[var(--charcoal-400)]"} ${className ?? ""}`}
       title="Pending"
       aria-label="Pending delivery"
     >

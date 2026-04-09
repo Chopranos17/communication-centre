@@ -7,6 +7,18 @@ import {
 } from "../../api/candidatesClient";
 import { meetingInviteVendorError } from "../../utils/sendFeedbackMessages";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import {
+  sdsButtonIconTertiary,
+  sdsButtonLink,
+  sdsButtonPrimary,
+  sdsButtonSecondary,
+} from "../../lib/sdsButtonClasses";
+import {
+  sdsInput,
+  sdsLabel,
+  sdsSelectWFull,
+  sdsTextarea,
+} from "../../lib/sdsFormClasses";
 
 const DURATIONS: (15 | 30 | 45 | 60)[] = [15, 30, 45, 60];
 
@@ -234,7 +246,7 @@ export function BulkScheduleMeetingModal({
             type="button"
             onClick={onClose}
             disabled={phase === "sending"}
-            className="flex h-9 w-9 items-center justify-center rounded text-[var(--charcoal-400)] hover:bg-[var(--charcoal-10)] hover:text-[var(--text-body)] disabled:opacity-40"
+            className={`${sdsButtonIconTertiary} disabled:opacity-40`}
             aria-label="Close"
           >
             <span className="text-xl leading-none" aria-hidden>
@@ -296,7 +308,7 @@ export function BulkScheduleMeetingModal({
                       </div>
                       <button
                         type="button"
-                        className="shrink-0 text-[var(--charcoal-400)] hover:text-[var(--text-error)]"
+                        className={`${sdsButtonLink} shrink-0 p-0.5 text-[var(--charcoal-400)] hover:text-[var(--text-error)]`}
                         aria-label={`Remove ${r.name}`}
                         onClick={() => removeRecipient(r.candidateId)}
                       >
@@ -313,20 +325,20 @@ export function BulkScheduleMeetingModal({
               </div>
 
               <label className="mb-3 block">
-                <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                <span className={`mb-1 block ${sdsLabel}`}>
                   Title / purpose
                 </span>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)] text-[var(--text-body)]"
+                  className={`${sdsInput} w-full`}
                 />
               </label>
 
               <div className="mb-3 grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                  <span className={`mb-1 block ${sdsLabel}`}>
                     Duration
                   </span>
                   <select
@@ -334,7 +346,7 @@ export function BulkScheduleMeetingModal({
                     onChange={(e) =>
                       setDuration(Number(e.target.value) as 15 | 30 | 45 | 60)
                     }
-                    className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+                    className={sdsSelectWFull}
                   >
                     {DURATIONS.map((m) => (
                       <option key={m} value={m}>
@@ -344,20 +356,20 @@ export function BulkScheduleMeetingModal({
                   </select>
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                  <span className={`mb-1 block ${sdsLabel}`}>
                     Date & time
                   </span>
                   <input
                     type="datetime-local"
                     value={scheduledLocal}
                     onChange={(e) => setScheduledLocal(e.target.value)}
-                    className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+                    className={`${sdsInput} w-full`}
                   />
                 </label>
               </div>
 
               <label className="mb-3 block">
-                <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                <span className={`mb-1 block ${sdsLabel}`}>
                   Channel
                 </span>
                 <select
@@ -365,7 +377,7 @@ export function BulkScheduleMeetingModal({
                   onChange={(e) =>
                     setChannel(e.target.value as ScheduleMeetingPayload["channel"])
                   }
-                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+                  className={sdsSelectWFull}
                 >
                   {CHANNEL_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -376,7 +388,7 @@ export function BulkScheduleMeetingModal({
               </label>
 
               <label className="mb-4 block">
-                <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+                <span className={`mb-1 block ${sdsLabel}`}>
                   Description
                 </span>
                 <textarea
@@ -384,7 +396,7 @@ export function BulkScheduleMeetingModal({
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
                   placeholder="Optional agenda or notes for the invite…"
-                  className="w-full resize-y rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+                  className={`${sdsTextarea} w-full`}
                 />
               </label>
             </>
@@ -396,7 +408,7 @@ export function BulkScheduleMeetingModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)]"
+              className={`${sdsButtonPrimary} px-4`}
             >
               Done
             </button>
@@ -405,7 +417,7 @@ export function BulkScheduleMeetingModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--charcoal-10)]"
+                className={`${sdsButtonSecondary} px-4`}
               >
                 Cancel
               </button>
@@ -413,7 +425,7 @@ export function BulkScheduleMeetingModal({
                 type="button"
                 disabled={!canSend}
                 onClick={() => void handleSend()}
-                className="inline-flex min-w-[7rem] items-center justify-center rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+                className={`${sdsButtonPrimary} inline-flex min-w-[7rem] justify-center px-4 disabled:opacity-50`}
               >
                 Send Invites
               </button>

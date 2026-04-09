@@ -32,6 +32,8 @@ import { EmailDetailModal } from "./EmailDetailModal";
 import { FollowUpEmailModal } from "./FollowUpEmailModal";
 import { ReplyThreadModal } from "./ReplyThreadModal";
 import { ScheduleMeetingModal } from "./ScheduleMeetingModal";
+import { sdsButtonSecondaryIcon } from "../../lib/sdsButtonClasses";
+import { sdsInput } from "../../lib/sdsFormClasses";
 
 const EMPTY_EMAILS: CurrentJobEmailRow[] = [];
 
@@ -96,8 +98,7 @@ function IconFilterFunnelOutline({ className }: { className?: string }) {
   );
 }
 
-const ICON_BUTTON_CLASS =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--icon-default)] shadow-none hover:bg-[var(--bg-surface-hover)] hover:text-[var(--icon-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-500)]";
+const ICON_BUTTON_CLASS = `${sdsButtonSecondaryIcon} text-[var(--icon-default)] hover:text-[var(--icon-hover)]`;
 
 export function CommunicationsCurrentJobSection({
   candidateId,
@@ -522,7 +523,7 @@ export function CommunicationsCurrentJobSection({
                   onChange={(e) => setSearchInput(e.target.value)}
                   onBlur={handleSearchBlur}
                   placeholder="Search messages..."
-                  className="h-9 w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] py-2 pl-3 pr-10 text-[length:var(--body-m)] text-[var(--text-body)] placeholder:text-[var(--text-ghost)] shadow-none focus:border-[var(--border-active)] focus:outline-none focus:ring-1 focus:ring-[var(--blue-500)]"
+                  className={`${sdsInput} w-full pl-3 pr-10`}
                   aria-label="Search messages"
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--icon-default)]">

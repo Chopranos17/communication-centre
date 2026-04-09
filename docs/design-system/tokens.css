@@ -138,7 +138,7 @@
   --status-pending: var(--charcoal-300);     /* Gray "Pending" text */
 
   /* Candidate Detail Page Header */
-  --header-banner-bg: var(--blue-500);       /* Blue banner on candidate detail */
+  --header-banner-bg: linear-gradient(180deg, #0183FF 0%, #0169CC 55%, #014F99 100%);
   
   /* Tab Bar */
   --tab-active-border: var(--charcoal-700);  /* Active tab underline (dark) */

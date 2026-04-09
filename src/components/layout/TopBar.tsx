@@ -3,6 +3,12 @@ import { usePersona } from '../../context/PersonaContext'
 import type { Persona } from '../../types/persona'
 import { PERSONA_LABELS } from '../../types/persona'
 import { Bell, Star } from 'lucide-react'
+import {
+  sdsButtonSecondary,
+  sdsMenuItemBtn,
+  sdsTopBarIconButton,
+} from '../../lib/sdsButtonClasses'
+import { sdsInput } from '../../lib/sdsFormClasses'
 
 export function TopBar() {
   const { persona, setPersona, personaLabel } = usePersona()
@@ -23,8 +29,8 @@ export function TopBar() {
   const personaInitial = personaLabel.slice(0, 1).toUpperCase()
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-gray-200/60 bg-white px-4">
-      <span className="shrink-0 text-sm font-bold tracking-tight text-gray-900">Darwinbox</span>
+    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-[#e0e0e0]/60 bg-white px-4">
+      <span className="shrink-0 text-sm font-bold tracking-tight text-[#131313]">Darwinbox</span>
 
       <div className="flex min-w-0 flex-1 justify-center px-2">
         <label className="sr-only" htmlFor="topbar-search">
@@ -34,14 +40,14 @@ export function TopBar() {
           id="topbar-search"
           type="search"
           placeholder="Search for people and settings"
-          className="w-[400px] max-w-full rounded-full border-0 bg-gray-100 px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className={`${sdsInput} w-[400px] max-w-full`}
         />
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
-          className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
+          className={`${sdsTopBarIconButton} relative`}
           aria-label="Notifications"
         >
           <Bell size={20} strokeWidth={1.5} />
@@ -52,7 +58,7 @@ export function TopBar() {
 
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
+          className={sdsTopBarIconButton}
           aria-label="Bookmarks"
         >
           <Star size={20} strokeWidth={1.5} />
@@ -61,7 +67,7 @@ export function TopBar() {
         <div className="relative pl-1" ref={menuRef}>
           <button
             type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200/60 bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200"
+            className={`${sdsButtonSecondary} h-10 w-10 shrink-0 rounded-full p-0 text-sm`}
             aria-expanded={menuOpen}
             aria-haspopup="listbox"
             aria-label="Account and role"
@@ -72,11 +78,11 @@ export function TopBar() {
 
           {menuOpen && (
             <div
-              className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200/60 bg-white py-2 shadow-[var(--elevation-2)]"
+              className="absolute right-0 z-50 mt-2 w-56 rounded-sds-8 border border-[#e0e0e0]/60 bg-white py-2 shadow-[var(--elevation-2)]"
               role="listbox"
               aria-label="Role"
             >
-              <div className="border-b border-gray-100 px-3 pb-2 text-xs text-gray-500">Role</div>
+              <div className="border-b border-[#f5f5f5] px-3 pb-2 text-xs text-[#4d4d4d]">Role</div>
               <div className="flex flex-col py-1">
                 {(Object.keys(PERSONA_LABELS) as Persona[]).map((key) => (
                   <button
@@ -89,10 +95,11 @@ export function TopBar() {
                       setMenuOpen(false)
                     }}
                     className={[
-                      'px-3 py-2 text-left text-sm',
+                      sdsMenuItemBtn,
+                      'text-sm',
                       persona === key
-                        ? 'bg-blue-50 font-medium text-blue-800'
-                        : 'text-gray-800 hover:bg-gray-50',
+                        ? 'bg-[#E6F3FF] font-medium'
+                        : '',
                     ].join(' ')}
                   >
                     {PERSONA_LABELS[key]}

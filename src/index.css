@@ -1,15 +1,122 @@
 @import '../docs/design-system/tokens.css';
 
+@font-face {
+  font-family: 'Darwin Sans';
+  src: url('/fonts/DarwinSans-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Darwin Sans';
+  src: url('/fonts/DarwinSans-Book.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Darwin Sans';
+  src: url('/fonts/DarwinSans-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Darwin Sans';
+  src: url('/fonts/DarwinSans-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Darwin Sans';
+  src: url('/fonts/DarwinSans-ExtraBold.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  * {
+    font-family: 'Darwin Sans', system-ui, sans-serif;
+  }
+
   body {
-    font-family: var(--font-family);
     background-color: var(--bg-page);
     color: var(--text-body);
     -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .text-title-xl {
+    font-size: 28px;
+    line-height: 36px;
+  }
+  .text-title-l {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .text-title-m {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .text-title-s {
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .text-title-xs {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .text-body-l {
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .text-body-m {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .text-body-s {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .text-body-xs {
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .font-book {
+    font-weight: 400;
+  }
+  .font-medium {
+    font-weight: 500;
+  }
+  .font-bold {
+    font-weight: 700;
+  }
+
+  .animate-fadeSlideIn {
+    animation: fadeSlideIn 0.2s ease-out forwards;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

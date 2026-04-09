@@ -1,3 +1,5 @@
+import { sdsButtonSecondary } from '../../lib/sdsButtonClasses'
+
 const STEPS = [
   { label: 'Shortlisting', showPending: true, action: 'Shortlist' },
   { label: 'Screening', showPending: false, action: null },
@@ -31,13 +33,8 @@ export function HiringFlowPlaceholder({ currentStage }: Props) {
   const active = activeStepIndex(currentStage)
 
   return (
-    <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-6 shadow-[var(--elevation-1)]">
-      <h2
-        className="mb-6 text-[length:var(--title-xs)] font-bold text-[var(--text-title)]"
-        style={{ fontWeight: 'var(--font-weight-bold)' }}
-      >
-        Hiring Flow
-      </h2>
+    <div className="rounded-sds-12 border border-[#e0e0e0] bg-white p-6">
+      <h2 className="mb-6 font-darwin text-title-s font-medium text-[#131313]">Hiring Flow</h2>
       <div className="flex gap-4">
         <div className="flex flex-col items-center">
           {STEPS.map((_, i) => (
@@ -65,7 +62,7 @@ export function HiringFlowPlaceholder({ currentStage }: Props) {
           {STEPS.map((step, i) => (
             <div
               key={step.label}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border-card)] bg-[var(--white)] px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-sds-8 border border-[var(--border-card)] bg-[var(--white)] px-4 py-3"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -86,7 +83,7 @@ export function HiringFlowPlaceholder({ currentStage }: Props) {
               {step.action ? (
                 <button
                   type="button"
-                  className="rounded-[var(--radius-sm)] bg-[var(--charcoal-700)] px-4 py-1.5 text-[length:var(--body-s)] font-medium text-[var(--white)] hover:bg-[var(--charcoal-600)]"
+                  className={`${sdsButtonSecondary} h-8 px-4 text-body-s`}
                 >
                   {step.action}
                 </button>

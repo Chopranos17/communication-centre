@@ -1,3 +1,10 @@
+import {
+  sdsTabBtnActive,
+  sdsTabBtnBase,
+  sdsTabBtnInactive,
+  sdsTabStripContainer,
+} from '../../lib/sdsButtonClasses'
+
 const TAB_IDS = [
   'overview',
   'application',
@@ -24,7 +31,7 @@ type Props = {
 export function CandidateDetailTabs({ active, onChange }: Props) {
   return (
     <div
-      className="flex flex-wrap gap-1 border-b border-[var(--border-subtle)]"
+      className={sdsTabStripContainer}
       role="tablist"
       aria-label="Candidate sections"
     >
@@ -38,10 +45,8 @@ export function CandidateDetailTabs({ active, onChange }: Props) {
             aria-selected={isActive}
             onClick={() => onChange(id)}
             className={[
-              '-mb-px border-b-2 px-4 py-2.5 text-[length:var(--body-m)] transition-colors',
-              isActive
-                ? 'border-[var(--blue-500)] font-medium text-[var(--blue-600)]'
-                : 'border-transparent font-normal text-[var(--tab-inactive-text)] hover:text-[var(--text-body)]',
+              sdsTabBtnBase,
+              isActive ? sdsTabBtnActive : sdsTabBtnInactive,
             ].join(' ')}
           >
             {LABELS[id]}

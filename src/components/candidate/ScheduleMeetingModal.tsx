@@ -11,6 +11,27 @@ import {
   meetingInviteVendorError,
 } from "../../utils/sendFeedbackMessages";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import {
+  sdsButtonLink,
+  sdsButtonPrimary,
+  sdsButtonSecondary,
+} from "../../lib/sdsButtonClasses";
+import {
+  sdsModalBackdrop,
+  sdsModalBody,
+  sdsModalCloseButton,
+  sdsModalContainer,
+  sdsModalDismissLayer,
+  sdsModalFooter,
+  sdsModalHeader,
+  sdsModalTitle,
+} from "../../lib/sdsModalClasses";
+import {
+  sdsInput,
+  sdsLabel,
+  sdsSelectWFull,
+  sdsTextarea,
+} from "../../lib/sdsFormClasses";
 
 const DURATIONS: (15 | 30 | 45 | 60)[] = [15, 30, 45, 60];
 
@@ -206,33 +227,26 @@ export function ScheduleMeetingModal({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[100] flex justify-end"
+      className={sdsModalBackdrop}
       role="dialog"
       aria-modal="true"
       aria-labelledby="schedule-meeting-title"
     >
       <button
         type="button"
-        className="absolute inset-0 z-0 bg-[var(--bg-overlay)]"
+        className={sdsModalDismissLayer}
         aria-label="Close schedule meeting"
         onClick={onClose}
       />
-      <div
-        className="relative z-10 flex h-full w-full max-w-[480px] flex-col bg-[var(--bg-surface)] shadow-[var(--elevation-3)]"
-        style={{ minWidth: "min(100%, 420px)" }}
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
-          <h2
-            id="schedule-meeting-title"
-            className="text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]"
-            style={{ fontWeight: "var(--font-weight-bold)" }}
-          >
+      <div className={sdsModalContainer}>
+        <div className={sdsModalHeader}>
+          <h2 id="schedule-meeting-title" className={sdsModalTitle}>
             Schedule 1:1 Meeting
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded text-[var(--charcoal-400)] hover:bg-[var(--charcoal-10)] hover:text-[var(--text-body)]"
+            className={sdsModalCloseButton}
             aria-label="Close"
           >
             <span className="text-xl leading-none" aria-hidden>
@@ -241,7 +255,7 @@ export function ScheduleMeetingModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className={sdsModalBody}>
           <p className="mb-4 text-[length:var(--body-s)] text-[var(--text-label)]">
             Job: <span className="text-[var(--text-body)]">{jobTitle}</span>
           </p>
@@ -260,19 +274,19 @@ export function ScheduleMeetingModal({
           ) : null}
 
           <label className="mb-3 block">
-            <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+            <span className={`mb-1 block ${sdsLabel}`}>
               Title / purpose
             </span>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)] text-[var(--text-body)]"
+              className={`${sdsInput} w-full`}
             />
           </label>
 
           <div className="mb-3">
-            <span className="mb-2 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+            <span className={`mb-2 block ${sdsLabel}`}>
               Participants
             </span>
             <div className="space-y-2">
@@ -286,20 +300,20 @@ export function ScheduleMeetingModal({
                     placeholder="Name"
                     value={p.name}
                     onChange={(e) => updateParticipant(i, { name: e.target.value })}
-                    className="min-w-0 flex-1 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1.5 text-[length:var(--body-s)]"
+                    className={`${sdsInput} min-w-0 flex-1`}
                   />
                   <input
                     type="email"
                     placeholder="Email"
                     value={p.email}
                     onChange={(e) => updateParticipant(i, { email: e.target.value })}
-                    className="min-w-0 flex-[1.2] rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1.5 text-[length:var(--body-s)]"
+                    className={`${sdsInput} min-w-0 flex-[1.2]`}
                   />
                   {participants.length > 1 ? (
                     <button
                       type="button"
                       onClick={() => removeParticipant(i)}
-                      className="shrink-0 text-[length:var(--body-s)] text-[var(--text-error)] hover:underline"
+                      className={`${sdsButtonLink} shrink-0 text-[length:var(--body-s)] text-[var(--text-error)] hover:underline`}
                     >
                       Remove
                     </button>
@@ -310,7 +324,7 @@ export function ScheduleMeetingModal({
             <button
               type="button"
               onClick={addParticipant}
-              className="mt-2 text-[length:var(--body-s)] font-medium text-[var(--blue-600)] hover:underline"
+              className={`${sdsButtonLink} mt-2 text-[length:var(--body-s)] font-medium`}
             >
               + Add participant
             </button>
@@ -318,7 +332,7 @@ export function ScheduleMeetingModal({
 
           <div className="mb-3 grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 Duration
               </span>
               <select
@@ -326,7 +340,7 @@ export function ScheduleMeetingModal({
                 onChange={(e) =>
                   setDuration(Number(e.target.value) as 15 | 30 | 45 | 60)
                 }
-                className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+                className={sdsSelectWFull}
               >
                 {DURATIONS.map((m) => (
                   <option key={m} value={m}>
@@ -336,20 +350,20 @@ export function ScheduleMeetingModal({
               </select>
             </label>
             <label className="block sm:col-span-2">
-              <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+              <span className={`mb-1 block ${sdsLabel}`}>
                 Date & time
               </span>
               <input
                 type="datetime-local"
                 value={scheduledLocal}
                 onChange={(e) => setScheduledLocal(e.target.value)}
-                className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+                className={`${sdsInput} w-full`}
               />
             </label>
           </div>
 
           <label className="mb-3 block">
-            <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+            <span className={`mb-1 block ${sdsLabel}`}>
               Channel
             </span>
             <select
@@ -357,7 +371,7 @@ export function ScheduleMeetingModal({
               onChange={(e) =>
                 setChannel(e.target.value as ScheduleMeetingPayload["channel"])
               }
-              className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+              className={sdsSelectWFull}
             >
               {CHANNEL_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -368,7 +382,7 @@ export function ScheduleMeetingModal({
           </label>
 
           <label className="mb-4 block">
-            <span className="mb-1 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
+            <span className={`mb-1 block ${sdsLabel}`}>
               Description
             </span>
             <textarea
@@ -376,16 +390,16 @@ export function ScheduleMeetingModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
               placeholder="Optional agenda or notes for the invite…"
-              className="w-full resize-y rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[length:var(--body-m)]"
+              className={`${sdsTextarea} w-full`}
             />
           </label>
         </div>
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
+        <div className={sdsModalFooter}>
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-[length:var(--body-m)] font-medium text-[var(--text-body)] hover:bg-[var(--charcoal-10)]"
+            className={`${sdsButtonSecondary} px-4`}
           >
             Cancel
           </button>
@@ -394,7 +408,7 @@ export function ScheduleMeetingModal({
             disabled={!canSend || sending}
             aria-busy={sending}
             onClick={() => void handleSend()}
-            className="inline-flex min-w-[7rem] items-center justify-center rounded bg-[var(--blue-500)] px-4 py-2 text-[length:var(--body-m)] font-medium text-white hover:bg-[var(--blue-600)] disabled:cursor-not-allowed disabled:opacity-60"
+            className={`${sdsButtonPrimary} inline-flex min-w-[7rem] justify-center px-4 disabled:opacity-50`}
           >
             {sending ? (
               <span className="inline-flex items-center gap-2">

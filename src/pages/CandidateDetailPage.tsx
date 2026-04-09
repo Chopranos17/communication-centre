@@ -16,6 +16,10 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { usePersona } from '../context/PersonaContext'
 import { HiringFlowPlaceholder } from '../components/candidate/HiringFlowPlaceholder'
 import { FilterTabs } from '../components/layout/FilterTabs'
+import {
+  sdsButtonIconTertiaryMini,
+  sdsButtonSecondarySm,
+} from '../lib/sdsButtonClasses'
 
 const TAB_QUERY_TO_MAIN: Record<string, CandidateMainTabId> = {
   overview: 'overview',
@@ -38,7 +42,7 @@ const APP_DETAIL_PILLS = [
 
 function TabPanelPlaceholder({ title }: { title: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-[var(--border-card)] bg-[var(--bg-surface)] p-8 text-center text-[length:var(--body-m)] text-[var(--text-label)]">
+    <div className="rounded-sds-8 border border-dashed border-[var(--border-card)] bg-[var(--bg-surface)] p-8 text-center text-[length:var(--body-m)] text-[var(--text-label)]">
       {title} content will be available in a future iteration.
     </div>
   )
@@ -143,7 +147,7 @@ export function CandidateDetailPage() {
         <button
           type="button"
           onClick={() => void load()}
-          className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+          className={sdsButtonSecondarySm}
         >
           Retry
         </button>
@@ -187,7 +191,7 @@ export function CandidateDetailPage() {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[var(--border-card)] shadow-[var(--elevation-1)]">
+      <div className="overflow-hidden rounded-sds-8 border border-[var(--border-card)] shadow-[var(--elevation-1)]">
         <CandidateDetailHeader
           detail={detail}
           showCommunicationActions={canManageRecruitment}
@@ -253,7 +257,7 @@ export function CandidateDetailPage() {
                 </div>
                 {appPill === 'snapshot' ? (
                   <div className="space-y-4">
-                    <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
+                    <div className="rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
                       <h3
                         className="mb-4 text-[length:var(--body-m)] font-bold text-[var(--text-title)]"
                         style={{ fontWeight: 'var(--font-weight-bold)' }}
@@ -275,7 +279,7 @@ export function CandidateDetailPage() {
                         </div>
                       </dl>
                     </div>
-                    <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
+                    <div className="rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] p-4 shadow-[var(--elevation-1)]">
                       <div className="mb-2 flex items-start justify-between gap-2">
                         <h3
                           className="text-[length:var(--body-m)] font-bold text-[var(--text-title)]"
@@ -285,7 +289,7 @@ export function CandidateDetailPage() {
                         </h3>
                         <button
                           type="button"
-                          className="text-[var(--icon-active)] hover:text-[var(--blue-700)]"
+                          className={`${sdsButtonIconTertiaryMini} text-[var(--icon-active)] hover:text-[#0169CC]`}
                           aria-label="Edit resume"
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -307,7 +311,7 @@ export function CandidateDetailPage() {
             {mainTab === 'activity' ? <TabPanelPlaceholder title="Activity Log" /> : null}
 
             {mainTab === 'communications' ? (
-              <div className="space-y-4 rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] p-5 shadow-[var(--elevation-1)]">
+              <div className="space-y-4 rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] p-5 shadow-[var(--elevation-1)]">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2
                     className="text-[length:var(--title-xs)] font-bold text-[var(--text-title)]"

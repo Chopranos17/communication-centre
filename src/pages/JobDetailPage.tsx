@@ -33,6 +33,21 @@ const JOB_DETAIL_BULK_SECONDARY_MENU: BulkOverflowMenuItem[] = [
 import { ComposeEmailModal } from "../components/candidate/ComposeEmailModal";
 import type { ComposeEmailRecipient } from "../components/candidate/ComposeEmailModal";
 import { PageHeader } from "../components/layout/PageHeader";
+import {
+  sdsButtonIconTertiarySm,
+  sdsButtonSecondary,
+  sdsButtonSecondarySm,
+} from "../lib/sdsButtonClasses";
+import {
+  sdsDataTable,
+  sdsDataTableCheckbox,
+  sdsDataTableHeadRow,
+  sdsDataTableRow,
+  sdsDataTableRowSelected,
+  sdsDataTableShell,
+  sdsDataTableTd,
+  sdsDataTableTh,
+} from "../lib/sdsTableClasses";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { usePersona } from "../context/PersonaContext";
 
@@ -333,7 +348,7 @@ export function JobDetailPage() {
         <button
           type="button"
           onClick={() => void load()}
-          className="rounded border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-[length:var(--body-m)] text-[var(--text-body)] hover:bg-[var(--bg-surface-hover)]"
+          className={sdsButtonSecondarySm}
         >
           Retry
         </button>
@@ -371,7 +386,7 @@ export function JobDetailPage() {
     >
       {bulkToast ? (
         <div
-          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-[var(--elevation-2)]"
+          className="fixed bottom-[5.25rem] left-1/2 z-[115] max-w-[min(100%-2rem,28rem)] -translate-x-1/2 rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] px-4 py-2.5 text-center text-[length:var(--body-m)] text-[var(--text-body)] shadow-[var(--elevation-2)]"
           role="status"
         >
           {bulkToast}
@@ -448,13 +463,13 @@ export function JobDetailPage() {
         </p>
       )}
 
-      <div className="rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] shadow-[var(--elevation-1)]">
-        <div className="overflow-x-auto overscroll-x-contain rounded-lg">
-          <table className="w-full min-w-[720px] border-collapse text-left text-[length:var(--body-m)]">
+      <div className={sdsDataTableShell}>
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table className={`${sdsDataTable} min-w-[720px]`}>
             <thead>
-              <tr className="border-b border-[var(--border-subtle)] bg-[var(--blue-20)] text-[length:var(--body-s)] font-medium uppercase tracking-wide text-[var(--text-label)]">
+              <tr className={sdsDataTableHeadRow}>
                 {canManageRecruitment ? (
-                  <th className="w-12 px-3 py-2">
+                  <th className={`w-12 ${sdsDataTableTh}`}>
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -463,49 +478,65 @@ export function JobDetailPage() {
                         else selectAll();
                       }}
                       aria-label="Select all candidates"
-                      className="rounded border-[var(--border-default)]"
+                      className={sdsDataTableCheckbox}
                     />
                   </th>
                 ) : null}
-                <th className="px-3 py-2">Candidate</th>
-                <th className="px-3 py-2">Email</th>
-                <th className="px-3 py-2">Jobs applied</th>
+                <th className={sdsDataTableTh}>Candidate</th>
+                <th className={sdsDataTableTh}>Email</th>
+                <th className={sdsDataTableTh}>Jobs applied</th>
                 {canManageRecruitment ? (
-                  <th className="sticky right-0 z-20 w-[7.5rem] min-w-[7.5rem] border-l border-[var(--border-subtle)] bg-[var(--blue-20)] px-3 py-2 text-right shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]">
+                  <th
+                    className={`sticky right-0 z-20 w-[7.5rem] min-w-[7.5rem] border-l border-[#e0e0e0] bg-[#f5f5f5] text-right shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)] ${sdsDataTableTh}`}
+                  >
                     Actions
                   </th>
                 ) : null}
               </tr>
             </thead>
             <tbody>
-              {candidates.map((c) => (
+              {candidates.map((c) => {
+                const isSelected = selected.has(c.id);
+                return (
                 <tr
                   key={c.id}
-                  className="group border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]"
+                  className={[
+                    "group",
+                    sdsDataTableRow,
+                    isSelected ? sdsDataTableRowSelected : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
                   {canManageRecruitment ? (
-                    <td className="px-3 py-3 align-top">
+                    <td className={`align-top ${sdsDataTableTd}`}>
                       <input
                         type="checkbox"
-                        checked={selected.has(c.id)}
+                        checked={isSelected}
                         onChange={() => toggle(c.id)}
                         aria-label={`Select ${c.name}`}
-                        className="rounded border-[var(--border-default)]"
+                        className={sdsDataTableCheckbox}
                       />
                     </td>
                   ) : null}
-                  <td className="px-3 py-3 font-medium text-[var(--text-body)]">
+                  <td className={`font-medium ${sdsDataTableTd}`}>
                     {c.name}
                   </td>
-                  <td className="max-w-[240px] break-all px-3 py-3 text-[var(--text-body)]">
+                  <td className={`max-w-[240px] break-all ${sdsDataTableTd}`}>
                     {c.email}
                   </td>
-                  <td className="px-3 py-3 text-[var(--text-label)]">
+                  <td className={`text-[#4d4d4d] ${sdsDataTableTd}`}>
                     {c.jobCount}
                   </td>
                   {canManageRecruitment ? (
                     <td
-                      className="sticky right-0 z-10 border-l border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-3 text-right align-middle shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)] group-hover:bg-[var(--bg-surface-hover)]"
+                      className={[
+                        "sticky right-0 z-10 border-l border-[#e0e0e0] text-right align-middle shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.06)]",
+                        sdsDataTableTd,
+                        isSelected
+                          ? "bg-[#E6F3FF] group-hover:bg-[#E6F3FF]"
+                          : "bg-white group-hover:bg-[#F5FAFF]",
+                      ].join(" ")}
                     >
                       <div
                         id={`job-detail-row-menu-${c.id}`}
@@ -514,7 +545,7 @@ export function JobDetailPage() {
                         <button
                           id={`job-detail-menu-trigger-${c.id}`}
                           type="button"
-                          className="flex h-8 w-8 items-center justify-center rounded text-[var(--icon-default)] hover:bg-[var(--bg-surface-hover)]"
+                          className={sdsButtonIconTertiarySm}
                           aria-label="More actions"
                           aria-expanded={rowMenuOpenId === c.id}
                           aria-haspopup="menu"
@@ -540,7 +571,8 @@ export function JobDetailPage() {
                     </td>
                   ) : null}
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -560,7 +592,7 @@ export function JobDetailPage() {
             <div
               id="job-detail-row-menu-popover"
               role="menu"
-              className="fixed z-[200] min-w-[13.5rem] rounded-lg border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 text-left shadow-[var(--elevation-2)]"
+              className="fixed z-[200] min-w-[13.5rem] rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 text-left shadow-[var(--elevation-2)]"
               style={rowMenuPopoverStyle}
             >
               <Link
@@ -605,7 +637,7 @@ export function JobDetailPage() {
             <button
               type="button"
               onClick={clearSelection}
-              className="rounded-none border border-white bg-transparent px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              className={`${sdsButtonSecondary} rounded-none px-4`}
             >
               Cancel
             </button>

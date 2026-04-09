@@ -10,6 +10,15 @@ import {
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { ChannelTypeBadge } from "./ChannelTypeBadge";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
+import {
+  sdsModalBackdrop,
+  sdsModalBody,
+  sdsModalCloseButton,
+  sdsModalContainer,
+  sdsModalDismissLayer,
+  sdsModalHeader,
+  sdsModalTitle,
+} from "../../lib/sdsModalClasses";
 
 type EmailDetailModalProps = {
   email: CurrentJobEmailRow | null;
@@ -57,33 +66,26 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
 
   const modal = (
     <div
-      className="fixed inset-0 z-[100] flex justify-end"
+      className={sdsModalBackdrop}
       role="dialog"
       aria-modal="true"
       aria-labelledby="email-detail-modal-title"
     >
       <button
         type="button"
-        className="absolute inset-0 z-0 bg-[var(--bg-overlay)]"
+        className={sdsModalDismissLayer}
         aria-label="Close message details"
         onClick={onClose}
       />
-      <div
-        className="relative z-10 flex h-full w-full max-w-[500px] flex-col bg-[var(--bg-surface)] shadow-[var(--elevation-3)]"
-        style={{ minWidth: "min(100%, 450px)" }}
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
-          <h2
-            id="email-detail-modal-title"
-            className="text-[length:var(--title-xxs)] font-bold text-[var(--text-title)]"
-            style={{ fontWeight: "var(--font-weight-bold)" }}
-          >
+      <div className={sdsModalContainer}>
+        <div className={sdsModalHeader}>
+          <h2 id="email-detail-modal-title" className={sdsModalTitle}>
             {detailTitle}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded text-[var(--charcoal-400)] hover:bg-[var(--charcoal-10)] hover:text-[var(--text-body)]"
+            className={sdsModalCloseButton}
             aria-label="Close"
           >
             <span className="text-xl leading-none" aria-hidden>
@@ -92,7 +94,7 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className={sdsModalBody}>
           <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
             <ChannelTimelineIcon
               channel={ch}

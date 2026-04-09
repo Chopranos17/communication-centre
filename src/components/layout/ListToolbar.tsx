@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { sdsButtonIconTertiary } from '../../lib/sdsButtonClasses'
+import { sdsInput } from '../../lib/sdsFormClasses'
 
 type ListToolbarProps = {
   searchPlaceholder: string
@@ -18,7 +20,7 @@ export function ListToolbar({ searchPlaceholder, end }: ListToolbarProps) {
         <input
           type="search"
           placeholder={searchPlaceholder}
-          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] py-2 pl-10 pr-3 text-[length:var(--body-m)] text-[var(--text-body)] placeholder:text-[var(--text-ghost)] shadow-none focus:border-[var(--border-active)] focus:outline-none focus:ring-1 focus:ring-[var(--blue-500)]"
+          className={`${sdsInput} w-full pl-10 pr-3`}
           aria-label="Search"
         />
       </div>
@@ -75,7 +77,7 @@ function ToolbarIconButton({
   return (
     <button
       type="button"
-      className="relative flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-[var(--icon-default)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--icon-hover)]"
+      className={`${sdsButtonIconTertiary} relative text-[var(--icon-default)] hover:text-[var(--icon-hover)]`}
       aria-label={label}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
