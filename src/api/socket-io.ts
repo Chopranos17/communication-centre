@@ -9,3 +9,7 @@ export function setSocketIo(server: SocketIOServer): void {
 export function emitNewMessage(payload: unknown): void {
   io?.emit("new-message", payload);
 }
+
+export function emitMessageUpdated(payload: unknown): void {
+  io?.emit("message-updated", payload);
+}

@@ -500,6 +500,7 @@ function emitInboundSaved(
     vendor_message_id: string | null;
     sent_at: Date;
     read_at: Date | null;
+    scheduled_for?: Date | null;
   },
   candidate: Pick<Candidate, "id" | "name" | "email"> | null,
   job: Pick<Job, "id" | "title" | "job_code"> | null,
@@ -533,6 +534,7 @@ function emitInboundSaved(
       vendor_message_id: row.vendor_message_id,
       sent_at: row.sent_at.toISOString(),
       read_at: row.read_at ? row.read_at.toISOString() : null,
+      scheduled_for: row.scheduled_for?.toISOString() ?? null,
     },
     candidate: {
       id: candidate.id,

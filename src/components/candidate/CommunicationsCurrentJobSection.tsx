@@ -11,6 +11,7 @@ import { usePersona } from "../../context/PersonaContext";
 import type {
   CandidateCurrentJobEmails,
   CurrentJobEmailRow,
+  MessageUpdatedSocketPayload,
   NewMessageSocketPayload,
 } from "../../api/candidatesClient";
 import { FilterTabs } from "../layout/FilterTabs";
@@ -27,6 +28,7 @@ import { communicationToTimelineRow } from "../../utils/communicationTimelineRow
 import { CommunicationFilterPanel } from "./CommunicationFilterPanel";
 import { CommunicationsJobEmailSection } from "./CommunicationsJobEmailSection";
 import { ComposeEmailModal } from "./ComposeEmailModal";
+import { EditScheduledEmailModal } from "./EditScheduledEmailModal";
 import type { ComposeEmailRecipient } from "./ComposeEmailModal";
 import { EmailDetailModal } from "./EmailDetailModal";
 import { FollowUpEmailModal } from "./FollowUpEmailModal";
@@ -34,7 +36,6 @@ import { ReplyThreadModal } from "./ReplyThreadModal";
 import { ScheduleMeetingModal } from "./ScheduleMeetingModal";
 import { sdsButtonSecondaryIcon } from "../../lib/sdsButtonClasses";
 import { sdsInput } from "../../lib/sdsFormClasses";
-
 const EMPTY_EMAILS: CurrentJobEmailRow[] = [];
 
 export type CommunicationsFilterSummary = {
@@ -141,6 +142,8 @@ export function CommunicationsCurrentJobSection({
     null,
   );
   const [replyRows, setReplyRows] = useState<CurrentJobEmailRow[] | null>(null);
+  const [editScheduledRow, setEditScheduledRow] =
+    useState<CurrentJobEmailRow | null>(null);
   const [actionJob, setActionJob] = useState<{
     id: string;
     title: string;
@@ -309,6 +312,17 @@ export function CommunicationsCurrentJobSection({
     }
   }, [candidateId]);
 
+  const scheduledEmailActions = useMemo(
+    () =>
+      canManageRecruitment
+        ? {
+            onEdit: (row: CurrentJobEmailRow) => setEditScheduledRow(row),
+            onMutated: () => void load(),
+          }
+        : undefined,
+    [canManageRecruitment, load],
+  );
+
   useEffect(() => {
     void load();
   }, [load, refreshSignal]);
@@ -356,9 +370,37 @@ export function CommunicationsCurrentJobSection({
         return { ...prev, otherJobEmailSections: sections };
       });
     };
+    const onUpdated = (payload: MessageUpdatedSocketPayload) => {
+      if (payload.communication.candidate_id !== candidateId) return;
+      const row = communicationToTimelineRow(payload.communication, null);
+      setData((prev) => {
+        if (!prev) return prev;
+        const merge = (emails: CurrentJobEmailRow[]) => {
+          const i = emails.findIndex((e) => e.id === row.id);
+          if (i === -1) return emails;
+          const next = [...emails];
+          next[i] = row;
+          return next;
+        };
+        if (payload.communication.job_id === prev.currentJob?.id) {
+          return { ...prev, emails: merge(prev.emails) };
+        }
+        const jobId = payload.job.id;
+        const idx = prev.otherJobEmailSections.findIndex(
+          (s) => s.job.id === jobId,
+        );
+        if (idx === -1) return prev;
+        const sections = [...prev.otherJobEmailSections];
+        const sec = sections[idx];
+        sections[idx] = { ...sec, emails: merge(sec.emails) };
+        return { ...prev, otherJobEmailSections: sections };
+      });
+    };
     socket.on("new-message", onNew);
+    socket.on("message-updated", onUpdated);
     return () => {
       socket.off("new-message", onNew);
+      socket.off("message-updated", onUpdated);
       socket.close();
     };
   }, [candidateId]);
@@ -435,6 +477,15 @@ export function CommunicationsCurrentJobSection({
   return (
     <div className="space-y-4">
       <EmailDetailModal email={detailEmail} onClose={() => setDetailEmail(null)} />
+      {canManageRecruitment ? (
+        <EditScheduledEmailModal
+          open={editScheduledRow != null}
+          onClose={() => setEditScheduledRow(null)}
+          candidateName={candidateName}
+          email={editScheduledRow}
+          onUpdated={() => void load()}
+        />
+      ) : null}
       {canManageRecruitment && actionJob && followUpRows ? (
         <FollowUpEmailModal
           open
@@ -636,6 +687,7 @@ export function CommunicationsCurrentJobSection({
             : undefined
         }
         timelineGroupOrder={panelFilters.sortBy}
+        scheduledEmailActions={scheduledEmailActions}
       />
 
       {otherJobSectionsForPersona.map((section, idx) => (
@@ -679,6 +731,7 @@ export function CommunicationsCurrentJobSection({
           }
           emptyTimelineMessage={emptyTimelineCopy}
           timelineGroupOrder={panelFilters.sortBy}
+          scheduledEmailActions={scheduledEmailActions}
         />
       ))}
     </div>

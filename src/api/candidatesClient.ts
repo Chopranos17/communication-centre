@@ -55,7 +55,13 @@ export async function fetchCandidateDetail(id: string): Promise<CandidateDetail>
   return r.json() as Promise<CandidateDetail>
 }
 
-export type EmailDeliveryStatus = "pending" | "sent" | "delivered" | "failed"
+export type EmailDeliveryStatus =
+  | "pending"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "scheduled"
+  | "cancelled"
 
 export type TimelineChannel =
   | "email"
@@ -87,6 +93,8 @@ export type CurrentJobEmailRow = {
   fromAddress: string
   toAddress: string
   deliveryStatus: EmailDeliveryStatus
+  /** ISO — when email is scheduled (delivery_status scheduled); null otherwise. */
+  scheduledFor: string | null
   /** Same id for all messages in an email thread; null for standalone email or non-email channels. */
   threadId: string | null
   /** Populated when channel === "meeting". */
@@ -127,10 +135,14 @@ export type NewMessageSocketPayload = {
     vendor_message_id: string | null
     sent_at: string
     read_at: string | null
+    scheduled_for?: string | null
   }
   candidate: { id: string; name: string; email: string }
   job: { id: string; title: string; job_code: string }
 }
+
+/** Socket.io `message-updated` (scheduled send completed / cancelled). */
+export type MessageUpdatedSocketPayload = NewMessageSocketPayload
 
 export async function fetchCandidateCurrentJobEmails(
   candidateId: string,
@@ -179,6 +191,8 @@ export type ComposeEmailPayload = {
   senderName?: string
   /** Task 13: existing thread key or root message id for follow-up / reply. */
   threadId?: string | null
+  /** When set, creates a scheduled email (no immediate Resend). */
+  scheduledFor?: string | null
 }
 
 export type ComposeEmailResult = {
@@ -186,6 +200,8 @@ export type ComposeEmailResult = {
   messageId?: string
   error?: string
   communicationId?: string
+  scheduled?: boolean
+  scheduledFor?: string
 }
 
 export async function composeSendEmail(
@@ -208,6 +224,84 @@ export async function composeSendEmail(
     }
   }
   return data
+}
+
+export async function cancelScheduledEmail(
+  _candidateId: string,
+  communicationId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return cancelScheduledCommunication(communicationId)
+}
+
+/** POST /api/communications/:id/cancel-scheduled */
+export async function cancelScheduledCommunication(
+  communicationId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const r = await fetch(
+    `/api/communications/${encodeURIComponent(communicationId)}/cancel-scheduled`,
+    { method: "POST" },
+  )
+  const data = (await r.json()) as { ok?: boolean; error?: string }
+  if (!r.ok) {
+    return { ok: false, error: data.error ?? "Could not cancel" }
+  }
+  return { ok: true }
+}
+
+/** POST /api/communications/:id/send-now */
+export async function sendScheduledEmailNow(
+  communicationId: string,
+): Promise<{ ok: boolean; deliveryStatus?: string; error?: string }> {
+  const r = await fetch(
+    `/api/communications/${encodeURIComponent(communicationId)}/send-now`,
+    { method: "POST" },
+  )
+  const data = (await r.json()) as {
+    ok?: boolean
+    deliveryStatus?: string
+    error?: string
+  }
+  if (!r.ok) {
+    return { ok: false, error: data.error ?? "Could not send" }
+  }
+  return {
+    ok: true,
+    deliveryStatus: data.deliveryStatus,
+  }
+}
+
+export type PatchScheduledCommunicationPayload = {
+  subject: string
+  htmlBody: string
+  scheduledFor: string
+}
+
+/** PATCH /api/communications/:id — scheduled emails only */
+export async function patchScheduledCommunication(
+  communicationId: string,
+  payload: PatchScheduledCommunicationPayload,
+): Promise<{ ok: boolean; scheduledFor?: string | null; error?: string }> {
+  const r = await fetch(
+    `/api/communications/${encodeURIComponent(communicationId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: payload.subject,
+        htmlBody: payload.htmlBody,
+        scheduledFor: payload.scheduledFor,
+      }),
+    },
+  )
+  const data = (await r.json()) as {
+    ok?: boolean
+    scheduledFor?: string | null
+    error?: string
+  }
+  if (!r.ok) {
+    return { ok: false, error: data.error ?? "Could not update" }
+  }
+  return { ok: true, scheduledFor: data.scheduledFor }
 }
 
 export type ComposeSmsPayload = {

@@ -10,12 +10,17 @@ import {
   stripHtml,
 } from "../../utils/communicationTimeline";
 import {
+  ScheduledEmailTimelineMenu,
+  ScheduledSendTimestamp,
+} from "./ScheduledEmailTimelineMenu";
+import {
   IconFollowUp,
   IconMoreVertical,
   IconReply,
 } from "./CommunicationToolbarIcons";
 import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { ChannelTypeBadge } from "./ChannelTypeBadge";
+import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonIconTertiaryMini,
@@ -155,6 +160,11 @@ type CommunicationsJobEmailSectionProps = {
   onFollowUp?: (threadRows: CurrentJobEmailRow[]) => void;
   onReply?: (threadRows: CurrentJobEmailRow[]) => void;
   timelineGroupOrder?: TimelineGroupSortOrder;
+  /** ⋯ menu on scheduled email cards: edit modal + refetch after mutations. */
+  scheduledEmailActions?: {
+    onEdit: (row: CurrentJobEmailRow) => void;
+    onMutated: () => void | Promise<void>;
+  };
 };
 
 export function CommunicationsJobEmailSection({
@@ -191,6 +201,7 @@ export function CommunicationsJobEmailSection({
   onFollowUp,
   onReply,
   timelineGroupOrder = "newest",
+  scheduledEmailActions,
 }: CommunicationsJobEmailSectionProps) {
   const sourceEmailCount =
     preGlobalEmailCount !== undefined ? preGlobalEmailCount : emails.length;
@@ -527,6 +538,15 @@ export function CommunicationsJobEmailSection({
                       latest.channel === "email";
                     const dot = timelineDotClasses(ch);
 
+                    const showTimelineDeliveryGlyph =
+                      (latest.channel === "email" ||
+                        latest.channel === "sms" ||
+                        latest.channel === "whatsapp") &&
+                      !(
+                        latest.channel === "email" &&
+                        latest.deliveryStatus === "scheduled"
+                      );
+
                     if (ch === "system") {
                       const systemText =
                         stripHtml(latest.body).replace(/\s+/g, " ").trim() ||
@@ -608,6 +628,18 @@ export function CommunicationsJobEmailSection({
                               {rows.length} messages
                             </span>
                           ) : null}
+                          {latest.channel === "email" &&
+                          latest.deliveryStatus === "scheduled" ? (
+                            <span className="rounded-full bg-[#EDE9FE] px-2 py-0.5 text-[11px] font-medium text-[#5B21B6]">
+                              Scheduled
+                            </span>
+                          ) : null}
+                          {latest.channel === "email" &&
+                          latest.deliveryStatus === "cancelled" ? (
+                            <span className="rounded-full bg-[#FFEBEE] px-2 py-0.5 text-[11px] font-medium text-[#d32f2f]">
+                              Cancelled
+                            </span>
+                          ) : null}
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
                           {showEmailHoverActions ? (
@@ -669,9 +701,43 @@ export function CommunicationsJobEmailSection({
                               </button>
                             </div>
                           ) : null}
-                          <span className="text-xs text-[#aaaaaa]">
-                            {formatTimelineTime(latest.sentAt)}
-                          </span>
+                          {latest.channel === "email" &&
+                          latest.deliveryStatus === "scheduled" &&
+                          scheduledEmailActions ? (
+                            <ScheduledEmailTimelineMenu
+                              row={latest}
+                              onEdit={() =>
+                                scheduledEmailActions.onEdit(latest)
+                              }
+                              onMutated={scheduledEmailActions.onMutated}
+                            />
+                          ) : null}
+                          {showTimelineDeliveryGlyph ? (
+                            <DeliveryStatusGlyph
+                              status={latest.deliveryStatus}
+                              scheduledForIso={latest.scheduledFor}
+                              size="sm"
+                            />
+                          ) : null}
+                          {latest.channel === "email" &&
+                          latest.deliveryStatus === "scheduled" &&
+                          latest.scheduledFor ? (
+                            <ScheduledSendTimestamp
+                              variant="scheduled"
+                              scheduledForIso={latest.scheduledFor}
+                            />
+                          ) : latest.channel === "email" &&
+                            latest.deliveryStatus === "cancelled" &&
+                            latest.scheduledFor ? (
+                            <ScheduledSendTimestamp
+                              variant="cancelled"
+                              scheduledForIso={latest.scheduledFor}
+                            />
+                          ) : (
+                            <span className="text-xs text-[#aaaaaa]">
+                              {formatTimelineTime(latest.sentAt)}
+                            </span>
+                          )}
                           {isThread ? (
                             <ChevronDownIcon
                               className={`h-3.5 w-3.5 shrink-0 text-[#aaaaaa] transition-transform duration-200 ${

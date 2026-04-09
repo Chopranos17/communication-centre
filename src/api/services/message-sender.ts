@@ -1,7 +1,10 @@
 import "dotenv/config";
+import type { Communication, Job } from "@prisma/client";
 import { Resend } from "resend";
 import twilio from "twilio";
 import { prisma } from "../db";
+
+type CommunicationWithJob = Communication & { job: Job | null };
 
 export type MessageChannel = "email" | "sms" | "whatsapp";
 
@@ -260,4 +263,147 @@ export async function sendMessage(
     error: vendor.error,
     communicationId: row.id,
   };
+}
+
+/** Maps stored display from-address to Resend API `from` (mirrors server compose-email). */
+function resendApiFromStoredDisplay(display: string): string {
+  const noreply =
+    process.env.RESEND_FROM_NOREPLY?.trim() || "onboarding@resend.dev";
+  const contact =
+    process.env.RESEND_FROM_CONTACT?.trim() || "onboarding@resend.dev";
+  if (display === "no-reply@darwinbox.in") return noreply;
+  if (display === "contact@darwinbox.in") return contact;
+  return display.trim() || "onboarding@resend.dev";
+}
+
+function parseCcFromRow(cc_addresses: string | null): string[] | undefined {
+  if (!cc_addresses?.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(cc_addresses) as unknown;
+    if (!Array.isArray(parsed)) return undefined;
+    const out = parsed
+      .map((x) => (typeof x === "string" ? x.trim() : ""))
+      .filter(Boolean);
+    return out.length ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export type DeliverSingleScheduledResult =
+  | { ok: false; reason: "not_found" }
+  | { ok: true; row: CommunicationWithJob };
+
+/**
+ * Sends one scheduled email immediately (same rules as the due sweep).
+ * Used by POST /api/communications/:id/send-now.
+ */
+export async function deliverSingleScheduledEmailById(
+  communicationId: string,
+): Promise<DeliverSingleScheduledResult> {
+  const row = await prisma.communication.findFirst({
+    where: {
+      id: communicationId,
+      channel: "email",
+      delivery_status: "scheduled",
+    },
+    include: { job: true },
+  });
+
+  if (!row) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  if (!row.to_address?.trim()) {
+    const failed = await prisma.communication.update({
+      where: { id: communicationId },
+      data: {
+        delivery_status: "failed",
+        scheduled_for: null,
+      },
+      include: { job: true },
+    });
+    return { ok: true, row: failed };
+  }
+
+  const vendor = await sendEmail({
+    from: resendApiFromStoredDisplay(row.from_address ?? ""),
+    to: row.to_address.trim(),
+    cc: parseCcFromRow(row.cc_addresses),
+    subject: row.subject?.trim() ? row.subject : "(no subject)",
+    htmlBody: row.body,
+  });
+
+  const next = await prisma.communication.update({
+    where: { id: communicationId },
+    data: {
+      delivery_status: vendor.success ? "sent" : "failed",
+      vendor_message_id:
+        vendor.success && vendor.messageId ? vendor.messageId : null,
+      sent_at: new Date(),
+      scheduled_for: null,
+    },
+    include: { job: true },
+  });
+
+  return { ok: true, row: next };
+}
+
+/**
+ * Sends due scheduled emails (delivery_status scheduled, scheduled_for <= now).
+ * Updates each row to sent/failed; clears scheduled_for after processing.
+ */
+export async function deliverDueScheduledCommunications() {
+  const now = new Date();
+  const due = await prisma.communication.findMany({
+    where: {
+      channel: "email",
+      delivery_status: "scheduled",
+      scheduled_for: { lte: now },
+    },
+    include: { job: true },
+  });
+
+  const updatedRows: (typeof due)[number][] = [];
+
+  for (const row of due) {
+    if (!row.to_address?.trim()) {
+      await prisma.communication.update({
+        where: { id: row.id },
+        data: {
+          delivery_status: "failed",
+          scheduled_for: null,
+        },
+      });
+      const failed = await prisma.communication.findUniqueOrThrow({
+        where: { id: row.id },
+        include: { job: true },
+      });
+      updatedRows.push(failed);
+      continue;
+    }
+
+    const vendor = await sendEmail({
+      from: resendApiFromStoredDisplay(row.from_address ?? ""),
+      to: row.to_address.trim(),
+      cc: parseCcFromRow(row.cc_addresses),
+      subject: row.subject?.trim() ? row.subject : "(no subject)",
+      htmlBody: row.body,
+    });
+
+    const next = await prisma.communication.update({
+      where: { id: row.id },
+      data: {
+        delivery_status: vendor.success ? "sent" : "failed",
+        vendor_message_id:
+          vendor.success && vendor.messageId ? vendor.messageId : null,
+        sent_at: new Date(),
+        scheduled_for: null,
+      },
+      include: { job: true },
+    });
+    updatedRows.push(next);
+  }
+
+  return updatedRows;
 }

@@ -4,7 +4,14 @@ import type { CurrentJobEmailRow } from "../api/candidatesClient";
 export interface CommunicationFilters {
   sortBy: "newest" | "oldest";
   direction: "all" | "outbound" | "inbound";
-  deliveryStatus: "all" | "sent" | "delivered" | "failed" | "pending";
+  deliveryStatus:
+    | "all"
+    | "sent"
+    | "delivered"
+    | "failed"
+    | "pending"
+    | "scheduled"
+    | "cancelled";
   dateRange: "all" | "7d" | "30d" | "90d";
   senderType:
     | "all"

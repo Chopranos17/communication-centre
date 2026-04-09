@@ -3,9 +3,14 @@ import { createServer } from "http";
 import express from "express";
 import { Server } from "socket.io";
 import { prisma } from "./db";
-import { setSocketIo } from "./socket-io";
+import { emitMessageUpdated, setSocketIo } from "./socket-io";
 import { startPolling } from "./services/inbound-poller";
-import { sendEmail, sendMessage } from "./services/message-sender";
+import {
+  deliverDueScheduledCommunications,
+  deliverSingleScheduledEmailById,
+  sendEmail,
+  sendMessage,
+} from "./services/message-sender";
 
 function normalizeSmsToE164(raw: string): string {
   const t = raw.trim().replace(/\s/g, "");
@@ -74,6 +79,61 @@ const TIMELINE_CHANNELS = [
   "meeting",
   "system_notification",
 ] as const;
+
+/** Socket payloads for `new-message` / `message-updated` (includes scheduled email fields). */
+function buildMessageSocketPayload(
+  row: {
+    id: string;
+    candidate_id: string | null;
+    job_id: string | null;
+    channel: string;
+    direction: string;
+    sender_type: string;
+    sender_id: string | null;
+    sender_name: string | null;
+    thread_id: string | null;
+    from_address: string | null;
+    to_address: string | null;
+    cc_addresses: string | null;
+    subject: string | null;
+    body: string;
+    template_id: string | null;
+    delivery_status: string;
+    vendor_message_id: string | null;
+    sent_at: Date;
+    read_at: Date | null;
+    scheduled_for: Date | null;
+  },
+  candidate: { id: string; name: string; email: string },
+  job: { id: string; title: string; job_code: string },
+) {
+  return {
+    communication: {
+      id: row.id,
+      candidate_id: row.candidate_id,
+      job_id: row.job_id,
+      channel: row.channel,
+      direction: row.direction,
+      sender_type: row.sender_type,
+      sender_id: row.sender_id,
+      sender_name: row.sender_name,
+      thread_id: row.thread_id,
+      from_address: row.from_address,
+      to_address: row.to_address,
+      cc_addresses: row.cc_addresses,
+      subject: row.subject,
+      body: row.body,
+      template_id: row.template_id,
+      delivery_status: row.delivery_status,
+      vendor_message_id: row.vendor_message_id,
+      sent_at: row.sent_at.toISOString(),
+      read_at: row.read_at ? row.read_at.toISOString() : null,
+      scheduled_for: row.scheduled_for?.toISOString() ?? null,
+    },
+    candidate,
+    job,
+  };
+}
 
 /** Task 6 + Task 11: timeline for Current Job (email, SMS, WhatsApp). */
 app.get("/api/candidates/:candidateId/communications", async (req, res) => {
@@ -145,6 +205,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         fromAddress: row.from_address ?? "",
         toAddress: row.to_address ?? "",
         deliveryStatus: row.delivery_status,
+        scheduledFor: row.scheduled_for?.toISOString() ?? null,
         threadId:
           channel === "email"
             ? (row.thread_id?.trim() || row.id)
@@ -476,6 +537,8 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
     senderName?: string;
     /** Existing thread id or root communication id (Task 13). */
     threadId?: string | null;
+    /** ISO 8601 — when set, email is stored as scheduled (no Resend until worker runs). */
+    scheduledFor?: string | null;
   };
 
   const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
@@ -583,6 +646,51 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
       });
     }
 
+    const scheduledForRaw =
+      typeof body.scheduledFor === "string" ? body.scheduledFor.trim() : "";
+
+    if (scheduledForRaw) {
+      const scheduledDate = new Date(scheduledForRaw);
+      if (Number.isNaN(scheduledDate.getTime())) {
+        return res.status(400).json({ error: "Invalid scheduledFor" });
+      }
+      const minTime = Date.now() + 5 * 60 * 1000;
+      if (scheduledDate.getTime() < minTime) {
+        return res.status(400).json({
+          error: "scheduledFor must be at least 5 minutes from now",
+        });
+      }
+
+      const row = await prisma.communication.create({
+        data: {
+          candidate: { connect: { id: candidateId } },
+          job: { connect: { id: jobId } },
+          channel: "email",
+          direction: "outbound",
+          sender_type: "recruiter",
+          sender_name: senderName,
+          thread_id: resolvedThreadId,
+          from_address: fromAddress,
+          to_address: to,
+          cc_addresses: cc.length ? JSON.stringify(cc) : null,
+          subject,
+          body: htmlBody,
+          ...(templateId ? { template: { connect: { id: templateId } } } : {}),
+          delivery_status: "scheduled",
+          scheduled_for: scheduledDate,
+          vendor_message_id: null,
+          sent_at: new Date(),
+        },
+      });
+
+      return res.json({
+        success: true,
+        scheduled: true,
+        communicationId: row.id,
+        scheduledFor: row.scheduled_for!.toISOString(),
+      });
+    }
+
     const apiFrom = resendFromForDisplay(fromAddress);
 
     const result = await sendMessage({
@@ -610,6 +718,227 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     res.status(500).json({ error: msg });
+  }
+});
+
+app.post(
+  "/api/candidates/:candidateId/scheduled-emails/:communicationId/cancel",
+  async (req, res) => {
+    const { candidateId, communicationId } = req.params;
+    try {
+      const existing = await prisma.communication.findFirst({
+        where: {
+          id: communicationId,
+          candidate_id: candidateId,
+          channel: "email",
+          delivery_status: "scheduled",
+        },
+        include: { job: true },
+      });
+      if (!existing) {
+        return res.status(404).json({ error: "Scheduled email not found" });
+      }
+
+      const updated = await prisma.communication.update({
+        where: { id: communicationId },
+        /** Keep `scheduled_for` so the timeline can show struck-through “Sends …”. */
+        data: { delivery_status: "cancelled" },
+        include: { job: true },
+      });
+
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: candidateId },
+        select: { id: true, name: true, email: true },
+      });
+      if (candidate && updated.job_id && updated.job) {
+        emitMessageUpdated(
+          buildMessageSocketPayload(updated, candidate, {
+            id: updated.job.id,
+            title: updated.job.title,
+            job_code: updated.job.job_code,
+          }),
+        );
+      }
+
+      return res.json({ ok: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(500).json({ error: msg });
+    }
+  },
+);
+
+app.post(
+  "/api/communications/:communicationId/send-now",
+  async (req, res) => {
+    const { communicationId } = req.params;
+    try {
+      const result = await deliverSingleScheduledEmailById(communicationId);
+      if (!result.ok) {
+        return res.status(404).json({ error: "Scheduled email not found" });
+      }
+      const row = result.row;
+      if (row.candidate_id && row.job_id && row.job) {
+        const candidate = await prisma.candidate.findUnique({
+          where: { id: row.candidate_id },
+          select: { id: true, name: true, email: true },
+        });
+        if (candidate) {
+          emitMessageUpdated(
+            buildMessageSocketPayload(row, candidate, {
+              id: row.job.id,
+              title: row.job.title,
+              job_code: row.job.job_code,
+            }),
+          );
+        }
+      }
+      return res.json({
+        ok: true,
+        deliveryStatus: row.delivery_status,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(500).json({ error: msg });
+    }
+  },
+);
+
+app.post(
+  "/api/communications/:communicationId/cancel-scheduled",
+  async (req, res) => {
+    const { communicationId } = req.params;
+    try {
+      const existing = await prisma.communication.findFirst({
+        where: {
+          id: communicationId,
+          channel: "email",
+          delivery_status: "scheduled",
+        },
+        include: { job: true },
+      });
+      if (!existing) {
+        return res.status(404).json({ error: "Scheduled email not found" });
+      }
+
+      const updated = await prisma.communication.update({
+        where: { id: communicationId },
+        data: { delivery_status: "cancelled" },
+        include: { job: true },
+      });
+
+      const candidateId = updated.candidate_id;
+      if (candidateId && updated.job_id && updated.job) {
+        const candidate = await prisma.candidate.findUnique({
+          where: { id: candidateId },
+          select: { id: true, name: true, email: true },
+        });
+        if (candidate) {
+          emitMessageUpdated(
+            buildMessageSocketPayload(updated, candidate, {
+              id: updated.job.id,
+              title: updated.job.title,
+              job_code: updated.job.job_code,
+            }),
+          );
+        }
+      }
+
+      return res.json({ ok: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return res.status(500).json({ error: msg });
+    }
+  },
+);
+
+app.patch("/api/communications/:communicationId", async (req, res) => {
+  const { communicationId } = req.params;
+  const body = req.body as {
+    subject?: string;
+    htmlBody?: string;
+    scheduledFor?: string;
+  };
+
+  try {
+    const existing = await prisma.communication.findFirst({
+      where: {
+        id: communicationId,
+        channel: "email",
+        delivery_status: "scheduled",
+      },
+      include: { job: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Scheduled email not found" });
+    }
+
+    const data: {
+      subject?: string;
+      body?: string;
+      scheduled_for?: Date;
+    } = {};
+
+    if (typeof body.subject === "string" && body.subject.trim()) {
+      data.subject = body.subject.trim();
+    }
+    if (typeof body.htmlBody === "string" && body.htmlBody.trim()) {
+      data.body = body.htmlBody;
+    }
+    const scheduledForRaw =
+      typeof body.scheduledFor === "string" ? body.scheduledFor.trim() : "";
+    if (scheduledForRaw) {
+      const scheduledDate = new Date(scheduledForRaw);
+      if (Number.isNaN(scheduledDate.getTime())) {
+        return res.status(400).json({ error: "Invalid scheduledFor" });
+      }
+      const minTime = Date.now() + 5 * 60 * 1000;
+      if (scheduledDate.getTime() < minTime) {
+        return res.status(400).json({
+          error: "scheduledFor must be at least 5 minutes from now",
+        });
+      }
+      data.scheduled_for = scheduledDate;
+    }
+
+    if (
+      data.subject === undefined &&
+      data.body === undefined &&
+      data.scheduled_for === undefined
+    ) {
+      return res.status(400).json({ error: "No updates provided" });
+    }
+
+    const updated = await prisma.communication.update({
+      where: { id: communicationId },
+      data,
+      include: { job: true },
+    });
+
+    const candidateId = updated.candidate_id;
+    if (candidateId && updated.job_id && updated.job) {
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: candidateId },
+        select: { id: true, name: true, email: true },
+      });
+      if (candidate) {
+        emitMessageUpdated(
+          buildMessageSocketPayload(updated, candidate, {
+            id: updated.job.id,
+            title: updated.job.title,
+            job_code: updated.job.job_code,
+          }),
+        );
+      }
+    }
+
+    return res.json({
+      ok: true,
+      scheduledFor: updated.scheduled_for?.toISOString() ?? null,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({ error: msg });
   }
 });
 
@@ -1139,6 +1468,33 @@ const io = new Server(httpServer, {
   },
 });
 setSocketIo(io);
+
+async function runScheduledEmailSweep() {
+  try {
+    const rows = await deliverDueScheduledCommunications();
+    for (const row of rows) {
+      if (!row.candidate_id || !row.job_id || !row.job) continue;
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: row.candidate_id },
+        select: { id: true, name: true, email: true },
+      });
+      if (!candidate) continue;
+      emitMessageUpdated(
+        buildMessageSocketPayload(row, candidate, {
+          id: row.job.id,
+          title: row.job.title,
+          job_code: row.job.job_code,
+        }),
+      );
+    }
+  } catch (e) {
+    console.error("[scheduled-email] sweep failed:", e);
+  }
+}
+
+setInterval(() => {
+  void runScheduledEmailSweep();
+}, 60_000);
 
 httpServer.listen(PORT, () => {
   console.log(`API listening on http://localhost:${PORT}`);

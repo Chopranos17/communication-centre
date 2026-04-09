@@ -25,7 +25,7 @@ import { sdsLabel, sdsSelectWFull } from "../../lib/sdsFormClasses";
  * ```ts
  * sortBy: 'newest' | 'oldest'
  * direction: 'all' | 'outbound' | 'inbound'
- * deliveryStatus: 'all' | 'sent' | 'delivered' | 'failed' | 'pending'
+ * deliveryStatus: 'all' | 'sent' | 'delivered' | 'failed' | 'pending' | 'scheduled' | 'cancelled'
  * dateRange: 'all' | '7d' | '30d' | '90d'
  * senderType: 'all' | 'recruiter' | 'hiring_lead' | 'system' | 'candidate'
  * ```
@@ -227,6 +227,8 @@ export function CommunicationFilterPanel({
                 <option value="delivered">Delivered</option>
                 <option value="failed">Failed</option>
                 <option value="pending">Pending</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="cancelled">Cancelled</option>
               </select>
               {selectChevron()}
             </div>

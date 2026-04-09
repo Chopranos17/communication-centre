@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { CurrentJobEmailRow } from "../../api/candidatesClient";
 import {
   formatEmailDetailDateTime,
+  formatScheduledSendLabel,
   meetingChannelLabel,
   meetingStatusBadgeLabel,
   stripHtml,
@@ -169,11 +170,26 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
                 ) : null}
               </>
             ) : null}
+            {isEmail &&
+            email.deliveryStatus === "scheduled" &&
+            email.scheduledFor ? (
+              <div>
+                <dt className="mb-1 font-medium text-[var(--text-label)]">
+                  Scheduled send
+                </dt>
+                <dd className="font-light text-[var(--text-body)]">
+                  {formatScheduledSendLabel(email.scheduledFor)}
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt className="mb-1 font-medium text-[var(--text-label)]">Time</dt>
               <dd className="flex flex-wrap items-center gap-2 font-light text-[var(--text-body)]">
                 <span>{formatEmailDetailDateTime(email.sentAt)}</span>
-                <DeliveryStatusGlyph status={email.deliveryStatus} />
+                <DeliveryStatusGlyph
+                  status={email.deliveryStatus}
+                  scheduledForIso={email.scheduledFor}
+                />
               </dd>
             </div>
             <div>

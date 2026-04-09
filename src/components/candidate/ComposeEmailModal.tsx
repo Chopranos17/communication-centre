@@ -26,6 +26,8 @@ import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonLink,
   sdsButtonPrimary,
+  sdsButtonPrimarySplitLeft,
+  sdsButtonPrimarySplitRight,
   sdsButtonSecondary,
   sdsMenuItemBtn,
 } from "../../lib/sdsButtonClasses";
@@ -78,6 +80,12 @@ function uniqEmails(emails: string[]): string[] {
     out.push(t);
   }
   return out;
+}
+
+function minDateTimeLocalValue(): string {
+  const d = new Date(Date.now() + 5 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function isBodyEmpty(html: string): boolean {
@@ -193,6 +201,10 @@ export function ComposeEmailModal({
     lastError?: string;
   } | null>(null);
 
+  const [sendOptionsOpen, setSendOptionsOpen] = useState(false);
+  const [scheduleDateTimeLocal, setScheduleDateTimeLocal] = useState("");
+  const sendSplitRef = useRef<HTMLDivElement | null>(null);
+
   const quillModules = useMemo(
     () => ({
       toolbar: [
@@ -254,6 +266,8 @@ export function ComposeEmailModal({
     setSkipMultiJob(false);
     setSendProgress(null);
     setBulkSendSummary(null);
+    setSendOptionsOpen(false);
+    setScheduleDateTimeLocal("");
   }, [open, recipientKey]);
 
   useEffect(() => {
@@ -471,16 +485,142 @@ export function ComposeEmailModal({
   ]);
 
   useEffect(() => {
+    if (!sendOptionsOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const el = sendSplitRef.current;
+      if (el && !el.contains(e.target as Node)) setSendOptionsOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [sendOptionsOpen]);
+
+  useEffect(() => {
+    if (!open || !sendOptionsOpen) return;
+    const minV = minDateTimeLocalValue();
+    setScheduleDateTimeLocal((prev) => (prev && prev >= minV ? prev : minV));
+  }, [sendOptionsOpen, open]);
+
+  const handleScheduleSend = useCallback(async () => {
+    if (!subject.trim()) {
+      setBanner({ type: "error", text: "Please enter a subject." });
+      return;
+    }
+    if (isBodyEmpty(bodyHtml)) {
+      setBanner({ type: "error", text: "Please enter a message body." });
+      return;
+    }
+    const list = effectiveRecipients;
+    if (list.length !== 1) {
+      setBanner({
+        type: "error",
+        text: "Scheduling is only available when sending to one recipient.",
+      });
+      return;
+    }
+    const r0 = list[0];
+    if (!scheduleDateTimeLocal.trim()) {
+      setBanner({ type: "error", text: "Please choose a date and time." });
+      return;
+    }
+    const when = new Date(scheduleDateTimeLocal);
+    if (Number.isNaN(when.getTime())) {
+      setBanner({ type: "error", text: "Invalid date or time." });
+      return;
+    }
+    const minTs = Date.now() + 5 * 60 * 1000;
+    if (when.getTime() < minTs) {
+      setBanner({
+        type: "error",
+        text: "Schedule time must be at least 5 minutes from now.",
+      });
+      return;
+    }
+
+    setSending(true);
+    setBanner(null);
+    const cc = uniqEmails(ccList);
+    const tpl =
+      templateId && templates.some((t) => t.id === templateId)
+        ? templateId
+        : null;
+    const recipientJobId = r0.jobId?.trim() || jobId;
+    const recipientJobTitle = r0.jobTitle?.trim() || jobTitle;
+    const ctx: Partial<EmailTemplateVarContext> = {
+      candidate_name: r0.candidateName,
+      job_title: recipientJobTitle,
+      recruiter_name: "Recruiter",
+      company_name: "Darwinbox",
+      interview_date: new Date().toLocaleDateString(undefined, {
+        dateStyle: "medium",
+      }),
+      subject_line: subject.trim() || "[Subject]",
+      body: "[Your message]",
+    };
+    const resolvedSubject = resolveEmailTemplateString(subject.trim(), ctx);
+    const resolvedBody = resolveEmailTemplateString(bodyHtml, ctx);
+
+    try {
+      const result = await composeSendEmail(r0.candidateId, {
+        jobId: recipientJobId,
+        fromAddress: sendFrom,
+        subject: resolvedSubject,
+        htmlBody: resolvedBody,
+        cc: cc.length ? cc : undefined,
+        templateId: tpl,
+        senderName: "Recruiter",
+        scheduledFor: when.toISOString(),
+      });
+      setSending(false);
+      if (!result.success) {
+        showToast("error", result.error ?? "Could not schedule email");
+        return;
+      }
+      setSendOptionsOpen(false);
+      onSent();
+      const friendly = when.toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      setBanner({
+        type: "success",
+        text: `Email will be sent on ${friendly}.`,
+      });
+      showToast("success", "Email scheduled");
+      setTimeout(() => {
+        onClose();
+      }, 1600);
+    } catch {
+      setSending(false);
+      showToast("error", "Email could not be scheduled");
+    }
+  }, [
+    subject,
+    bodyHtml,
+    effectiveRecipients,
+    scheduleDateTimeLocal,
+    ccList,
+    templateId,
+    templates,
+    jobId,
+    jobTitle,
+    sendFrom,
+    onSent,
+    onClose,
+    showToast,
+  ]);
+
+  useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (sending) return;
       if (previewOpen) setPreviewOpen(false);
+      else if (sendOptionsOpen) setSendOptionsOpen(false);
       else onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose, previewOpen, sending]);
+  }, [open, onClose, previewOpen, sending, sendOptionsOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -830,7 +970,7 @@ export function ComposeEmailModal({
               >
                 Preview
               </button>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-stretch gap-2">
                 <button
                   type="button"
                   onClick={onClose}
@@ -838,32 +978,113 @@ export function ComposeEmailModal({
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  disabled={
-                    sending ||
-                    (isBulk && effectiveRecipients.length === 0) ||
-                    (!isBulk && !primaryRecipient?.candidateEmail?.trim())
-                  }
-                  aria-busy={sending}
-                  onClick={() => void handleSend()}
-                  className={`${sdsButtonPrimary} inline-flex min-w-[7rem] justify-center px-5 disabled:opacity-50`}
-                >
-                  {sending ? (
-                    <span className="inline-flex items-center gap-2">
-                      <LoadingSpinner
-                        size="sm"
-                        aria-hidden
-                        className="border-white border-t-transparent"
-                      />
-                      {sendProgress
-                        ? `Sending to candidate ${sendProgress.current} of ${sendProgress.total}…`
-                        : "Sending…"}
-                    </span>
-                  ) : (
-                    "Send"
-                  )}
-                </button>
+                {isBulk ? (
+                  <button
+                    type="button"
+                    disabled={
+                      sending ||
+                      effectiveRecipients.length === 0 ||
+                      !primaryRecipient?.candidateEmail?.trim()
+                    }
+                    aria-busy={sending}
+                    onClick={() => void handleSend()}
+                    className={`${sdsButtonPrimary} inline-flex min-w-[7rem] justify-center px-5 disabled:opacity-50`}
+                  >
+                    {sending ? (
+                      <span className="inline-flex items-center gap-2">
+                        <LoadingSpinner
+                          size="sm"
+                          aria-hidden
+                          className="border-white border-t-transparent"
+                        />
+                        {sendProgress
+                          ? `Sending to candidate ${sendProgress.current} of ${sendProgress.total}…`
+                          : "Sending…"}
+                      </span>
+                    ) : (
+                      "Send"
+                    )}
+                  </button>
+                ) : (
+                  <div ref={sendSplitRef} className="relative flex">
+                    <div
+                      className="grid w-max max-w-full grid-cols-[auto_auto] overflow-hidden rounded-sds-4 border border-[#131313] shadow-none"
+                      role="group"
+                      aria-label="Send email"
+                    >
+                      <button
+                        type="button"
+                        disabled={
+                          sending || !primaryRecipient?.candidateEmail?.trim()
+                        }
+                        aria-busy={sending}
+                        onClick={() => void handleSend()}
+                        className={`${sdsButtonPrimarySplitLeft} min-w-[5.5rem]`}
+                      >
+                        {sending ? (
+                          <span className="inline-flex items-center gap-2">
+                            <LoadingSpinner
+                              size="sm"
+                              aria-hidden
+                              className="border-white border-t-transparent"
+                            />
+                            Sending…
+                          </span>
+                        ) : (
+                          "Send"
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className={sdsButtonPrimarySplitRight}
+                        aria-expanded={sendOptionsOpen}
+                        aria-haspopup="dialog"
+                        aria-label="More send options"
+                        disabled={sending || !primaryRecipient?.candidateEmail?.trim()}
+                        onClick={() => setSendOptionsOpen((o) => !o)}
+                      >
+                        <span className="text-xs leading-none" aria-hidden>
+                          ▾
+                        </span>
+                      </button>
+                    </div>
+                    {sendOptionsOpen ? (
+                      <div
+                        className="absolute bottom-full right-0 z-[70] mb-2 w-[min(100vw-2rem,18rem)] rounded-sds-8 border border-[#e0e0e0] bg-white p-3 shadow-[var(--elevation-2)]"
+                        role="dialog"
+                        aria-label="Schedule send"
+                      >
+                        <p className="mb-2 text-[length:var(--body-s)] font-medium text-[#131313]">
+                          Schedule send
+                        </p>
+                        <label
+                          className={`mb-1 block ${sdsLabel}`}
+                          htmlFor="compose-schedule-when"
+                        >
+                          Date and time
+                        </label>
+                        <input
+                          id="compose-schedule-when"
+                          type="datetime-local"
+                          min={minDateTimeLocalValue()}
+                          value={scheduleDateTimeLocal}
+                          onChange={(e) =>
+                            setScheduleDateTimeLocal(e.target.value)
+                          }
+                          className={`${sdsInput} mb-3 w-full`}
+                        />
+                        <button
+                          type="button"
+                          disabled={sending}
+                          onClick={() => void handleScheduleSend()}
+                          className={`${sdsButtonPrimary} w-full justify-center px-4`}
+                        >
+                          Schedule
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </>
           )}

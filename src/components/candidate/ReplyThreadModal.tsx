@@ -500,7 +500,10 @@ export function ReplyThreadModal({
                           <span className="text-[length:var(--body-s)] text-[var(--text-label)]">
                             {formatEmailDetailDateTime(row.sentAt)}
                           </span>
-                          <DeliveryStatusGlyph status={row.deliveryStatus} />
+                          <DeliveryStatusGlyph
+                            status={row.deliveryStatus}
+                            scheduledForIso={row.scheduledFor}
+                          />
                         </div>
                         {!exp ? (
                           <p className="mt-0.5 line-clamp-2 text-[length:var(--body-s)] text-[var(--text-body)]">

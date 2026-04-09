@@ -40,6 +40,7 @@ export function communicationToTimelineRow(
     to_address: string | null;
     delivery_status: string;
     thread_id: string | null;
+    scheduled_for?: string | Date | null;
   },
   meeting: MeetingTimelineMeta | null = null,
 ): CurrentJobEmailRow {
@@ -57,6 +58,12 @@ export function communicationToTimelineRow(
     typeof row.sent_at === "string"
       ? row.sent_at
       : row.sent_at.toISOString();
+  const scheduledFor =
+    row.scheduled_for == null
+      ? null
+      : typeof row.scheduled_for === "string"
+        ? row.scheduled_for
+        : row.scheduled_for.toISOString();
   return {
     id: row.id,
     channel,
@@ -69,6 +76,7 @@ export function communicationToTimelineRow(
     sentAt,
     fromAddress: row.from_address ?? "",
     toAddress: row.to_address ?? "",
+    scheduledFor,
     deliveryStatus: row.delivery_status as CurrentJobEmailRow["deliveryStatus"],
     threadId:
       channel === "email" ? (row.thread_id?.trim() || row.id) : null,

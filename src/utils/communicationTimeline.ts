@@ -292,6 +292,16 @@ export function formatEmailDetailDateTime(iso: string): string {
   });
 }
 
+/** Tooltip / banner copy for scheduled outbound email. */
+export function formatScheduledSendLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Scheduled";
+  return `Scheduled for ${d.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  })}`;
+}
+
 /** PRD §4.5: only threads involving contact@darwinbox.in support Reply / Follow Up. */
 export function isContactDarwinboxDisplay(fromAddress: string): boolean {
   return fromAddress.toLowerCase().includes("contact@darwinbox.in");

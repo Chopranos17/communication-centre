@@ -83,10 +83,12 @@ model Communication {
   subject           String?
   body              String
   template_id       String?
-  /// pending | sent | delivered | failed
+  /// pending | sent | delivered | failed | scheduled | cancelled
   delivery_status   String  @default("pending")
   vendor_message_id String?
   sent_at           DateTime @default(now())
+  /// When set and delivery_status is scheduled, email is sent at or after this time (see server interval).
+  scheduled_for     DateTime?
   read_at           DateTime?
 
   candidate      Candidate?      @relation(fields: [candidate_id], references: [id], onDelete: Cascade)

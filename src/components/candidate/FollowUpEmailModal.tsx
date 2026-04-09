@@ -475,7 +475,10 @@ export function FollowUpEmailModal({
                         <span className="text-[var(--text-label)]">
                           {formatEmailDetailDateTime(row.sentAt)}
                         </span>
-                        <DeliveryStatusGlyph status={row.deliveryStatus} />
+                        <DeliveryStatusGlyph
+                        status={row.deliveryStatus}
+                        scheduledForIso={row.scheduledFor}
+                      />
                       </div>
                       <p className="mt-0.5 text-[length:var(--body-s)] font-medium text-[var(--text-body)]">
                         {row.subject?.trim() || "(No subject)"}
