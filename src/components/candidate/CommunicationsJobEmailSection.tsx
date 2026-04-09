@@ -497,7 +497,9 @@ export function CommunicationsJobEmailSection({
           ) : showBody ? (
             <>
               <div
-                className={tableScroll ? "overflow-y-auto rounded-sds-8" : ""}
+                className={
+                  tableScroll ? "scrollbar-sleek overflow-y-auto rounded-sds-8" : ""
+                }
                 style={tableScroll ? { maxHeight: SCROLL_MAX_HEIGHT_PX } : undefined}
               >
                 <div className="relative pl-9">
