@@ -49,7 +49,6 @@ export interface ActivityItem {
 
 export interface RecentActivityWidgetProps {
   activities: ActivityItem[]
-  unresponsiveCount: number
   isLoading?: boolean
 }
 
@@ -61,7 +60,6 @@ const linkFocusInline = `${linkFocusRing} rounded-sds-2`
 
 export function RecentActivityWidget({
   activities,
-  unresponsiveCount,
   isLoading = false,
 }: RecentActivityWidgetProps) {
   const rows = activities.slice(0, 5)
@@ -83,7 +81,7 @@ export function RecentActivityWidget({
         className="w-full rounded-sds-12 border-[0.5px] border-[#e0e0e0] bg-white p-5 shadow-[var(--elevation-1)]"
         aria-labelledby="recent-activity-heading"
       >
-        <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+        <div className="mb-1 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2
               id="recent-activity-heading"
@@ -95,20 +93,12 @@ export function RecentActivityWidget({
               Latest communications across all openings
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            <Link
-              to="/recruitment/communication-analytics/activity?status=unresponsive"
-              className={`inline-flex h-8 items-center rounded-full border border-[#FF2323] px-3 text-[12px] font-medium text-[#FF2323] transition-colors hover:bg-[#FFE9E9] ${linkFocusRing}`}
-            >
-              {unresponsiveCount} unresponsive
-            </Link>
-            <Link
-              to="/recruitment/communication-analytics/activity"
-              className={`inline-flex h-8 items-center rounded-full border border-[#e0e0e0] bg-white px-3 text-[12px] font-medium text-[#131313] transition-colors hover:bg-[#f5f5f5] ${linkFocusRing}`}
-            >
-              View all
-            </Link>
-          </div>
+          <Link
+            to="/recruitment/communication-hub/activity"
+            className={`mt-0.5 shrink-0 text-[12px] font-normal leading-tight text-[#666666] transition-colors hover:text-[#131313] ${linkFocusRing} rounded-sds-2`}
+          >
+            View all
+          </Link>
         </div>
 
         {isLoading ? (

@@ -8,10 +8,8 @@ export function AppLayout() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar />
-        <main className="scrollbar-sleek min-h-0 w-full min-w-0 flex-1 overflow-auto bg-brand-10 px-6 py-6">
-          <div className="mx-auto w-full max-w-screen-xl">
-            <Outlet />
-          </div>
+        <main className="scrollbar-sleek min-h-0 w-full min-w-0 flex-1 overflow-auto bg-brand-10 pt-0">
+          <Outlet />
         </main>
       </div>
     </div>

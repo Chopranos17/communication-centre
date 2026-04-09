@@ -48,11 +48,11 @@ const recruitmentChildren: ModuleChild[] = [
   { id: 'overview', label: 'Overview', disabled: true },
   { id: 'job-openings', label: 'Job Openings', path: '/recruitment/job-openings' },
   { id: 'candidates', label: 'Candidates', path: '/recruitment/candidates' },
-  // TODO: Add permission guard for Communication Analytics
+  // TODO: Add permission guard for Communication Hub
   {
-    id: 'communication-analytics',
-    label: 'Communication Analytics',
-    path: '/recruitment/communication-analytics',
+    id: 'communication-hub',
+    label: 'Communication Hub',
+    path: '/recruitment/communication-hub',
   },
   { id: 'requisitions', label: 'Requisitions', disabled: true },
   { id: 'my-interviews', label: 'My Interviews', disabled: true },

@@ -58,11 +58,6 @@ export interface MetricsBarProps {
 function isDisplayedValueEmpty(displayed: string): boolean {
   const v = displayed.replace(/,/g, '').trim()
   if (!v || v === '\u2014' || v === '-') return true
-  if (v === '0' || v === '0.00%') return true
-  if (/^0(\.0+)?%$/.test(v)) return true
-  if (/^0(\.0+)?m$/.test(v)) return true
-  if (/^0(\.0+)?h$/.test(v)) return true
-  if (/^0(\.0+)?d$/.test(v)) return true
   return false
 }
 
@@ -88,7 +83,7 @@ export function MetricsBar({ metrics, isLoading = false }: MetricsBarProps) {
       </style>
       <section
         className="relative w-full overflow-hidden rounded-sds-12 border-[0.5px] border-[#e0e0e0] bg-white px-10 pb-10 pt-8 shadow-[var(--elevation-1)]"
-        aria-label="Communication metrics summary"
+        aria-label="Communication Hub metrics summary"
       >
         <svg
           className="pointer-events-none absolute bottom-0 left-0 h-[80px] w-full"

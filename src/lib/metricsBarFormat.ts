@@ -1,4 +1,12 @@
-/** Formatting helpers for Communication Analytics `MetricsBar` values (use from parent / API layer). */
+/** Formatting helpers for Communication Hub `MetricsBar` values (use from parent / API layer). */
+
+/** Formats average first response time from hours (API `avgResponseTimeHrs`). */
+export function formatResponseTime(hours: number | null): string {
+  if (hours == null) return '\u2014'
+  if (hours < 1) return `${Math.round(hours * 60)}m`
+  if (hours <= 48) return `${hours.toFixed(1)}h`
+  return `${Math.round(hours / 24)}d`
+}
 
 export function formatMessagesSentCount(n: number): string {
   return Math.round(n).toLocaleString()

@@ -1,27 +1,27 @@
 import { Link } from 'react-router-dom'
 
-const linkClass =
-  'text-[12px] font-medium text-[var(--text-link)] hover:text-[var(--text-link-hover)] hover:underline'
-
-export function ActivityRecruitmentBreadcrumbs() {
+/**
+ * Header breadcrumb for Activity Command Center: parent (muted, truncates) / bold current page.
+ */
+export function ActivityCommandCenterBreadcrumb() {
   return (
     <nav
-      className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-[#4d4d4d]"
+      className="flex min-w-0 max-w-[min(100%,calc(100%-12rem))] items-center gap-x-1.5 sm:max-w-none"
       aria-label="Breadcrumb"
     >
-      <Link to="/recruitment/job-openings" className={linkClass}>
-        Recruitment
+      <Link
+        to="/recruitment/communication-hub"
+        className="min-w-0 max-w-[42vw] truncate font-normal text-[#4d4d4d] transition-colors hover:text-[#131313] hover:underline sm:max-w-[14rem]"
+        title="Communication Hub"
+      >
+        Communication Hub
       </Link>
-      <span aria-hidden className="text-[#aaaaaa]">
+      <span className="shrink-0 text-[13px] text-[#aaaaaa]" aria-hidden>
         /
       </span>
-      <Link to="/recruitment/communication-analytics" className={linkClass}>
-        Communication Analytics
-      </Link>
-      <span aria-hidden className="text-[#aaaaaa]">
-        /
+      <span className="shrink-0 text-[13px] font-bold leading-snug text-[#131313]">
+        Activity command center
       </span>
-      <span className="text-[12px] font-medium text-[#131313]">Activity</span>
     </nav>
   )
 }

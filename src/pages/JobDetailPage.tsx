@@ -379,11 +379,14 @@ export function JobDetailPage() {
 
   return (
     <div
-      className={
+      className={[
+        "mx-auto w-full max-w-screen-xl px-6 pt-6",
         canManageRecruitment && selected.size > 0
           ? "pb-[4.5rem] sm:pb-[4.25rem]"
-          : undefined
-      }
+          : "pb-6",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       {bulkToast ? (
         <div

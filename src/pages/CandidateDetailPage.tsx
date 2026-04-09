@@ -168,7 +168,7 @@ export function CandidateDetailPage() {
   const noJobTitle = 'No current job is linked — open a role first.'
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-screen-xl px-6 pb-6 pt-6">
       <div className="mb-4">
         <Link
           to="/recruitment/candidates"

@@ -76,7 +76,7 @@ export function JobOpeningsPage() {
         : jobs
 
   return (
-    <div className="w-full min-w-0">
+    <div className="mx-auto w-full min-w-0 max-w-screen-xl px-6 pb-6 pt-6">
       <PageHeader
         title="Job Openings"
         badge={

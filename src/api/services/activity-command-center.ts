@@ -1,5 +1,6 @@
 import type { Candidate, Communication, Job } from "@prisma/client";
 import { prisma } from "../db";
+import { getSpanJobIds, spanUserIdFromEnv } from "./comms-hub-span";
 
 const ACTIVITY_CHANNELS = ["email", "sms", "whatsapp", "meeting"] as const;
 
@@ -77,6 +78,154 @@ export type ActivityListItem = {
   status: ActivityRowStatus;
 };
 
+function sortActivityItems(
+  builtAll: ActivityListItem[],
+  sort: string,
+): ActivityListItem[] {
+  const s = sort || "newest";
+  const copy = [...builtAll];
+  if (s === "name_asc") {
+    copy.sort((a, b) => {
+      const n = a.candidateName.localeCompare(b.candidateName);
+      if (n !== 0) return n;
+      return new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime();
+    });
+  } else if (s === "unresponsive_first") {
+    const rank: Record<ActivityRowStatus, number> = {
+      unresponsive: 0,
+      pending: 1,
+      engaged: 2,
+    };
+    copy.sort((a, b) => {
+      const dr = rank[a.status] - rank[b.status];
+      if (dr !== 0) return dr;
+      return new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime();
+    });
+  } else {
+    copy.sort(
+      (a, b) =>
+        new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime(),
+    );
+  }
+  return copy;
+}
+
+/**
+ * Builds the full activity list (one row per candidate–job pair) using the same rules as
+ * {@link fetchActivityFeed}, including span filtering.
+ */
+export async function buildActivityListItems(params: {
+  period: string;
+  jobId: string;
+  sort: string;
+  search: string;
+  channel: string;
+}): Promise<{ builtAll: ActivityListItem[]; slaDays: number }> {
+  const slaMs = getSlaMs();
+  const slaDays = Math.round(slaMs / (24 * 60 * 60 * 1000));
+  const { start, end } = periodBounds(params.period);
+  const now = Date.now();
+
+  const jobIds = await getSpanJobIds(spanUserIdFromEnv());
+  if (jobIds.length === 0) {
+    return { builtAll: [], slaDays };
+  }
+
+  const jobFilter = params.jobId.trim();
+  const effectiveJobIds =
+    jobFilter && jobIds.includes(jobFilter)
+      ? [jobFilter]
+      : jobFilter && !jobIds.includes(jobFilter)
+        ? []
+        : jobIds;
+
+  if (effectiveJobIds.length === 0) {
+    return { builtAll: [], slaDays };
+  }
+
+  const rows = await prisma.communication.findMany({
+    where: {
+      job_id: { in: effectiveJobIds },
+      candidate_id: { not: null },
+      channel: { in: [...ACTIVITY_CHANNELS] },
+    },
+    include: { candidate: true, job: true },
+    orderBy: { sent_at: "desc" },
+  });
+
+  type PairAgg = {
+    all: Communication[];
+    candidate: Candidate;
+    job: Job;
+  };
+
+  const byPair = new Map<string, PairAgg>();
+  for (const row of rows) {
+    if (!row.candidate_id || !row.job_id || !row.candidate || !row.job) continue;
+    const key = `${row.candidate_id}:${row.job_id}`;
+    let agg = byPair.get(key);
+    if (!agg) {
+      agg = { all: [], candidate: row.candidate, job: row.job };
+      byPair.set(key, agg);
+    }
+    agg.all.push(row);
+  }
+
+  const searchRaw = params.search.trim();
+  const channelFilter = parseChannelCsv(params.channel);
+
+  const builtAll: ActivityListItem[] = [];
+
+  for (const agg of byPair.values()) {
+    const { all, candidate, job } = agg;
+    const inPeriod = all.filter(
+      (c) => c.sent_at >= start && c.sent_at <= end,
+    );
+    if (inPeriod.length === 0) continue;
+
+    const anchor = inPeriod.reduce((a, b) =>
+      a.sent_at >= b.sent_at ? a : b,
+    );
+    const lastOverall = all.reduce((a, b) =>
+      a.sent_at >= b.sent_at ? a : b,
+    );
+    const status = deriveStatus(lastOverall, now, slaMs);
+
+    const anchorCh = anchor.channel.toLowerCase();
+    if (channelFilter.length > 0 && !channelFilter.includes(anchorCh)) {
+      continue;
+    }
+
+    const body = anchor.body ?? "";
+    const preview =
+      body.length <= 120 ? body.trim() : `${body.slice(0, 119).trim()}…`;
+
+    if (!matchesSearch(searchRaw, candidate.name, job.title, body)) {
+      continue;
+    }
+
+    builtAll.push({
+      communicationId: anchor.id,
+      candidateId: candidate.id,
+      candidateName: candidate.name,
+      candidateEmail: candidate.email,
+      candidatePhone: candidate.phone ?? "",
+      candidateWhatsapp: candidate.whatsapp_number ?? "",
+      jobId: job.id,
+      jobTitle: job.title,
+      jobCode: job.job_code,
+      currentStage: candidate.current_stage,
+      channel: anchor.channel,
+      direction: anchor.direction,
+      preview,
+      sentAt: anchor.sent_at.toISOString(),
+      status,
+    });
+  }
+
+  return { builtAll: sortActivityItems(builtAll, params.sort), slaDays };
+}
+
 function matchesSearch(
   needle: string,
   candidateName: string,
@@ -124,133 +273,13 @@ export async function fetchActivityFeed(params: {
   };
   slaDays: number;
 }> {
-  const slaMs = getSlaMs();
-  const slaDays = Math.round(slaMs / (24 * 60 * 60 * 1000));
-  const { start, end } = periodBounds(params.period);
-  const now = Date.now();
-
-  const jobs = await prisma.job.findMany({ select: { id: true } });
-  const jobIds = jobs.map((j) => j.id);
-  if (jobIds.length === 0) {
-    return {
-      items: [],
-      total: 0,
-      page: params.page,
-      limit: params.limit,
-      summary: { total: 0, engaged: 0, pending: 0, unresponsive: 0 },
-      slaDays,
-    };
-  }
-
-  const rows = await prisma.communication.findMany({
-    where: {
-      job_id: { in: jobIds },
-      candidate_id: { not: null },
-      channel: { in: [...ACTIVITY_CHANNELS] },
-    },
-    include: { candidate: true, job: true },
-    orderBy: { sent_at: "desc" },
+  const { builtAll, slaDays } = await buildActivityListItems({
+    period: params.period,
+    jobId: params.jobId,
+    sort: params.sort,
+    search: params.search,
+    channel: params.channel,
   });
-
-  type PairAgg = {
-    all: Communication[];
-    candidate: Candidate;
-    job: Job;
-  };
-
-  const byPair = new Map<string, PairAgg>();
-  for (const row of rows) {
-    if (!row.candidate_id || !row.job_id || !row.candidate || !row.job) continue;
-    const key = `${row.candidate_id}:${row.job_id}`;
-    let agg = byPair.get(key);
-    if (!agg) {
-      agg = { all: [], candidate: row.candidate, job: row.job };
-      byPair.set(key, agg);
-    }
-    agg.all.push(row);
-  }
-
-  const jobFilter = params.jobId.trim();
-  const searchRaw = params.search.trim();
-  const channelFilter = parseChannelCsv(params.channel);
-
-  const builtAll: ActivityListItem[] = [];
-
-  for (const agg of byPair.values()) {
-    const { all, candidate, job } = agg;
-    const inPeriod = all.filter(
-      (c) => c.sent_at >= start && c.sent_at <= end,
-    );
-    if (inPeriod.length === 0) continue;
-
-    const anchor = inPeriod.reduce((a, b) =>
-      a.sent_at >= b.sent_at ? a : b,
-    );
-    const lastOverall = all.reduce((a, b) =>
-      a.sent_at >= b.sent_at ? a : b,
-    );
-    const status = deriveStatus(lastOverall, now, slaMs);
-
-    if (jobFilter && anchor.job_id !== jobFilter) continue;
-
-    const anchorCh = anchor.channel.toLowerCase();
-    if (channelFilter.length > 0 && !channelFilter.includes(anchorCh)) {
-      continue;
-    }
-
-    const body = anchor.body ?? "";
-    const preview =
-      body.length <= 120 ? body.trim() : `${body.slice(0, 119).trim()}…`;
-
-    if (
-      !matchesSearch(searchRaw, candidate.name, job.title, body)
-    ) {
-      continue;
-    }
-
-    builtAll.push({
-      communicationId: anchor.id,
-      candidateId: candidate.id,
-      candidateName: candidate.name,
-      candidateEmail: candidate.email,
-      candidatePhone: candidate.phone ?? "",
-      candidateWhatsapp: candidate.whatsapp_number ?? "",
-      jobId: job.id,
-      jobTitle: job.title,
-      jobCode: job.job_code,
-      currentStage: candidate.current_stage,
-      channel: anchor.channel,
-      direction: anchor.direction,
-      preview,
-      sentAt: anchor.sent_at.toISOString(),
-      status,
-    });
-  }
-
-  const sort = params.sort || "newest";
-  if (sort === "name_asc") {
-    builtAll.sort((a, b) => {
-      const n = a.candidateName.localeCompare(b.candidateName);
-      if (n !== 0) return n;
-      return new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime();
-    });
-  } else if (sort === "unresponsive_first") {
-    const rank: Record<ActivityRowStatus, number> = {
-      unresponsive: 0,
-      pending: 1,
-      engaged: 2,
-    };
-    builtAll.sort((a, b) => {
-      const dr = rank[a.status] - rank[b.status];
-      if (dr !== 0) return dr;
-      return new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime();
-    });
-  } else {
-    builtAll.sort(
-      (a, b) =>
-        new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime(),
-    );
-  }
 
   const summary = {
     total: builtAll.length,
@@ -282,6 +311,325 @@ export async function fetchActivityFeed(params: {
       unresponsive: summary.unresponsive,
     },
     slaDays,
+  };
+}
+
+export type CommsHubDashboardResponse = {
+  summary: {
+    messagesSent: number;
+    responseRate: number | null;
+    avgResponseTimeHrs: number | null;
+    activeCandidates: number;
+  };
+  channelDistribution: Array<{ channel: string; count: number }>;
+  recentActivity: Array<{
+    communicationId: string;
+    candidateId: string;
+    candidateName: string;
+    jobId: string;
+    jobTitle: string;
+    currentStage: string;
+    channel: string;
+    direction: string;
+    preview: string;
+    status: ActivityRowStatus;
+    sentAt: string;
+  }>;
+  scheduled: Array<{
+    communicationId: string;
+    candidateId: string;
+    candidateName: string;
+    channel: string;
+    subject: string;
+    scheduledAt: string;
+  }>;
+  scheduledQueuedTotal: number;
+  unresponsiveCount: number;
+};
+
+function shortCandidateLabel(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0]!;
+  const last = parts[parts.length - 1]!;
+  return `${parts[0]} ${last[0]}.`;
+}
+
+async function computeDashboardSummaryMetrics(
+  jobIds: string[],
+  start: Date,
+  end: Date,
+): Promise<CommsHubDashboardResponse["summary"]> {
+  if (jobIds.length === 0) {
+    return {
+      messagesSent: 0,
+      responseRate: null,
+      avgResponseTimeHrs: null,
+      activeCandidates: 0,
+    };
+  }
+
+  const window = {
+    job_id: { in: jobIds },
+    sent_at: { gte: start, lte: end },
+  };
+
+  const messagesSent = await prisma.communication.count({
+    where: { ...window, direction: "outbound" },
+  });
+
+  const activeRows = await prisma.communication.findMany({
+    where: { ...window, candidate_id: { not: null } },
+    distinct: ["candidate_id"],
+    select: { candidate_id: true },
+  });
+  const activeCandidates = activeRows.filter((r) => r.candidate_id).length;
+
+  const outboundCandidates = await prisma.communication.findMany({
+    where: {
+      ...window,
+      direction: "outbound",
+      candidate_id: { not: null },
+    },
+    distinct: ["candidate_id"],
+    select: { candidate_id: true },
+  });
+  const obSet = new Set(
+    outboundCandidates.map((o) => o.candidate_id!).filter(Boolean),
+  );
+
+  const inboundCandidates = await prisma.communication.findMany({
+    where: {
+      ...window,
+      direction: "inbound",
+      candidate_id: { not: null },
+    },
+    distinct: ["candidate_id"],
+    select: { candidate_id: true },
+  });
+  const inSet = new Set(
+    inboundCandidates.map((i) => i.candidate_id!).filter(Boolean),
+  );
+
+  let replied = 0;
+  for (const id of obSet) {
+    if (inSet.has(id)) replied += 1;
+  }
+  const responseRate =
+    obSet.size === 0 ? null : (replied / obSet.size) * 100;
+
+  const aggRows = await prisma.communication.findMany({
+    where: { ...window, candidate_id: { not: null } },
+    select: { candidate_id: true, direction: true, sent_at: true },
+  });
+
+  type G = { outs: Date[]; ins: Date[] };
+  const byCand = new Map<string, G>();
+  for (const r of aggRows) {
+    if (!r.candidate_id) continue;
+    let g = byCand.get(r.candidate_id);
+    if (!g) {
+      g = { outs: [], ins: [] };
+      byCand.set(r.candidate_id, g);
+    }
+    if (r.direction === "outbound") g.outs.push(r.sent_at);
+    else if (r.direction === "inbound") g.ins.push(r.sent_at);
+  }
+
+  const deltasHrs: number[] = [];
+  for (const [, g] of byCand) {
+    if (g.ins.length === 0 || g.outs.length === 0) continue;
+    const lastOut = new Date(Math.max(...g.outs.map((d) => d.getTime())));
+    const inAfter = g.ins
+      .filter((d) => d.getTime() >= lastOut.getTime())
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    if (!inAfter) continue;
+    deltasHrs.push((inAfter.getTime() - lastOut.getTime()) / 3600000);
+  }
+
+  const avgResponseTimeHrs =
+    deltasHrs.length === 0
+      ? null
+      : deltasHrs.reduce((a, b) => a + b, 0) / deltasHrs.length;
+
+  return {
+    messagesSent,
+    responseRate,
+    avgResponseTimeHrs,
+    activeCandidates,
+  };
+}
+
+async function computeChannelDistribution(
+  jobIds: string[],
+  start: Date,
+  end: Date,
+): Promise<CommsHubDashboardResponse["channelDistribution"]> {
+  const order = ["email", "sms", "whatsapp", "meeting"] as const;
+  if (jobIds.length === 0) {
+    return order.map((channel) => ({ channel, count: 0 }));
+  }
+
+  const rows = await prisma.communication.groupBy({
+    by: ["channel"],
+    where: {
+      direction: "outbound",
+      job_id: { in: jobIds },
+      sent_at: { gte: start, lte: end },
+      channel: { not: "system_notification" },
+    },
+    _count: { _all: true },
+  });
+
+  const map = new Map(rows.map((r) => [r.channel, r._count._all]));
+  return order.map((channel) => ({
+    channel,
+    count: map.get(channel) ?? 0,
+  }));
+}
+
+async function fetchScheduledDashboardRows(
+  jobIds: string[],
+  take: number,
+): Promise<{
+  rows: CommsHubDashboardResponse["scheduled"];
+  total: number;
+}> {
+  if (jobIds.length === 0) {
+    return { rows: [], total: 0 };
+  }
+
+  const now = new Date();
+
+  const [commCount, mtgCount, scheduledComms, scheduledMeetings] =
+    await Promise.all([
+      prisma.communication.count({
+        where: {
+          job_id: { in: jobIds },
+          delivery_status: "scheduled",
+          scheduled_for: { not: null, gt: now },
+          candidate_id: { not: null },
+        },
+      }),
+      prisma.meeting.count({
+        where: {
+          job_id: { in: jobIds },
+          status: "scheduled",
+          scheduled_at: { gt: now },
+        },
+      }),
+      prisma.communication.findMany({
+        where: {
+          job_id: { in: jobIds },
+          delivery_status: "scheduled",
+          scheduled_for: { not: null, gt: now },
+          candidate_id: { not: null },
+        },
+        include: { candidate: true },
+      }),
+      prisma.meeting.findMany({
+        where: {
+          job_id: { in: jobIds },
+          status: "scheduled",
+          scheduled_at: { gt: now },
+        },
+        include: { candidate: true, communication: true },
+      }),
+    ]);
+
+  type Sched = CommsHubDashboardResponse["scheduled"][number];
+  const combined: Sched[] = [];
+
+  for (const c of scheduledComms) {
+    if (!c.candidate || !c.scheduled_for) continue;
+    combined.push({
+      communicationId: c.id,
+      candidateId: c.candidate_id!,
+      candidateName: shortCandidateLabel(c.candidate.name),
+      channel: c.channel,
+      subject: (c.subject ?? "").trim() || "(No subject)",
+      scheduledAt: c.scheduled_for.toISOString(),
+    });
+  }
+
+  for (const m of scheduledMeetings) {
+    const comm = m.communication;
+    const cand = m.candidate;
+    if (!cand) continue;
+    const commId = comm?.id ?? `meeting-${m.id}`;
+    combined.push({
+      communicationId: commId,
+      candidateId: m.candidate_id,
+      candidateName: shortCandidateLabel(cand.name),
+      channel: "meeting",
+      subject: (m.title ?? "").trim() || "(Meeting)",
+      scheduledAt: m.scheduled_at.toISOString(),
+    });
+  }
+
+  combined.sort(
+    (a, b) =>
+      new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+  );
+
+  return {
+    rows: combined.slice(0, take),
+    total: commCount + mtgCount,
+  };
+}
+
+export async function fetchCommsHubDashboard(params: {
+  period: string;
+  jobOpeningId?: string;
+}): Promise<CommsHubDashboardResponse> {
+  const period = params.period?.trim() || "quarter";
+  const { start, end } = periodBounds(period);
+
+  let jobIds = await getSpanJobIds(spanUserIdFromEnv());
+  const jobOpeningId = params.jobOpeningId?.trim();
+  if (jobOpeningId) {
+    jobIds = jobIds.includes(jobOpeningId) ? [jobOpeningId] : [];
+  }
+
+  const [summary, channelDistribution, sched, list] = await Promise.all([
+    computeDashboardSummaryMetrics(jobIds, start, end),
+    computeChannelDistribution(jobIds, start, end),
+    fetchScheduledDashboardRows(jobIds, 5),
+    buildActivityListItems({
+      period,
+      jobId: jobOpeningId ?? "",
+      sort: "newest",
+      search: "",
+      channel: "",
+    }),
+  ]);
+
+  const { builtAll } = list;
+  const recentActivity = builtAll.slice(0, 5).map((r) => ({
+    communicationId: r.communicationId,
+    candidateId: r.candidateId,
+    candidateName: r.candidateName,
+    jobId: r.jobId,
+    jobTitle: r.jobTitle,
+    currentStage: r.currentStage,
+    channel: r.channel,
+    direction: r.direction,
+    preview: r.preview,
+    status: r.status,
+    sentAt: r.sentAt,
+  }));
+
+  const unresponsiveCount = builtAll.filter(
+    (r) => r.status === "unresponsive",
+  ).length;
+
+  return {
+    summary,
+    channelDistribution,
+    recentActivity,
+    scheduled: sched.rows,
+    scheduledQueuedTotal: sched.total,
+    unresponsiveCount,
   };
 }
 

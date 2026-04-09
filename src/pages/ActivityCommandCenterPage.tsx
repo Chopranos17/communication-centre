@@ -7,7 +7,7 @@ import {
   type ActivityListItemDto,
 } from '../api/activityCommandCenterClient'
 import { fetchJobs, type JobListRow } from '../api/jobsClient'
-import { ActivityRecruitmentBreadcrumbs } from '../components/activity-command-center/ActivityRecruitmentBreadcrumbs'
+import { ActivityCommandCenterBreadcrumb } from '../components/activity-command-center/ActivityRecruitmentBreadcrumbs'
 import { ActivityCommunicationListPanel } from '../components/activity-command-center/ActivityCommunicationListPanel'
 import {
   ActivityAdvancedFilterPanel,
@@ -16,6 +16,7 @@ import {
 import { CommunicationsPanel } from '../components/candidate/CommunicationsPanel'
 import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
 import { FilterTabs } from '../components/layout/FilterTabs'
+import { PageHeader } from '../components/layout/PageHeader'
 import { usePersona } from '../context/PersonaContext'
 import { initials } from '../lib/activityPresentation'
 import { sdsButtonSecondaryIcon } from '../lib/sdsButtonClasses'
@@ -321,90 +322,92 @@ export function ActivityCommandCenterPage() {
   }, [])
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 pb-6">
-      <ActivityRecruitmentBreadcrumbs />
+    <>
+      <header className="w-full shrink-0 border-b-[0.5px] border-[#e0e0e0] bg-white">
+        <PageHeader
+          variant="strip"
+          className="mx-auto w-full max-w-screen-xl px-6 py-3"
+          heading={
+            <ActivityCommandCenterBreadcrumb />
+          }
+          marginBottom={false}
+          trailing={
+            <div className="flex shrink-0 items-center gap-2">
+              {searchExpanded ? (
+                <div className="relative w-[min(100%,20rem)] min-w-[10.5rem] sm:min-w-[12rem]">
+                  <input
+                    ref={searchInputRef}
+                    type="search"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        if (!searchInputRef.current?.value.trim()) {
+                          setSearchExpanded(false)
+                        }
+                      }, 0)
+                    }}
+                    placeholder="Search…"
+                    className="h-9 w-full rounded-sds-8 border border-[#e0e0e0] bg-white pl-3 pr-10 text-[13px] outline-none focus-visible:border-[#0183FF]"
+                    aria-label="Search activity"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--icon-default)]">
+                    <IconSearchOutline />
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openSearch}
+                  className={ICON_BUTTON_CLASS}
+                  aria-label="Open search"
+                >
+                  <IconSearchOutline />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setAdvancedOpen(true)}
+                className={ICON_BUTTON_CLASS}
+                aria-label="Filters"
+              >
+                <IconFilterFunnelOutline />
+              </button>
+            </div>
+          }
+        />
+      </header>
 
-      <div>
-        <h1 className="text-[18px] font-medium text-[var(--text-title)]">
-          Activity command center
-        </h1>
-        <p className="mt-1 text-[length:var(--body-m)] text-[var(--text-label)]">
-          All communications across your job openings
-        </p>
-      </div>
-
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
-        <div className="min-w-0 flex-[1_1_0%] overflow-x-auto pb-0.5">
+      <div className="mx-auto flex w-full min-w-0 max-w-screen-xl flex-col gap-4 px-6 pb-6 pt-6">
+        <div className="flex min-w-0 overflow-x-auto pb-0.5">
           <FilterTabs
             tabs={statusTabs}
             activeId={statusChip}
             onChange={pushStatus}
           />
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {searchExpanded ? (
-            <div className="relative w-[min(100%,20rem)] min-w-[10.5rem] sm:min-w-[12rem]">
-              <input
-                ref={searchInputRef}
-                type="search"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onBlur={() => {
-                  window.setTimeout(() => {
-                    if (!searchInputRef.current?.value.trim()) {
-                      setSearchExpanded(false)
-                    }
-                  }, 0)
-                }}
-                placeholder="Search…"
-                className="h-9 w-full rounded-sds-8 border border-[#e0e0e0] bg-white pl-3 pr-10 text-[13px] outline-none focus-visible:border-[#0183FF]"
-                aria-label="Search activity"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--icon-default)]">
-                <IconSearchOutline />
-              </span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={openSearch}
-              className={ICON_BUTTON_CLASS}
-              aria-label="Open search"
-            >
-              <IconSearchOutline />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setAdvancedOpen(true)}
-            className={ICON_BUTTON_CLASS}
-            aria-label="Filters"
-          >
-            <IconFilterFunnelOutline />
-          </button>
-        </div>
+
+        <ActivityCommunicationListPanel
+          items={feed?.items ?? []}
+          total={feed?.total ?? 0}
+          page={feed?.page ?? page}
+          limit={feed?.limit ?? limit}
+          selectedKey={selectedKey}
+          onSelect={(row) => setSelectedRow(row)}
+          onPageChange={onPageChange}
+          isLoading={feedLoading}
+          error={feedError}
+          listSummaryText={listSummaryText}
+        />
+
+        <ActivityAdvancedFilterPanel
+          isOpen={advancedOpen}
+          onClose={() => setAdvancedOpen(false)}
+          jobs={jobs}
+          values={advanced}
+          onApply={onAdvancedApply}
+        />
       </div>
-
-      <ActivityCommunicationListPanel
-        items={feed?.items ?? []}
-        total={feed?.total ?? 0}
-        page={feed?.page ?? page}
-        limit={feed?.limit ?? limit}
-        selectedKey={selectedKey}
-        onSelect={(row) => setSelectedRow(row)}
-        onPageChange={onPageChange}
-        isLoading={feedLoading}
-        error={feedError}
-        listSummaryText={listSummaryText}
-      />
-
-      <ActivityAdvancedFilterPanel
-        isOpen={advancedOpen}
-        onClose={() => setAdvancedOpen(false)}
-        jobs={jobs}
-        values={advanced}
-        onApply={onAdvancedApply}
-      />
 
       {selectedRow && panelJob
         ? createPortal(
@@ -515,6 +518,6 @@ export function ActivityCommandCenterPage() {
           />
         </>
       ) : null}
-    </div>
+    </>
   )
 }

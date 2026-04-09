@@ -13,6 +13,7 @@ import {
 } from "./services/message-sender";
 import {
   fetchActivityFeed,
+  fetchCommsHubDashboard,
   fetchThread,
 } from "./services/activity-command-center";
 
@@ -1502,6 +1503,42 @@ app.get(
         channel,
       });
       res.json(result);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(500).json({ error: msg });
+    }
+  },
+);
+
+app.get(
+  "/api/v1/recruitment/comms-hub/analytics/dashboard",
+  async (req, res) => {
+    const period =
+      typeof req.query.period === "string" && req.query.period.trim()
+        ? req.query.period.trim()
+        : "quarter";
+    const jobOpeningId =
+      typeof req.query.job_opening_id === "string"
+        ? req.query.job_opening_id.trim()
+        : "";
+
+    if (
+      period !== "week" &&
+      period !== "month" &&
+      period !== "quarter" &&
+      period !== "all"
+    ) {
+      return res.status(400).json({
+        error: "period must be week, month, quarter, or all",
+      });
+    }
+
+    try {
+      const data = await fetchCommsHubDashboard({
+        period,
+        jobOpeningId: jobOpeningId || undefined,
+      });
+      res.json(data);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       res.status(500).json({ error: msg });
