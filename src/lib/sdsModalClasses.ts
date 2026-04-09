@@ -47,7 +47,7 @@ export const sdsSidePanelBackdropButton =
   "absolute inset-0 z-0 cursor-default border-0 bg-black/40 p-0";
 
 const sdsSidePanelShell =
-  "relative z-10 flex h-full min-h-0 w-full flex-col overflow-hidden rounded-tl-sds-8 rounded-bl-sds-8 border-l border-[#e0e0e0] bg-white shadow-sds-3";
+  "relative z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-[#e0e0e0] bg-white shadow-sds-3";
 
 /** Compose, reply, follow-up, meeting, email detail (~816px). */
 export const sdsSidePanelContainerWide =

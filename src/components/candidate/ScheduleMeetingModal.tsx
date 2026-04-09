@@ -7,9 +7,9 @@ import {
 } from "../../api/candidatesClient";
 import {
   meetingInvitePartial,
-  meetingInviteSuccess,
   meetingInviteVendorError,
 } from "../../utils/sendFeedbackMessages";
+import { useToast } from "../../contexts/ToastContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonLink,
@@ -82,6 +82,7 @@ export function ScheduleMeetingModal({
   senderName = "Recruiter",
   onSent,
 }: ScheduleMeetingModalProps) {
+  const { showToast } = useToast();
   const [title, setTitle] = useState("Candidate experience chat");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState<15 | 30 | 45 | 60>(30);
@@ -160,20 +161,24 @@ export function ScheduleMeetingModal({
         .filter((p) => p.email.length > 0),
       senderName,
     };
-    const result = await scheduleMeeting(candidateId, payload);
+    let result: Awaited<ReturnType<typeof scheduleMeeting>>;
+    try {
+      result = await scheduleMeeting(candidateId, payload);
+    } catch {
+      setSending(false);
+      showToast("error", "Meeting could not be scheduled");
+      return;
+    }
     setSending(false);
     const total = result.inviteTotal ?? payload.participants.length;
     const sent = result.inviteSent ?? 0;
     const failed = result.inviteFailed ?? (total > 0 ? total : 0);
 
     if (result.success) {
-      setBanner({
-        kind: "ok",
-        text: meetingInviteSuccess(sent || total),
-      });
       onSent();
       window.setTimeout(() => {
         onClose();
+        showToast("success", "Meeting scheduled successfully");
       }, 600);
     } else if (sent > 0 && failed > 0) {
       setBanner({
@@ -181,7 +186,9 @@ export function ScheduleMeetingModal({
         text: meetingInvitePartial(sent, total, failed),
       });
       onSent();
+      showToast("success", "Meeting scheduled successfully");
     } else {
+      showToast("error", "Meeting could not be scheduled");
       setBanner({
         kind: "err",
         text: result.error
@@ -203,6 +210,7 @@ export function ScheduleMeetingModal({
     senderName,
     onSent,
     onClose,
+    showToast,
   ]);
 
   useEffect(() => {

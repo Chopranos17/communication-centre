@@ -10,6 +10,7 @@ import {
   smsVendorError,
 } from "../../utils/sendFeedbackMessages";
 import { smsSegmentHint } from "../../utils/smsSegments";
+import { useToast } from "../../contexts/ToastContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonIconTertiary,
@@ -65,6 +66,7 @@ export function BulkChannelMessageModal({
   onComplete,
   onSent,
 }: BulkChannelMessageModalProps) {
+  const { showToast } = useToast();
   const [recipients, setRecipients] = useState<BulkChannelRecipient[]>([]);
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<Phase>("compose");
@@ -139,23 +141,31 @@ export function BulkChannelMessageModal({
     let fail = 0;
     let err: string | null = null;
 
-    for (let i = 0; i < recipients.length; i++) {
-      const r = recipients[i];
-      setSendIndex(i + 1);
-      const payload = {
-        jobId: r.jobId.trim() || jobIdFallback,
-        text: body,
-        senderName: "Recruiter" as const,
-      };
-      const result =
-        variant === "sms"
-          ? await composeSendSms(r.candidateId, payload)
-          : await composeSendWhatsApp(r.candidateId, payload);
-      if (result.success) ok++;
-      else {
-        fail++;
-        if (result.error) err = result.error;
+    try {
+      for (let i = 0; i < recipients.length; i++) {
+        const r = recipients[i];
+        setSendIndex(i + 1);
+        const payload = {
+          jobId: r.jobId.trim() || jobIdFallback,
+          text: body,
+          senderName: "Recruiter" as const,
+        };
+        const result =
+          variant === "sms"
+            ? await composeSendSms(r.candidateId, payload)
+            : await composeSendWhatsApp(r.candidateId, payload);
+        if (result.success) ok++;
+        else {
+          fail++;
+          if (result.error) err = result.error;
+        }
       }
+    } catch {
+      setPhase("compose");
+      setSendIndex(0);
+      setSendTotal(0);
+      showToast("error", "Message could not be sent");
+      return;
     }
 
     setSentOk(ok);
@@ -174,6 +184,16 @@ export function BulkChannelMessageModal({
       cleanSummary += `. ${userRemoved} not sent (removed from list)`;
     }
     onComplete(cleanSummary);
+    if (ok > 0) {
+      showToast(
+        "success",
+        variant === "sms"
+          ? `SMS sent to ${ok} candidates`
+          : `WhatsApp sent to ${ok} candidates`,
+      );
+    } else {
+      showToast("error", "Message could not be sent");
+    }
   }, [
     text,
     recipients,
@@ -184,6 +204,7 @@ export function BulkChannelMessageModal({
     initialRecipients.length,
     onSent,
     onComplete,
+    showToast,
   ]);
 
   if (!open) return null;

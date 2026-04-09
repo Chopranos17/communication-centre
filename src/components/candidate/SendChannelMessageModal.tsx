@@ -9,6 +9,7 @@ import {
   resolveWhatsAppErrorBannerText,
   smsVendorError,
 } from "../../utils/sendFeedbackMessages";
+import { useToast } from "../../contexts/ToastContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonPrimary,
@@ -53,6 +54,7 @@ export function SendChannelMessageModal({
   toDisplay,
   onSent,
 }: SendChannelMessageModalProps) {
+  const { showToast } = useToast();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [banner, setBanner] = useState<{
@@ -91,22 +93,31 @@ export function SendChannelMessageModal({
     setSending(true);
     setBanner(null);
     const payload = { jobId, text: body, senderName: "Recruiter" };
-    const result =
-      variant === "sms"
-        ? await composeSendSms(candidateId, payload)
-        : await composeSendWhatsApp(candidateId, payload);
+    let result: Awaited<ReturnType<typeof composeSendSms>>;
+    try {
+      result =
+        variant === "sms"
+          ? await composeSendSms(candidateId, payload)
+          : await composeSendWhatsApp(candidateId, payload);
+    } catch {
+      setSending(false);
+      showToast("error", "Message could not be sent");
+      return;
+    }
     setSending(false);
     if (result.success) {
-      setBanner({
-        type: "success",
-        text:
-          variant === "sms"
-            ? "SMS sent successfully."
-            : "WhatsApp message sent successfully.",
-      });
       onSent();
-      setTimeout(() => onClose(), 1000);
+      setTimeout(() => {
+        onClose();
+        showToast(
+          "success",
+          variant === "sms"
+            ? "SMS sent successfully"
+            : "WhatsApp message sent",
+        );
+      }, 1000);
     } else {
+      showToast("error", "Message could not be sent");
       const errText = result.error ?? "Unknown error";
       setBanner({
         type: "error",
@@ -125,6 +136,7 @@ export function SendChannelMessageModal({
     variant,
     onSent,
     onClose,
+    showToast,
   ]);
 
   if (!open) return null;

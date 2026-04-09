@@ -19,9 +19,9 @@ import {
 } from "../../utils/emailTemplateVars";
 import {
   emailPartialSuccess,
-  emailSuccessCandidateCount,
   emailVendorError,
 } from "../../utils/sendFeedbackMessages";
+import { useToast } from "../../contexts/ToastContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonLink,
@@ -144,6 +144,7 @@ export function ComposeEmailModal({
   onSent,
   onBulkComplete,
 }: ComposeEmailModalProps) {
+  const { showToast } = useToast();
   const isBulk = recipients.length > 1;
   const [dedupeUnique, setDedupeUnique] = useState(true);
   const [skipMultiJob, setSkipMultiJob] = useState(false);
@@ -368,39 +369,46 @@ export function ComposeEmailModal({
     let failCount = 0;
     let lastError = "";
 
-    for (let i = 0; i < list.length; i++) {
-      const r = list[i];
-      setSendProgress({ current: i + 1, total: list.length });
-      const recipientJobId = r.jobId?.trim() || jobId;
-      const recipientJobTitle = r.jobTitle?.trim() || jobTitle;
-      const ctx: Partial<EmailTemplateVarContext> = {
-        candidate_name: r.candidateName,
-        job_title: recipientJobTitle,
-        recruiter_name: "Recruiter",
-        company_name: "Darwinbox",
-        interview_date: new Date().toLocaleDateString(undefined, {
-          dateStyle: "medium",
-        }),
-        subject_line: subject.trim() || "[Subject]",
-        body: "[Your message]",
-      };
-      const resolvedSubject = resolveEmailTemplateString(subject.trim(), ctx);
-      const resolvedBody = resolveEmailTemplateString(bodyHtml, ctx);
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const r = list[i];
+        setSendProgress({ current: i + 1, total: list.length });
+        const recipientJobId = r.jobId?.trim() || jobId;
+        const recipientJobTitle = r.jobTitle?.trim() || jobTitle;
+        const ctx: Partial<EmailTemplateVarContext> = {
+          candidate_name: r.candidateName,
+          job_title: recipientJobTitle,
+          recruiter_name: "Recruiter",
+          company_name: "Darwinbox",
+          interview_date: new Date().toLocaleDateString(undefined, {
+            dateStyle: "medium",
+          }),
+          subject_line: subject.trim() || "[Subject]",
+          body: "[Your message]",
+        };
+        const resolvedSubject = resolveEmailTemplateString(subject.trim(), ctx);
+        const resolvedBody = resolveEmailTemplateString(bodyHtml, ctx);
 
-      const result = await composeSendEmail(r.candidateId, {
-        jobId: recipientJobId,
-        fromAddress: sendFrom,
-        subject: resolvedSubject,
-        htmlBody: resolvedBody,
-        cc: cc.length ? cc : undefined,
-        templateId: tpl,
-        senderName: "Recruiter",
-      });
-      if (result.success) successCount++;
-      else {
-        failCount++;
-        if (result.error) lastError = result.error;
+        const result = await composeSendEmail(r.candidateId, {
+          jobId: recipientJobId,
+          fromAddress: sendFrom,
+          subject: resolvedSubject,
+          htmlBody: resolvedBody,
+          cc: cc.length ? cc : undefined,
+          templateId: tpl,
+          senderName: "Recruiter",
+        });
+        if (result.success) successCount++;
+        else {
+          failCount++;
+          if (result.error) lastError = result.error;
+        }
       }
+    } catch {
+      setSending(false);
+      setSendProgress(null);
+      showToast("error", "Email could not be sent");
+      return;
     }
 
     setSending(false);
@@ -416,18 +424,24 @@ export function ComposeEmailModal({
       let s = `Sent to ${successCount} candidate${successCount === 1 ? "" : "s"}`;
       if (failCount > 0) s += `. ${failCount} failed`;
       onBulkComplete?.(s);
+      if (successCount > 0) {
+        showToast(
+          "success",
+          `Email sent to ${successCount} candidates`,
+        );
+      } else {
+        showToast("error", "Email could not be sent");
+      }
       return;
     }
 
     if (failCount === 0) {
-      setBanner({
-        type: "success",
-        text: emailSuccessCandidateCount(successCount),
-      });
       setTimeout(() => {
         onClose();
+        showToast("success", "Email sent successfully");
       }, 1200);
     } else {
+      showToast("error", "Email could not be sent");
       const text =
         successCount > 0
           ? emailPartialSuccess(successCount, list.length, failCount)
@@ -453,6 +467,7 @@ export function ComposeEmailModal({
     onClose,
     recipients.length,
     onBulkComplete,
+    showToast,
   ]);
 
   useEffect(() => {

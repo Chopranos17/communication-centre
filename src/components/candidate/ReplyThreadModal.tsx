@@ -24,10 +24,8 @@ import {
   resolveEmailTemplateString,
   type EmailTemplateVarContext,
 } from "../../utils/emailTemplateVars";
-import {
-  emailSuccessCandidateCount,
-  emailVendorError,
-} from "../../utils/sendFeedbackMessages";
+import { emailVendorError } from "../../utils/sendFeedbackMessages";
+import { useToast } from "../../contexts/ToastContext";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
@@ -137,6 +135,7 @@ export function ReplyThreadModal({
   threadRows,
   onSent,
 }: ReplyThreadModalProps) {
+  const { showToast } = useToast();
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("<p><br /></p>");
   const [templateId, setTemplateId] = useState<string>("");
@@ -349,26 +348,33 @@ export function ReplyThreadModal({
     const resolvedSubject = resolveEmailTemplateString(subject.trim(), ctx);
     const resolvedBody = resolveEmailTemplateString(bodyHtml, ctx);
 
-    const result = await composeSendEmail(candidateId, {
-      jobId,
-      fromAddress: CONTACT_FROM,
-      subject: resolvedSubject,
-      htmlBody: resolvedBody,
-      cc: cc.length ? cc : undefined,
-      templateId: tpl,
-      senderName: "Recruiter",
-      threadId: threadKey,
-    });
+    let result: Awaited<ReturnType<typeof composeSendEmail>>;
+    try {
+      result = await composeSendEmail(candidateId, {
+        jobId,
+        fromAddress: CONTACT_FROM,
+        subject: resolvedSubject,
+        htmlBody: resolvedBody,
+        cc: cc.length ? cc : undefined,
+        templateId: tpl,
+        senderName: "Recruiter",
+        threadId: threadKey,
+      });
+    } catch {
+      setSending(false);
+      showToast("error", "Reply could not be sent");
+      return;
+    }
 
     setSending(false);
     if (result.success) {
-      setBanner({
-        type: "success",
-        text: emailSuccessCandidateCount(1),
-      });
       onSent();
-      setTimeout(() => onClose(), 1200);
+      setTimeout(() => {
+        onClose();
+        showToast("success", "Reply sent successfully");
+      }, 1200);
     } else {
+      showToast("error", "Reply could not be sent");
       setBanner({
         type: "error",
         text: result.error
@@ -391,6 +397,7 @@ export function ReplyThreadModal({
     templates,
     onSent,
     onClose,
+    showToast,
   ]);
 
   useEffect(() => {

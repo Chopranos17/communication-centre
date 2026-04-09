@@ -6,6 +6,7 @@ import {
   type ScheduleMeetingPayload,
 } from "../../api/candidatesClient";
 import { meetingInviteVendorError } from "../../utils/sendFeedbackMessages";
+import { useToast } from "../../contexts/ToastContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonIconTertiary,
@@ -77,6 +78,7 @@ export function BulkScheduleMeetingModal({
   onComplete,
   onSent,
 }: BulkScheduleMeetingModalProps) {
+  const { showToast } = useToast();
   const [recipients, setRecipients] = useState<BulkMeetingRecipient[]>([]);
   const [title, setTitle] = useState("Candidate experience chat");
   const [description, setDescription] = useState("");
@@ -155,36 +157,44 @@ export function BulkScheduleMeetingModal({
     let fail = 0;
     let err: string | null = null;
 
-    for (let i = 0; i < recipients.length; i++) {
-      const r = recipients[i];
-      setSendIndex(i + 1);
-      const payload: ScheduleMeetingPayload = {
-        jobId: r.jobId.trim(),
-        title: title.trim(),
-        description: description.trim(),
-        durationMinutes: duration,
-        scheduledAt: scheduledAt.toISOString(),
-        channel,
-        participants: [
-          { name: DEFAULT_RECRUITER.name, email: DEFAULT_RECRUITER.email },
-          {
-            name: r.name.trim(),
-            email: r.email.trim(),
-          },
-        ],
-        senderName: DEFAULT_RECRUITER.name,
-      };
-      const result = await scheduleMeeting(r.candidateId, payload);
-      if (result.success) {
-        ok++;
-      } else {
-        const sent = result.inviteSent ?? 0;
-        if (sent > 0) ok++;
-        else {
-          fail++;
-          if (result.error) err = result.error;
+    try {
+      for (let i = 0; i < recipients.length; i++) {
+        const r = recipients[i];
+        setSendIndex(i + 1);
+        const payload: ScheduleMeetingPayload = {
+          jobId: r.jobId.trim(),
+          title: title.trim(),
+          description: description.trim(),
+          durationMinutes: duration,
+          scheduledAt: scheduledAt.toISOString(),
+          channel,
+          participants: [
+            { name: DEFAULT_RECRUITER.name, email: DEFAULT_RECRUITER.email },
+            {
+              name: r.name.trim(),
+              email: r.email.trim(),
+            },
+          ],
+          senderName: DEFAULT_RECRUITER.name,
+        };
+        const result = await scheduleMeeting(r.candidateId, payload);
+        if (result.success) {
+          ok++;
+        } else {
+          const sent = result.inviteSent ?? 0;
+          if (sent > 0) ok++;
+          else {
+            fail++;
+            if (result.error) err = result.error;
+          }
         }
       }
+    } catch {
+      setPhase("compose");
+      setSendIndex(0);
+      setSendTotal(0);
+      showToast("error", "Meeting could not be scheduled");
+      return;
     }
 
     setSentOk(ok);
@@ -200,6 +210,11 @@ export function BulkScheduleMeetingModal({
       cleanSummary += `. ${userRemoved} not scheduled (removed from list)`;
     }
     onComplete(cleanSummary);
+    if (ok > 0) {
+      showToast("success", `Meeting scheduled for ${ok} candidates`);
+    } else {
+      showToast("error", "Meeting could not be scheduled");
+    }
   }, [
     canSend,
     phase,
@@ -212,6 +227,7 @@ export function BulkScheduleMeetingModal({
     initialRecipients.length,
     onSent,
     onComplete,
+    showToast,
   ]);
 
   if (!open) return null;

@@ -51,6 +51,15 @@ export default {
         lg: '1025px',
         xl: '1441px',
       },
+      keyframes: {
+        fadeSlideIn: {
+          '0%': { opacity: '0', transform: 'translateY(-8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        fadeSlideIn: 'fadeSlideIn 0.2s ease-out forwards',
+      },
     },
   },
   plugins: [],

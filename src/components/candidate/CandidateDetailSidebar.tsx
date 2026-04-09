@@ -13,21 +13,21 @@ export function CandidateDetailSidebar({ detail, communicationsLayout = false }:
     <aside className="w-full shrink-0 space-y-4 lg:w-[300px]">
       {!communicationsLayout ? (
         <>
-          <section className="rounded-sds-8 border border-[#e0e0e0] bg-white">
+          <section className="border border-[#e0e0e0] bg-white">
             <h2 className="px-4 py-3 text-title-xs font-medium text-[#131313]">Tags</h2>
             <div className="px-4 py-3 text-body-m text-[#4d4d4d]">
               <p>No tags added yet.</p>
             </div>
           </section>
 
-          <section className="rounded-sds-8 border border-[#e0e0e0] bg-white">
+          <section className="border border-[#e0e0e0] bg-white">
             <h2 className="px-4 py-3 text-title-xs font-medium text-[#131313]">Skills</h2>
             <div className="px-4 py-3 text-body-m text-[#4d4d4d]">
               <p>Not specified</p>
             </div>
           </section>
 
-          <section className="rounded-sds-8 border border-[#e0e0e0] bg-white">
+          <section className="border border-[#e0e0e0] bg-white">
             <h2 className="px-4 py-3 text-title-xs font-medium text-[#131313]">Feedback</h2>
             <div className="px-4 py-3 text-body-m text-[#4d4d4d]">
               <p>No feedback recorded.</p>
@@ -36,7 +36,7 @@ export function CandidateDetailSidebar({ detail, communicationsLayout = false }:
         </>
       ) : null}
 
-      <section className="rounded-sds-8 border border-[#e0e0e0] bg-white">
+      <section className="border border-[#e0e0e0] bg-white">
         <h2 className="px-4 py-3 text-title-xs font-medium text-[#131313]">
           Other Applied Jobs ({otherCount})
         </h2>
