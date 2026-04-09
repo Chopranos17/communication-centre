@@ -39,16 +39,16 @@ import {
   sdsMenuItemBtn,
 } from "../../lib/sdsButtonClasses";
 import {
-  sdsModalBackdrop,
   sdsModalBody,
   sdsModalCloseButton,
-  sdsModalContainer,
-  sdsModalDismissLayer,
   sdsModalFooterToolbar,
   sdsModalHeader,
-  sdsModalNestedBackdrop,
-  sdsModalNestedContainer,
   sdsModalTitle,
+  sdsSidePanelBackdropButton,
+  sdsSidePanelContainerMedium,
+  sdsSidePanelContainerWide,
+  sdsSidePanelNestedRoot,
+  sdsSidePanelRoot,
 } from "../../lib/sdsModalClasses";
 import {
   sdsInput,
@@ -417,18 +417,18 @@ export function ReplyThreadModal({
 
   const modal = (
     <div
-      className={sdsModalBackdrop}
+      className={sdsSidePanelRoot}
       role="dialog"
       aria-modal="true"
       aria-labelledby="reply-thread-title"
     >
       <button
         type="button"
-        className={sdsModalDismissLayer}
+        className={sdsSidePanelBackdropButton}
         aria-label="Close reply"
         onClick={onClose}
       />
-      <div className={sdsModalContainer}>
+      <div className={sdsSidePanelContainerWide}>
         <div className={sdsModalHeader}>
           <h2 id="reply-thread-title" className={sdsModalTitle}>
             Reply — {candidateName}
@@ -726,18 +726,18 @@ export function ReplyThreadModal({
 
       {previewOpen ? (
         <div
-          className={sdsModalNestedBackdrop}
+          className={sdsSidePanelNestedRoot}
           role="dialog"
           aria-modal="true"
           aria-label="Email preview"
         >
           <button
             type="button"
-            className={sdsModalDismissLayer}
+            className={sdsSidePanelBackdropButton}
             aria-label="Close preview"
             onClick={() => setPreviewOpen(false)}
           />
-          <div className={sdsModalNestedContainer}>
+          <div className={sdsSidePanelContainerMedium}>
             <div className={sdsModalHeader}>
               <h3 className={sdsModalTitle}>Preview</h3>
               <button

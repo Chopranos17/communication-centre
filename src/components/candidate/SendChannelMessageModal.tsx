@@ -15,14 +15,14 @@ import {
   sdsButtonSecondary,
 } from "../../lib/sdsButtonClasses";
 import {
-  sdsModalBackdrop,
   sdsModalBody,
   sdsModalCloseButton,
-  sdsModalContainer,
-  sdsModalDismissLayer,
   sdsModalFooter,
   sdsModalHeader,
   sdsModalTitle,
+  sdsSidePanelBackdropButton,
+  sdsSidePanelContainerNarrow,
+  sdsSidePanelRoot,
 } from "../../lib/sdsModalClasses";
 import { sdsLabel, sdsTextarea } from "../../lib/sdsFormClasses";
 
@@ -138,18 +138,18 @@ export function SendChannelMessageModal({
 
   const modal = (
     <div
-      className={sdsModalBackdrop}
+      className={sdsSidePanelRoot}
       role="dialog"
       aria-modal="true"
       aria-labelledby="channel-compose-title"
     >
       <button
         type="button"
-        className={sdsModalDismissLayer}
+        className={sdsSidePanelBackdropButton}
         aria-label="Close compose"
         onClick={onClose}
       />
-      <div className={sdsModalContainer}>
+      <div className={sdsSidePanelContainerNarrow}>
         <div className={sdsModalHeader}>
           <h2 id="channel-compose-title" className={sdsModalTitle}>
             {title}

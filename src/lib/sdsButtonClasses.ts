@@ -99,6 +99,20 @@ export const sdsButtonSecondarySm = `${sdsBtnBase} ${sdsBtnSecondary} h-8 px-2 t
 /** Square secondary (overflow on toolbars) */
 export const sdsButtonSecondaryIcon = `${sdsBtnBase} ${sdsBtnSecondary} h-9 w-9 shrink-0 p-0`;
 
+/**
+ * Fixed bottom bulk-selection bar (dark chrome): primary CTA — white fill, dark text.
+ */
+export const sdsButtonBulkBarPrimary =
+  "inline-flex h-9 items-center justify-center rounded-sds-4 border border-transparent bg-white px-4 font-darwin text-body-m font-medium text-[#292929] shadow-none transition-colors duration-150 hover:bg-[#f5f5f5] active:bg-[#e8e8e8] focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0183FF] disabled:cursor-not-allowed disabled:opacity-50";
+
+/** Bulk bar: Cancel — white border and label, transparent on dark bar */
+export const sdsButtonBulkBarGhost =
+  "inline-flex h-9 items-center justify-center rounded-sds-4 border border-white bg-transparent px-4 font-darwin text-body-m font-medium text-white shadow-none transition-colors duration-150 hover:bg-white/10 active:bg-white/20 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-50";
+
+/** Bulk bar: overflow (⋮) on dark bar */
+export const sdsButtonBulkBarIcon =
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sds-4 border border-white bg-transparent p-0 font-darwin text-white shadow-none transition-colors duration-150 hover:bg-white/10 active:bg-white/20 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-50";
+
 /** Dropdown / menu row */
 export const sdsMenuItemBtn =
   "flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-body-m font-book text-[#131313] transition-colors hover:bg-[#f5f5f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0183FF] disabled:cursor-not-allowed disabled:opacity-50";

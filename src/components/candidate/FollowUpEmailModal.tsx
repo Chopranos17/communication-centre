@@ -39,16 +39,16 @@ import {
   sdsMenuItemBtn,
 } from "../../lib/sdsButtonClasses";
 import {
-  sdsModalBackdrop,
   sdsModalBody,
   sdsModalCloseButton,
-  sdsModalContainer,
-  sdsModalDismissLayer,
   sdsModalFooterToolbar,
   sdsModalHeader,
-  sdsModalNestedBackdrop,
-  sdsModalNestedContainer,
   sdsModalTitle,
+  sdsSidePanelBackdropButton,
+  sdsSidePanelContainerMedium,
+  sdsSidePanelContainerWide,
+  sdsSidePanelNestedRoot,
+  sdsSidePanelRoot,
 } from "../../lib/sdsModalClasses";
 import {
   sdsInput,
@@ -380,18 +380,18 @@ export function FollowUpEmailModal({
 
   const modal = (
     <div
-      className={sdsModalBackdrop}
+      className={sdsSidePanelRoot}
       role="dialog"
       aria-modal="true"
       aria-labelledby="follow-up-email-title"
     >
       <button
         type="button"
-        className={sdsModalDismissLayer}
+        className={sdsSidePanelBackdropButton}
         aria-label="Close follow-up"
         onClick={onClose}
       />
-      <div className={sdsModalContainer}>
+      <div className={sdsSidePanelContainerWide}>
         <div className={sdsModalHeader}>
           <h2 id="follow-up-email-title" className={sdsModalTitle}>
             Follow Up — {candidateName}
@@ -666,18 +666,18 @@ export function FollowUpEmailModal({
 
       {previewOpen ? (
         <div
-          className={sdsModalNestedBackdrop}
+          className={sdsSidePanelNestedRoot}
           role="dialog"
           aria-modal="true"
           aria-label="Email preview"
         >
           <button
             type="button"
-            className={sdsModalDismissLayer}
+            className={sdsSidePanelBackdropButton}
             aria-label="Close preview"
             onClick={() => setPreviewOpen(false)}
           />
-          <div className={sdsModalNestedContainer}>
+          <div className={sdsSidePanelContainerMedium}>
             <div className={sdsModalHeader}>
               <h3 className={sdsModalTitle}>Preview</h3>
               <button

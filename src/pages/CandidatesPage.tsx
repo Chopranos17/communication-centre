@@ -29,15 +29,16 @@ const CANDIDATES_BULK_SECONDARY_MENU: BulkOverflowMenuItem[] = [
   { label: "Unstar Selected Candidates", disabled: true },
   { label: "Add Tags", disabled: true },
 ];
+import { BulkSelectionBar } from "../components/layout/BulkSelectionBar";
 import { PageHeader } from "../components/layout/PageHeader";
 import { ListToolbar } from "../components/layout/ListToolbar";
 import { PaginationFooter } from "../components/layout/PaginationFooter";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { usePersona } from "../context/PersonaContext";
 import {
+  sdsButtonBulkBarGhost,
   sdsButtonIconTertiarySm,
   sdsButtonLink,
-  sdsButtonSecondary,
   sdsButtonSecondarySm,
 } from "../lib/sdsButtonClasses";
 import {
@@ -563,19 +564,15 @@ export function CandidatesPage() {
       </div>
 
       {canManageRecruitment && selected.size > 0 ? (
-        <div
-          className="fixed inset-x-0 bottom-0 z-[100] flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-[#1e2132] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--elevation-3)] sm:px-6"
-          role="region"
-          aria-label="Bulk actions for selected candidates"
-        >
-          <span className="text-sm font-medium text-white">
-            {selected.size}/{rows.length} Records Selected
+        <BulkSelectionBar aria-label="Bulk actions for selected candidates">
+          <span className="text-sm font-bold tabular-nums text-white">
+            {`${selected.size}/${rows.length} ${selected.size === 1 ? "Record" : "Records"} Selected`}
           </span>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={clearSelection}
-              className={`${sdsButtonSecondary} rounded-none px-4`}
+              className={sdsButtonBulkBarGhost}
             >
               Cancel
             </button>
@@ -590,7 +587,7 @@ export function CandidatesPage() {
               secondaryMenuItems={CANDIDATES_BULK_SECONDARY_MENU}
             />
           </div>
-        </div>
+        </BulkSelectionBar>
       ) : null}
     </div>
   );

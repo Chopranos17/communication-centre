@@ -19,6 +19,11 @@ import {
   sdsSelectWFull,
   sdsTextarea,
 } from "../../lib/sdsFormClasses";
+import {
+  sdsSidePanelBackdropButton,
+  sdsSidePanelContainerMedium,
+  sdsSidePanelRoot,
+} from "../../lib/sdsModalClasses";
 
 const DURATIONS: (15 | 30 | 45 | 60)[] = [15, 30, 45, 60];
 
@@ -217,23 +222,20 @@ export function BulkScheduleMeetingModal({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[110] flex justify-end"
+      className={sdsSidePanelRoot}
       role="dialog"
       aria-modal="true"
       aria-labelledby="bulk-meeting-title"
     >
       <button
         type="button"
-        className="absolute inset-0 z-0 bg-[var(--bg-overlay)]"
+        className={sdsSidePanelBackdropButton}
         aria-label="Close"
         onClick={() => {
           if (phase === "compose") onClose();
         }}
       />
-      <div
-        className="relative z-10 flex h-full w-full max-w-[480px] flex-col bg-[var(--bg-surface)] shadow-[var(--elevation-3)]"
-        style={{ minWidth: "min(100%, 420px)" }}
-      >
+      <div className={sdsSidePanelContainerMedium}>
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
           <h2
             id="bulk-meeting-title"
@@ -255,7 +257,7 @@ export function BulkScheduleMeetingModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {phase === "summary" ? (
             <div className="space-y-4 text-[length:var(--body-m)] text-[var(--text-body)]">
               <p className="font-medium text-[var(--text-title)]">Summary</p>
@@ -292,7 +294,7 @@ export function BulkScheduleMeetingModal({
                 <span className="mb-2 block text-[length:var(--body-s)] font-medium text-[var(--text-label)]">
                   Candidates
                 </span>
-                <div className="max-h-[11.5rem] space-y-2 overflow-y-auto rounded border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2">
+                <div className="scrollbar-sleek max-h-[11.5rem] space-y-2 overflow-y-auto rounded border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2">
                   {visibleRecipients.map((r) => (
                     <div
                       key={r.candidateId}

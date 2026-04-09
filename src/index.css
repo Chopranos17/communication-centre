@@ -45,6 +45,11 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Synced from Sidebar (expanded 272px, collapsed 4rem) for fixed UI (e.g. bulk bar). */
+    --app-sidebar-width: 4rem;
+  }
+
   * {
     font-family: 'Darwin Sans', system-ui, sans-serif;
   }
@@ -138,22 +143,22 @@
   scrollbar-width: none;
 }
 
-/* Thin, neutral scrollbar (main content, panels) */
+/* Thin, neutral scrollbar (main content, side panels, modals) */
 .scrollbar-sleek {
   scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(19, 19, 19, 0.22) transparent;
+  scrollbar-color: rgba(19, 19, 19, 0.18) transparent;
 }
 .scrollbar-sleek::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 .scrollbar-sleek::-webkit-scrollbar-track {
   background: transparent;
 }
 .scrollbar-sleek::-webkit-scrollbar-thumb {
   border-radius: 9999px;
-  background-color: rgba(19, 19, 19, 0.2);
+  background-color: rgba(19, 19, 19, 0.18);
 }
 .scrollbar-sleek::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(19, 19, 19, 0.35);
+  background-color: rgba(19, 19, 19, 0.32);
 }

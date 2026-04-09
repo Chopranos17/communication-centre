@@ -159,6 +159,13 @@ export function Sidebar() {
     }
   }, [expanded])
 
+  useLayoutEffect(() => {
+    document.documentElement.style.setProperty(
+      '--app-sidebar-width',
+      expanded ? '272px' : '4rem',
+    )
+  }, [expanded])
+
   useEffect(() => {
     if (isRecruitmentPath(pathname)) {
       setOpenModuleId('recruitment')

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  sdsButtonPrimary,
-  sdsButtonSecondaryIcon,
+  sdsButtonBulkBarIcon,
+  sdsButtonBulkBarPrimary,
   sdsMenuItemBtn,
 } from "../../lib/sdsButtonClasses";
 
@@ -79,7 +79,7 @@ export function BulkSelectionSendButton({
         disabled={emailDisabled}
         title={emailTooltip}
         onClick={onSendEmail}
-        className={`${sdsButtonPrimary} rounded-none px-4`}
+        className={sdsButtonBulkBarPrimary}
       >
         Send Email
       </button>
@@ -146,7 +146,7 @@ export function BulkSelectionSendButton({
           aria-haspopup="menu"
           aria-label="More bulk actions"
           onClick={() => setMenuOpen((v) => !v)}
-          className={`${sdsButtonSecondaryIcon} rounded-none`}
+          className={sdsButtonBulkBarIcon}
         >
           <span className="text-xl leading-none" aria-hidden>
             ⋮

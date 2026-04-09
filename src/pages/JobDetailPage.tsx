@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { BulkSelectionBar } from "../components/layout/BulkSelectionBar";
 import { Link, useParams } from "react-router-dom";
 import {
   fetchJobDetail,
@@ -34,8 +35,8 @@ import { ComposeEmailModal } from "../components/candidate/ComposeEmailModal";
 import type { ComposeEmailRecipient } from "../components/candidate/ComposeEmailModal";
 import { PageHeader } from "../components/layout/PageHeader";
 import {
+  sdsButtonBulkBarGhost,
   sdsButtonIconTertiarySm,
-  sdsButtonSecondary,
   sdsButtonSecondarySm,
 } from "../lib/sdsButtonClasses";
 import {
@@ -625,19 +626,15 @@ export function JobDetailPage() {
         : null}
 
       {canManageRecruitment && selected.size > 0 ? (
-        <div
-          className="fixed inset-x-0 bottom-0 z-[100] flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-[#1e2132] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--elevation-3)] sm:px-6"
-          role="region"
-          aria-label="Bulk actions for selected candidates"
-        >
-          <span className="text-sm font-medium text-white">
-            {selected.size}/{candidates.length} Records Selected
+        <BulkSelectionBar aria-label="Bulk actions for selected candidates">
+          <span className="text-sm font-bold tabular-nums text-white">
+            {`${selected.size}/${candidates.length} ${selected.size === 1 ? "Record" : "Records"} Selected`}
           </span>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={clearSelection}
-              className={`${sdsButtonSecondary} rounded-none px-4`}
+              className={sdsButtonBulkBarGhost}
             >
               Cancel
             </button>
@@ -652,7 +649,7 @@ export function JobDetailPage() {
               secondaryMenuItems={JOB_DETAIL_BULK_SECONDARY_MENU}
             />
           </div>
-        </div>
+        </BulkSelectionBar>
       ) : null}
     </div>
   );

@@ -11,13 +11,13 @@ import { ChannelTimelineIcon } from "./ChannelTimelineIcon";
 import { ChannelTypeBadge } from "./ChannelTypeBadge";
 import { DeliveryStatusGlyph } from "./DeliveryStatusGlyph";
 import {
-  sdsModalBackdrop,
   sdsModalBody,
   sdsModalCloseButton,
-  sdsModalContainer,
-  sdsModalDismissLayer,
   sdsModalHeader,
   sdsModalTitle,
+  sdsSidePanelBackdropButton,
+  sdsSidePanelContainerWide,
+  sdsSidePanelRoot,
 } from "../../lib/sdsModalClasses";
 
 type EmailDetailModalProps = {
@@ -66,18 +66,18 @@ export function EmailDetailModal({ email, onClose }: EmailDetailModalProps) {
 
   const modal = (
     <div
-      className={sdsModalBackdrop}
+      className={sdsSidePanelRoot}
       role="dialog"
       aria-modal="true"
       aria-labelledby="email-detail-modal-title"
     >
       <button
         type="button"
-        className={sdsModalDismissLayer}
+        className={sdsSidePanelBackdropButton}
         aria-label="Close message details"
         onClick={onClose}
       />
-      <div className={sdsModalContainer}>
+      <div className={sdsSidePanelContainerWide}>
         <div className={sdsModalHeader}>
           <h2 id="email-detail-modal-title" className={sdsModalTitle}>
             {detailTitle}

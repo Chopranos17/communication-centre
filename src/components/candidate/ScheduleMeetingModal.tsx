@@ -17,14 +17,14 @@ import {
   sdsButtonSecondary,
 } from "../../lib/sdsButtonClasses";
 import {
-  sdsModalBackdrop,
   sdsModalBody,
   sdsModalCloseButton,
-  sdsModalContainer,
-  sdsModalDismissLayer,
   sdsModalFooter,
   sdsModalHeader,
   sdsModalTitle,
+  sdsSidePanelBackdropButton,
+  sdsSidePanelContainerWide,
+  sdsSidePanelRoot,
 } from "../../lib/sdsModalClasses";
 import {
   sdsInput,
@@ -227,18 +227,18 @@ export function ScheduleMeetingModal({
 
   const modal = (
     <div
-      className={sdsModalBackdrop}
+      className={sdsSidePanelRoot}
       role="dialog"
       aria-modal="true"
       aria-labelledby="schedule-meeting-title"
     >
       <button
         type="button"
-        className={sdsModalDismissLayer}
+        className={sdsSidePanelBackdropButton}
         aria-label="Close schedule meeting"
         onClick={onClose}
       />
-      <div className={sdsModalContainer}>
+      <div className={sdsSidePanelContainerWide}>
         <div className={sdsModalHeader}>
           <h2 id="schedule-meeting-title" className={sdsModalTitle}>
             Schedule 1:1 Meeting

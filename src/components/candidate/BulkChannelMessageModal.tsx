@@ -18,6 +18,11 @@ import {
   sdsButtonSecondary,
 } from "../../lib/sdsButtonClasses";
 import { sdsHelpText, sdsLabel, sdsTextarea } from "../../lib/sdsFormClasses";
+import {
+  sdsSidePanelBackdropButton,
+  sdsSidePanelContainerMedium,
+  sdsSidePanelRoot,
+} from "../../lib/sdsModalClasses";
 
 const SMS_FROM =
   import.meta.env.VITE_SMS_SENDER_LABEL ?? "Twilio SMS (Sender ID)";
@@ -188,23 +193,20 @@ export function BulkChannelMessageModal({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[110] flex justify-end"
+      className={sdsSidePanelRoot}
       role="dialog"
       aria-modal="true"
       aria-labelledby="bulk-channel-title"
     >
       <button
         type="button"
-        className="absolute inset-0 z-0 bg-[var(--bg-overlay)]"
+        className={sdsSidePanelBackdropButton}
         aria-label="Close"
         onClick={() => {
           if (phase === "compose") onClose();
         }}
       />
-      <div
-        className="relative z-10 flex h-full w-full max-w-[500px] flex-col bg-[var(--bg-surface)] shadow-[var(--elevation-3)]"
-        style={{ minWidth: "min(100%, 450px)" }}
-      >
+      <div className={sdsSidePanelContainerMedium}>
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
           <h2
             id="bulk-channel-title"
@@ -226,7 +228,7 @@ export function BulkChannelMessageModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {phase === "summary" ? (
             <div className="space-y-4 text-[length:var(--body-m)] text-[var(--text-body)]">
               <p className="font-medium text-[var(--text-title)]">Summary</p>
@@ -290,7 +292,7 @@ export function BulkChannelMessageModal({
                   Recipients
                 </span>
                 <div
-                  className="max-h-[11.5rem] space-y-2 overflow-y-auto rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2"
+                  className="scrollbar-sleek max-h-[11.5rem] space-y-2 overflow-y-auto rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2"
                 >
                   {recipients.length === 0 ? (
                     <p className="text-[length:var(--body-s)] text-[var(--text-label)]">
