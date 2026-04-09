@@ -117,6 +117,8 @@ type ComposeEmailModalProps = {
   onSent: () => void;
   /** After bulk send completes, for parent toast / banner. */
   onBulkComplete?: (summary: string) => void;
+  /** When templates load, apply the first template in this category (e.g. follow_up for reminders). */
+  initialTemplateCategory?: string | null;
 };
 
 function buildEffectiveRecipients(
@@ -151,6 +153,7 @@ export function ComposeEmailModal({
   recipients,
   onSent,
   onBulkComplete,
+  initialTemplateCategory = null,
 }: ComposeEmailModalProps) {
   const { showToast } = useToast();
   const isBulk = recipients.length > 1;
@@ -204,6 +207,7 @@ export function ComposeEmailModal({
   const [sendOptionsOpen, setSendOptionsOpen] = useState(false);
   const [scheduleDateTimeLocal, setScheduleDateTimeLocal] = useState("");
   const sendSplitRef = useRef<HTMLDivElement | null>(null);
+  const initialCategoryAppliedRef = useRef<string | null>(null);
 
   const quillModules = useMemo(
     () => ({
@@ -344,6 +348,19 @@ export function ComposeEmailModal({
     },
     [templates, applyTemplate],
   );
+
+  useEffect(() => {
+    if (!open) {
+      initialCategoryAppliedRef.current = null;
+      return;
+    }
+    if (!initialTemplateCategory || templates.length === 0) return;
+    if (initialCategoryAppliedRef.current === initialTemplateCategory) return;
+    const tpl = templates.find((t) => t.category === initialTemplateCategory);
+    if (!tpl) return;
+    initialCategoryAppliedRef.current = initialTemplateCategory;
+    handleTemplateChange(tpl.id);
+  }, [open, initialTemplateCategory, templates, handleTemplateChange]);
 
   const previewSubject = useMemo(() => {
     return resolveEmailTemplateString(subject, templateVarCtx());

@@ -11,6 +11,10 @@ import {
   sendEmail,
   sendMessage,
 } from "./services/message-sender";
+import {
+  fetchActivityFeed,
+  fetchThread,
+} from "./services/activity-command-center";
 
 function normalizeSmsToE164(raw: string): string {
   const t = raw.trim().replace(/\s/g, "");
@@ -1454,6 +1458,83 @@ app.get("/api/test-send", async (req, res) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return res.status(500).json({ error: msg });
+  }
+});
+
+/** Activity Command Center — recruitment comms hub (Task: analytics activity + thread). */
+app.get(
+  "/api/v1/recruitment/comms-hub/analytics/activity",
+  async (req, res) => {
+    const period =
+      typeof req.query.period === "string" && req.query.period.trim()
+        ? req.query.period.trim()
+        : "quarter";
+    const status =
+      typeof req.query.status === "string" ? req.query.status.trim() : "";
+    const jobId =
+      typeof req.query.job_id === "string" ? req.query.job_id.trim() : "";
+    const sort =
+      typeof req.query.sort === "string" && req.query.sort.trim()
+        ? req.query.sort.trim()
+        : "newest";
+    const search =
+      typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const channel =
+      typeof req.query.channel === "string" ? req.query.channel.trim() : "";
+    const page = Math.max(
+      1,
+      Number.parseInt(String(req.query.page ?? "1"), 10) || 1,
+    );
+    const limit = Math.min(
+      50,
+      Math.max(1, Number.parseInt(String(req.query.limit ?? "10"), 10) || 10),
+    );
+
+    try {
+      const result = await fetchActivityFeed({
+        period,
+        status,
+        jobId,
+        sort,
+        page,
+        limit,
+        search,
+        channel,
+      });
+      res.json(result);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(500).json({ error: msg });
+    }
+  },
+);
+
+app.get("/api/v1/recruitment/comms-hub/thread", async (req, res) => {
+  const candidateId =
+    typeof req.query.candidate_id === "string"
+      ? req.query.candidate_id.trim()
+      : "";
+  const jobOpeningId =
+    typeof req.query.job_opening_id === "string"
+      ? req.query.job_opening_id.trim()
+      : "";
+  if (!candidateId || !jobOpeningId) {
+    return res
+      .status(400)
+      .json({ error: "candidate_id and job_opening_id are required" });
+  }
+  try {
+    const data = await fetchThread({
+      candidateId,
+      jobOpeningId,
+    });
+    if (!data) {
+      return res.status(404).json({ error: "Thread not found" });
+    }
+    res.json(data);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
   }
 });
 

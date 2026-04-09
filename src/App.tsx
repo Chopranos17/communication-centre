@@ -7,6 +7,7 @@ import { JobDetailPage } from './pages/JobDetailPage'
 import { CandidatesPage } from './pages/CandidatesPage'
 import { CandidateDetailPage } from './pages/CandidateDetailPage'
 import { CommunicationAnalyticsPage } from './pages/CommunicationAnalyticsPage'
+import { ActivityCommandCenterPage } from './pages/ActivityCommandCenterPage'
 
 export default function App() {
   return (
@@ -20,6 +21,10 @@ export default function App() {
               <Route path="/recruitment/jobs/:jobId" element={<JobDetailPage />} />
               <Route path="/recruitment/candidates" element={<CandidatesPage />} />
               <Route path="/recruitment/candidates/:candidateId" element={<CandidateDetailPage />} />
+              <Route
+                path="/recruitment/communication-analytics/activity"
+                element={<ActivityCommandCenterPage />}
+              />
               <Route
                 path="/recruitment/communication-analytics"
                 element={<CommunicationAnalyticsPage />}

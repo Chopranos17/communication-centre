@@ -7,10 +7,7 @@ import {
   CandidateDetailTabs,
   type CandidateMainTabId,
 } from '../components/candidate/CandidateDetailTabs'
-import {
-  CommunicationsCurrentJobSection,
-  type CommunicationsFilterSummary,
-} from '../components/candidate/CommunicationsCurrentJobSection'
+import { CommunicationsPanel } from '../components/candidate/CommunicationsPanel'
 import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { usePersona } from '../context/PersonaContext'
@@ -59,8 +56,6 @@ export function CandidateDetailPage() {
   const [smsModalOpen, setSmsModalOpen] = useState(false)
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
   const [communicationsRefresh, setCommunicationsRefresh] = useState(0)
-  const [commFilterStats, setCommFilterStats] =
-    useState<CommunicationsFilterSummary | null>(null)
   const { canManageRecruitment } = usePersona()
 
   const bumpCommunications = useCallback(() => {
@@ -98,14 +93,6 @@ export function CandidateDetailPage() {
       setMainTab('overview')
     }
   }, [candidateId, searchParams])
-
-  useEffect(() => {
-    setCommFilterStats(null)
-  }, [detail?.id])
-
-  useEffect(() => {
-    if (mainTab !== 'communications') setCommFilterStats(null)
-  }, [mainTab])
 
   const smsToDisplay = useMemo(() => {
     if (!detail) return ''
@@ -311,56 +298,40 @@ export function CandidateDetailPage() {
             {mainTab === 'activity' ? <TabPanelPlaceholder title="Activity Log" /> : null}
 
             {mainTab === 'communications' ? (
-              <div className="space-y-4 rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] p-5 shadow-[var(--elevation-1)]">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2
-                    className="text-[length:var(--title-xs)] font-bold text-[var(--text-title)]"
-                    style={{ fontWeight: 'var(--font-weight-bold)' }}
-                  >
-                    Communications
-                  </h2>
-                  <span className="text-[length:var(--body-s)] text-[var(--text-label)]">
-                    {commFilterStats?.filtersActive
-                      ? `${commFilterStats.filteredCount} of ${commFilterStats.personaTotal} touchpoints (all channels)`
-                      : `${detail.communicationCount} total touchpoints (all channels)`}
-                  </span>
-                </div>
-                <CommunicationsCurrentJobSection
-                  candidateId={detail.id}
-                  candidateName={detail.name}
-                  candidateEmail={detail.email}
-                  currentJob={detail.currentJob}
-                  jobApplicationCount={jobApplicationCount}
-                  refreshSignal={communicationsRefresh}
-                  onSendSms={
-                    canManageRecruitment
-                      ? () => setSmsModalOpen(true)
+              <CommunicationsPanel
+                variant="card"
+                candidateId={detail.id}
+                candidateName={detail.name}
+                candidateEmail={detail.email}
+                currentJob={detail.currentJob}
+                jobApplicationCount={jobApplicationCount}
+                profileCommunicationCount={detail.communicationCount}
+                refreshSignal={communicationsRefresh}
+                onSendSms={
+                  canManageRecruitment ? () => setSmsModalOpen(true) : undefined
+                }
+                onSendWhatsApp={
+                  canManageRecruitment
+                    ? () => setWhatsappModalOpen(true)
+                    : undefined
+                }
+                smsDisabled={!detail.currentJob || !hasPhone}
+                whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
+                smsDisabledTitle={
+                  !detail.currentJob
+                    ? noJobTitle
+                    : !hasPhone
+                      ? 'Candidate has no phone number.'
                       : undefined
-                  }
-                  onSendWhatsApp={
-                    canManageRecruitment
-                      ? () => setWhatsappModalOpen(true)
+                }
+                whatsappDisabledTitle={
+                  !detail.currentJob
+                    ? noJobTitle
+                    : !hasWhatsAppTarget
+                      ? 'Candidate has no phone or WhatsApp number.'
                       : undefined
-                  }
-                  smsDisabled={!detail.currentJob || !hasPhone}
-                  whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
-                  smsDisabledTitle={
-                    !detail.currentJob
-                      ? noJobTitle
-                      : !hasPhone
-                        ? 'Candidate has no phone number.'
-                        : undefined
-                  }
-                  whatsappDisabledTitle={
-                    !detail.currentJob
-                      ? noJobTitle
-                      : !hasWhatsAppTarget
-                        ? 'Candidate has no phone or WhatsApp number.'
-                        : undefined
-                  }
-                  onCommunicationsFilterSummary={setCommFilterStats}
-                />
-              </div>
+                }
+              />
             ) : null}
 
             {mainTab === 'other-apps' ? <TabPanelPlaceholder title="Other Apps" /> : null}

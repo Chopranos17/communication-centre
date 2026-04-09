@@ -107,6 +107,8 @@ export function CommunicationsCurrentJobSection({
   candidateEmail,
   currentJob,
   jobApplicationCount,
+  /** When set, loads the communications timeline for this job (e.g. Activity Command Center). */
+  timelineJobId,
   refreshSignal = 0,
   onSendSms,
   onSendWhatsApp,
@@ -122,6 +124,7 @@ export function CommunicationsCurrentJobSection({
   currentJob: { id: string; title: string; jobCode: string } | null;
   /** Total CandidateJob rows for this candidate (for bulk multi-job semantics if reused) */
   jobApplicationCount: number;
+  timelineJobId?: string | null;
   /** Increment from parent to refetch timeline (e.g. after SMS/WhatsApp send). */
   refreshSignal?: number;
   onSendSms?: () => void;
@@ -194,6 +197,11 @@ export function CommunicationsCurrentJobSection({
   );
 
   const personaGrandTotal = allPersonaRowsFlat.length;
+
+  const composeRecipientJobCount = useMemo(() => {
+    if (!data) return jobApplicationCount;
+    return 1 + data.otherJobEmailSections.length;
+  }, [data, jobApplicationCount]);
 
   const afterSearchAndPanelRowFilters = useMemo(
     () =>
@@ -302,7 +310,11 @@ export function CommunicationsCurrentJobSection({
     setLoading(true);
     setLoadError(null);
     try {
-      const d = await fetchCandidateCurrentJobEmails(candidateId);
+      const jobParam =
+        typeof timelineJobId === "string" && timelineJobId.trim()
+          ? timelineJobId.trim()
+          : undefined;
+      const d = await fetchCandidateCurrentJobEmails(candidateId, jobParam);
       setData(d);
     } catch {
       setLoadError("Could not load communications.");
@@ -310,7 +322,7 @@ export function CommunicationsCurrentJobSection({
     } finally {
       setLoading(false);
     }
-  }, [candidateId]);
+  }, [candidateId, timelineJobId]);
 
   const scheduledEmailActions = useMemo(
     () =>
@@ -407,7 +419,7 @@ export function CommunicationsCurrentJobSection({
 
   useEffect(() => {
     setDetailEmail(null);
-  }, [candidateId]);
+  }, [candidateId, timelineJobId]);
 
   useEffect(() => {
     setSearchInput("");
@@ -416,7 +428,7 @@ export function CommunicationsCurrentJobSection({
     setPanelFilters({ ...DEFAULT_COMMUNICATION_FILTERS });
     setFilterPanelOpen(false);
     setSearchExpanded(false);
-  }, [candidateId]);
+  }, [candidateId, timelineJobId]);
 
   useEffect(() => {
     setDetailEmail(null);
@@ -530,7 +542,7 @@ export function CommunicationsCurrentJobSection({
                 candidateId,
                 candidateName,
                 candidateEmail,
-                jobCount: jobApplicationCount,
+                jobCount: composeRecipientJobCount,
               },
             ] satisfies ComposeEmailRecipient[]
           }
