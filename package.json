@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "start": "tsx src/api/server.ts",
+    "start": "npx prisma db push && tsx src/api/server.ts",
     "postinstall": "prisma generate",
     "dev": "concurrently -k -n client,server -c blue,green \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "vite",
