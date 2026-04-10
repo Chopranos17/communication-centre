@@ -1,6 +1,23 @@
 # Codebase overview
 
-Communication Centre is a Vite + React 18 SPA with an Express API (`src/api/server.ts`), Prisma + SQLite, outbound messaging via Resend (email) and Twilio (SMS/WhatsApp), and Socket.IO for live timeline updates. Routes live under `/recruitment/*`.
+Communication Centre is a Vite + React 18 SPA with an Express API (`src/api/server.ts`), Prisma + SQLite, outbound messaging via **Resend** (email) and **Twilio** (SMS/WhatsApp), and Socket.IO for live timeline updates. Routes live under `/recruitment/*`, including **Communication Hub** (dashboard widgets) and **Activity Command Center** (filtered activity feed + thread drill-down).
+
+The Vite dev server proxies `/api` and `/socket.io` to `http://localhost:3001` (`vite.config.ts`).
+
+---
+
+## Architecture: messaging and background behavior
+
+| Concern | Behavior |
+| --- | --- |
+| **Outbound send** | Synchronous: `message-sender.ts` calls Resend (`resend.emails.send`) or Twilio (`client.messages.create`) in the request path, then inserts/updates `Communication`. |
+| **Unified wrapper** | `sendMessage({ channel, … })` routes by channel; each vendor has its own function underneath. |
+| **Scheduled email** | Rows with `delivery_status: "scheduled"` and `scheduled_for` are sent by `deliverDueScheduledCommunications()` on a **60s** `setInterval` in `server.ts` (same Node process, not a separate worker queue). |
+| **Send now** | `POST /api/communications/:communicationId/send-now` calls `deliverSingleScheduledEmailById` → **Resend immediately** in that HTTP request. |
+| **Inbound email** | `inbound-poller.ts` polls Resend receiving APIs (~**30s** interval); no Resend webhooks in this repo. |
+| **Inbound SMS/WhatsApp** | Same poller lists Twilio inbound messages via REST (~30s); no Twilio status webhooks for delivery. |
+| **Delivery status** | Outbound: typically `sent` or `failed` after vendor response; `scheduled` / `cancelled` for scheduled flows. Inbound rows use `delivered` as “stored.” Vendor webhooks for opens/bounces are **not** implemented. |
+| **Real-time UI** | Socket.IO emits `new-message` (inbound) and `message-updated` (scheduled send/cancel/edit). |
 
 ---
 
@@ -32,7 +49,7 @@ One-line descriptions for each tracked project file (paths use `/`).
 | `tsconfig.json` | Base TypeScript compiler options. |
 | `tsconfig.app.json` | TypeScript config for the React app. |
 | `tsconfig.node.json` | TypeScript config for Vite/Node tooling. |
-| `vite.config.ts` | Vite bundler configuration and React plugin. |
+| `vite.config.ts` | Vite bundler, React plugin, dev proxy to API/Socket.IO. |
 
 ### `docs/`
 
@@ -115,17 +132,13 @@ One-line descriptions for each tracked project file (paths use `/`).
 
 | File | Description |
 | --- | --- |
-| `DarwinSans-Bold.otf` | Source copy of Darwin Sans Bold (same family as `public/fonts`). |
-| `DarwinSans-Book.otf` | Source copy of Darwin Sans Book. |
-| `DarwinSans-ExtraBold.otf` | Source copy of Darwin Sans ExtraBold. |
-| `DarwinSans-Light.otf` | Source copy of Darwin Sans Light. |
-| `DarwinSans-Medium.otf` | Source copy of Darwin Sans Medium. |
+| `DarwinSans-*.otf` | Source copies of Darwin Sans family (same as `public/fonts`). |
 
 ### `src/`
 
 | File | Description |
 | --- | --- |
-| `App.tsx` | React Router routes, persona provider, and layout wrapper. |
+| `App.tsx` | React Router routes, `ToastProvider`, `PersonaProvider`, `AppLayout`. |
 | `main.tsx` | React root entry: renders `App` and imports global CSS. |
 | `index.css` | Global styles, font faces, and Tailwind layers. |
 | `vite-env.d.ts` | Vite client type references for TypeScript. |
@@ -134,68 +147,110 @@ One-line descriptions for each tracked project file (paths use `/`).
 
 | File | Description |
 | --- | --- |
-| `server.ts` | Express HTTP API, Socket.IO server bootstrap, and all REST routes. |
+| `server.ts` | Express HTTP API, Socket.IO bootstrap, scheduled-email sweep, REST routes. |
 | `db.ts` | Singleton Prisma client for the API (dev reuse on hot reload). |
 | `candidatesClient.ts` | Browser `fetch` helpers for candidates and communications APIs. |
 | `jobsClient.ts` | Browser `fetch` helpers for jobs APIs. |
-| `socket-io.ts` | Holds Socket.IO server instance; emits `new-message` to clients. |
+| `socket-io.ts` | Holds Socket.IO server instance; emits `new-message` and `message-updated`. |
+| `activityCommandCenterClient.ts` | Fetches activity feed and thread for Activity Command Center. |
+| `commsHubDashboardClient.ts` | Fetches Communication Hub dashboard and scheduled-messages APIs. |
 
 ### `src/api/services/`
 
 | File | Description |
 | --- | --- |
-| `message-sender.ts` | Sends email (Resend), SMS, and WhatsApp (Twilio); persists `Communication` rows. |
-| `inbound-poller.ts` | Polls Twilio (and related) for inbound SMS/WhatsApp; matches candidates; emits socket events. |
+| `message-sender.ts` | Resend email, Twilio SMS/WhatsApp; `sendMessage`; scheduled email delivery helpers. |
+| `inbound-poller.ts` | Polls Resend + Twilio for inbound mail/messages; matches candidates; emits socket events. |
+| `activity-command-center.ts` | Activity feed, dashboard aggregates, scheduled messages page, thread fetch for comms hub. |
+| `comms-hub-span.ts` | Job span / env-based filtering for Communication Hub analytics. |
 
 ### `src/components/candidate/`
 
 | File | Description |
 | --- | --- |
-| `BulkChannelMessageModal.tsx` | Modal to send bulk SMS or WhatsApp to selected candidates. |
-| `BulkScheduleMeetingModal.tsx` | Modal to schedule 1:1 meetings for multiple candidates. |
-| `BulkSelectionSendButton.tsx` | Bottom-bar split button for bulk email / SMS / WhatsApp / meeting actions. |
-| `CandidateDetailHeader.tsx` | Candidate profile header with status and quick communication actions. |
+| `BulkChannelMessageModal.tsx` | Bulk SMS or WhatsApp to selected candidates. |
+| `BulkScheduleMeetingModal.tsx` | Schedule 1:1 meetings for multiple candidates. |
+| `BulkSelectionSendButton.tsx` | Bottom-bar split button for bulk email / SMS / WhatsApp / meeting. |
+| `CandidateDetailHeader.tsx` | Profile header with status and quick communication actions. |
 | `CandidateDetailSidebar.tsx` | Right sidebar: job summary, tags, notes placeholders. |
-| `CandidateDetailTabs.tsx` | Main tab strip: Overview, Application, Activity, Communications, Other Apps. |
-| `ChannelTimelineIcon.tsx` | Icon for a timeline row’s channel (email, SMS, etc.). |
-| `ChannelTypeBadge.tsx` | Badge showing channel type on timeline rows and modals. |
+| `CandidateDetailTabs.tsx` | Tab strip: Overview, Application, Activity, Communications, Other Apps. |
+| `ChannelTimelineIcon.tsx` | Channel icon for timeline rows. |
+| `ChannelTypeBadge.tsx` | Channel badge on timeline rows and modals. |
 | `CommunicationFilterPanel.tsx` | Slide-out panel for filtering communications timeline. |
-| `CommunicationToolbarIcons.tsx` | SVG icons for reply, follow-up, and overflow on the timeline. |
-| `CommunicationsCurrentJobSection.tsx` | Communications hub: search, filters, socket subscription, modals orchestration. |
-| `CommunicationsJobEmailSection.tsx` | Renders grouped timeline threads and per-message actions. |
-| `ComposeEmailModal.tsx` | Rich-text email compose (Quill), templates, CC, bulk send. |
-| `DeliveryStatusGlyph.tsx` | Visual indicator for pending/sent/delivered/failed. |
+| `CommunicationToolbarIcons.tsx` | SVG icons for reply, follow-up, overflow. |
+| `CommunicationsCurrentJobSection.tsx` | Communications hub: search, filters, socket subscription, modals. |
+| `CommunicationsJobEmailSection.tsx` | Grouped timeline threads and per-message actions. |
+| `CommunicationsPanel.tsx` | Layout/panel wrapper used in communications views. |
+| `ComposeEmailModal.tsx` | Rich-text email compose (Quill), templates, CC, bulk send, schedule. |
+| `DeliveryStatusGlyph.tsx` | Visual indicator for pending/sent/delivered/failed/scheduled. |
+| `EditScheduledEmailModal.tsx` | Edit subject/body/schedule for queued outbound email. |
 | `EmailDetailModal.tsx` | Read-only email detail view. |
-| `FollowUpEmailModal.tsx` | Follow-up email flow for eligible threads. |
-| `HiringFlowPlaceholder.tsx` | Placeholder hiring funnel for the Overview tab. |
-| `ReplyThreadModal.tsx` | Reply UI for email threads with `contact@` eligibility rules. |
-| `ScheduleMeetingModal.tsx` | Single-candidate meeting scheduler with invite email send. |
-| `SendChannelMessageModal.tsx` | SMS or WhatsApp quick-send modal from candidate header. |
+| `FollowUpEmailModal.tsx` | Follow-up email for eligible threads. |
+| `HiringFlowPlaceholder.tsx` | Placeholder hiring funnel for Overview tab. |
+| `ReplyThreadModal.tsx` | Reply in thread with `contact@` eligibility rules. |
+| `ScheduleMeetingModal.tsx` | Single-candidate meeting scheduler with invite email. |
+| `ScheduledEmailTimelineMenu.tsx` | Overflow actions for scheduled rows (send now, edit, cancel). |
+| `SendChannelMessageModal.tsx` | SMS or WhatsApp quick-send from candidate header. |
+
+### `src/components/analytics/`
+
+| File | Description |
+| --- | --- |
+| `ChannelMixWidget.tsx` | Chart.js channel distribution widget. |
+| `MetricsBar.tsx` | Summary metric chips for Communication Hub. |
+| `RecentActivityWidget.tsx` | Recent activity list with navigation to Activity view. |
+| `ScheduledMessagesWidget.tsx` | Upcoming scheduled comms + meetings teaser. |
+| `ScheduledMessagesAllPanel.tsx` | Full-page style list of scheduled items. |
+| `ScheduledMessageRowView.tsx` | Single scheduled row presentation. |
+| `ScheduledMessageOverflowMenu.tsx` | Actions: send now, edit, cancel (emails/meetings per rules). |
+| `scheduledMessageUi.ts` | Shared labels/helpers for scheduled message UI. |
+
+### `src/components/activity-command-center/`
+
+| File | Description |
+| --- | --- |
+| `ActivityCommunicationListPanel.tsx` | Paginated activity list with filters. |
+| `ActivityAdvancedFilterPanel.tsx` | Advanced filter drawer for activity feed. |
+| `ActivityRecruitmentBreadcrumbs.tsx` | Hub / Activity navigation breadcrumbs. |
 
 ### `src/components/layout/`
 
 | File | Description |
 | --- | --- |
-| `AppLayout.tsx` | Shell: sidebar, top bar, and scrollable `<main>` with `<Outlet />`. |
-| `FilterTabs.tsx` | Horizontal pill tabs used on lists and candidate sub-sections. |
-| `ListToolbar.tsx` | Toolbar with search and filter affordances for list pages. |
+| `AppLayout.tsx` | Shell: sidebar, top bar, scrollable `<main>` with `<Outlet />`. |
+| `BulkSelectionBar.tsx` | Floating bulk-selection bar (job/candidate list pages). |
+| `FilterTabs.tsx` | Horizontal pill tabs for lists and candidate sub-sections. |
+| `ListToolbar.tsx` | Toolbar with search and filters for list pages. |
 | `PageHeader.tsx` | Page title row with optional badge and actions. |
-| `PaginationFooter.tsx` | “Showing X–Y of Z” style footer for tables. |
-| `Sidebar.tsx` | Collapsible app navigation sidebar with module groups. |
-| `SidebarIcons.tsx` | SVG icon components used by the sidebar. |
-| `TopBar.tsx` | Top bar with persona switcher and utility actions. |
+| `PaginationFooter.tsx` | “Showing X–Y of Z” footer for tables. |
+| `Sidebar.tsx` | Collapsible navigation; Recruitment includes Communication Hub link. |
+| `SidebarIcons.tsx` | SVG icon components for sidebar (incl. lucide-style composites). |
+| `TopBar.tsx` | Top bar with persona switcher and utilities. |
 
 ### `src/components/ui/`
 
 | File | Description |
 | --- | --- |
-| `LoadingSpinner.tsx` | Accessible loading spinner used on async views. |
+| `LoadingSpinner.tsx` | Accessible loading spinner. |
+| `ToastStack.tsx` | Toast notifications (used with `ToastContext`). |
 
 ### `src/context/`
 
 | File | Description |
 | --- | --- |
-| `PersonaContext.tsx` | React context: recruiter vs candidate persona and `canManageRecruitment`. |
+| `PersonaContext.tsx` | Recruiter vs candidate persona and `canManageRecruitment`. |
+
+### `src/contexts/`
+
+| File | Description |
+| --- | --- |
+| `ToastContext.tsx` | Toast provider and hook for app-wide notifications. |
+
+### `src/hooks/`
+
+| File | Description |
+| --- | --- |
+| `useDashboardAnalytics.ts` | Debounced Communication Hub dashboard data fetching (Chart.js widgets). |
 
 ### `src/lib/`
 
@@ -204,16 +259,21 @@ One-line descriptions for each tracked project file (paths use `/`).
 | `sdsButtonClasses.ts` | Tailwind class strings for SDS button variants. |
 | `sdsFormClasses.ts` | Tailwind class strings for form controls. |
 | `sdsModalClasses.ts` | Tailwind class strings for modal shells. |
-| `sdsTableClasses.ts` | Tailwind class strings for data tables and status pills. |
+| `sdsTableClasses.ts` | Tailwind class strings for tables and status pills. |
+| `activityPresentation.ts` | Presentation helpers for activity feed rows. |
+| `metricsBarFormat.ts` | Formatting for dashboard metric bar values. |
+| `relativeTime.ts` | Relative time strings for UI. |
 
 ### `src/pages/`
 
 | File | Description |
 | --- | --- |
-| `JobOpeningsPage.tsx` | Lists jobs from API with tabs and links to job detail. |
-| `JobDetailPage.tsx` | Job detail: candidate table, bulk actions, row menu to candidate. |
-| `CandidatesPage.tsx` | All candidates table with selection, bulk actions, row menu. |
-| `CandidateDetailPage.tsx` | Candidate profile with tabs; communications tab hosts timeline. |
+| `JobOpeningsPage.tsx` | Lists jobs with tabs and links to job detail. |
+| `JobDetailPage.tsx` | Job detail: candidate table, bulk actions, row menu. |
+| `CandidatesPage.tsx` | All candidates table with selection, bulk actions. |
+| `CandidateDetailPage.tsx` | Candidate profile with tabs; Communications hosts timeline. |
+| `CommunicationHubPage.tsx` | Communication Hub dashboard (metrics, charts, scheduled, activity teaser). |
+| `ActivityCommandCenterPage.tsx` | Activity Command Center: filters + list + thread side panel. |
 
 ### `src/types/`
 
@@ -227,18 +287,10 @@ One-line descriptions for each tracked project file (paths use `/`).
 | --- | --- |
 | `communicationTimeline.ts` | Timeline grouping, previews, thread actions, meeting footer text. |
 | `communicationTimelineRow.ts` | Maps API rows to UI timeline row shape. |
-| `communicationsTimelineFilter.ts` | Channel/persona/search filtering for the communications list. |
+| `communicationsTimelineFilter.ts` | Channel/persona/search filtering for communications list. |
 | `emailTemplateVars.ts` | Template variable substitution for email bodies/subjects. |
 | `sendFeedbackMessages.ts` | User-facing strings for send/bulk completion feedback. |
 | `smsSegments.ts` | SMS segment counting (GSM-7 / UCS-2) for character limits. |
-
-### Placeholder files
-
-| File | Description |
-| --- | --- |
-| `src/components/.gitkeep` | Keeps `components` in git when empty (convention). |
-| `src/pages/.gitkeep` | Keeps `pages` directory in git when empty. |
-| `src/types/.gitkeep` | Keeps `types` directory in git when empty. |
 
 ---
 
@@ -255,11 +307,11 @@ SQLite via `DATABASE_URL`. Enum-like fields are stored as strings (see comments 
 | `email` | `String` | Email address. |
 | `phone` | `String?` | Phone (SMS). |
 | `whatsapp_number` | `String?` | WhatsApp number. |
-| `current_stage` | `String` | Pipeline stage: `applied` \| `shortlisting` \| … \| `rejected` (see schema comment). |
+| `current_stage` | `String` | Pipeline stage (see schema comment). |
 | `recruiter_id` | `String?` | Optional recruiter user id. |
 | `hiring_lead_id` | `String?` | Optional hiring lead user id. |
 | `hiring_manager_id` | `String?` | Optional hiring manager user id. |
-| `source` | `String` | Sourcing: `job_portal` \| `referral` \| … (see schema). |
+| `source` | `String` | Sourcing channel (see schema). |
 | `created_at` | `DateTime` | Default `now()`. |
 | `updated_at` | `DateTime` | Auto-updated. |
 
@@ -267,30 +319,11 @@ Relations: `jobs` → `CandidateJob[]`, `communications` → `Communication[]`, 
 
 ### `CandidateJob` (join)
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `candidate_id` | `String` | FK → `Candidate`. |
-| `job_id` | `String` | FK → `Job`. |
-| `is_current` | `Boolean` | Default `false`; marks current application. |
-
-Composite primary key `[candidate_id, job_id]`.
+Composite primary key `[candidate_id, job_id]`; `is_current` marks the current application.
 
 ### `Job`
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `id` | `String` | Primary key, `cuid()`. |
-| `title` | `String` | Job title. |
-| `department` | `String` | Department name. |
-| `location` | `String` | Location label. |
-| `status` | `String` | `open` \| `closed` \| `on_hold`. |
-| `job_code` | `String` | Unique job code. |
-| `requisition_id` | `String?` | Optional requisition id. |
-| `hiring_lead_id` | `String?` | Optional hiring lead id. |
-| `recruiter_ids` | `String?` | JSON array of recruiter ids (text). |
-| `hiring_workflow_template_id` | `String?` | Optional workflow template id. |
-
-Relations: `candidates` → `CandidateJob[]`, `communications` → `Communication[]`, `meetings` → `Meeting[]`.
+Standard fields: `title`, `department`, `location`, `status` (`open` \| `closed` \| `on_hold`), `job_code` (unique), optional `requisition_id`, `hiring_lead_id`, `recruiter_ids` (JSON text), `hiring_workflow_template_id`.
 
 ### `Communication`
 
@@ -299,197 +332,101 @@ Relations: `candidates` → `CandidateJob[]`, `communications` → `Communicatio
 | `id` | `String` | Primary key, `cuid()`. |
 | `candidate_id` | `String?` | FK → `Candidate` (nullable for unmatched inbound). |
 | `job_id` | `String?` | FK → `Job`. |
-| `unmatched` | `Boolean` | Inbound not matched to a candidate yet. |
+| `unmatched` | `Boolean` | Inbound not matched to a candidate. |
 | `channel` | `String` | `email` \| `sms` \| `whatsapp` \| `meeting` \| `system_notification`. |
-| `direction` | `String` | Default `outbound`; `inbound` for replies. |
+| `direction` | `String` | `outbound` \| `inbound`. |
 | `sender_type` | `String` | `recruiter` \| `hiring_lead` \| `system` \| `candidate` \| `CRM`. |
-| `sender_id` | `String?` | Optional sender id. |
-| `sender_name` | `String?` | Display name for sender. |
-| `thread_id` | `String?` | Email thread grouping. |
-| `from_address` | `String?` | From email / identifier. |
-| `to_address` | `String?` | To email / phone. |
+| `sender_id` / `sender_name` | `String?` | Optional sender metadata. |
+| `thread_id` | `String?` | Thread grouping (email and cross-channel anchor). |
+| `from_address` / `to_address` | `String?` | From / to. |
 | `cc_addresses` | `String?` | JSON array of CC emails (text). |
 | `subject` | `String?` | Email subject. |
 | `body` | `String` | Body (HTML or text). |
 | `template_id` | `String?` | FK → `EmailTemplate`. |
-| `delivery_status` | `String` | Default `pending`: `pending` \| `sent` \| `delivered` \| `failed`. |
-| `vendor_message_id` | `String?` | External provider message id. |
+| `delivery_status` | `String` | `pending` \| `sent` \| `delivered` \| `failed` \| `scheduled` \| `cancelled` (see architecture section for usage). |
+| `vendor_message_id` | `String?` | Resend id or Twilio SID. |
 | `sent_at` | `DateTime` | Default `now()`. |
-| `read_at` | `DateTime?` | Read timestamp. |
-
-Relations: `candidate`, `job`, `template`, optional `meeting_detail` → `Meeting?`.
+| `scheduled_for` | `DateTime?` | When `delivery_status` is `scheduled`, email send time (server sweep + validations). |
+| `read_at` | `DateTime?` | Optional read timestamp (not wired to vendor webhooks in this codebase). |
 
 ### `Meeting`
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `id` | `String` | Primary key, `cuid()`. |
-| `candidate_id` | `String` | FK → `Candidate`. |
-| `job_id` | `String` | FK → `Job`. |
-| `communication_id` | `String?` | FK → `Communication` (unique). |
-| `title` | `String` | Meeting title. |
-| `description` | `String?` | Optional description. |
-| `organizer_id` | `String?` | Organizer user id. |
-| `participants` | `String` | JSON array of `{ name, email }`. |
-| `duration_minutes` | `Int` | Duration. |
-| `scheduled_at` | `DateTime` | Start time. |
-| `channel` | `String` | `google_meet` \| `ms_teams` \| `zoom` \| `darwinbox_meet` \| `in_person`. |
-| `meeting_link` | `String?` | URL when applicable. |
-| `status` | `String` | `scheduled` \| `rescheduled` \| `completed` \| `cancelled`. |
+`title`, `description`, `organizer_id`, `participants` (JSON), `duration_minutes`, `scheduled_at`, `channel` (video/in-person enum), `meeting_link`, `status` (`scheduled` \| `rescheduled` \| `completed` \| `cancelled`). Optional `communication_id` links to a parent `Communication` row for invites.
 
 ### `EmailTemplate`
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `id` | `String` | Primary key, `cuid()`. |
-| `name` | `String` | Template display name. |
-| `category` | `String` | e.g. `confirmation`, `rejection`, `scheduling`, … |
-| `subject_template` | `String` | Subject with `{{variables}}`. |
-| `body_template` | `String` | Body with placeholders. |
-| `variables` | `String` | JSON list of variable keys. |
-| `channel` | `String` | Default `email`; also `sms` \| `whatsapp` in principle. |
-
-Relation: `communications` → `Communication[]`.
+`name`, `category`, `subject_template`, `body_template`, `variables` (JSON text), `channel` (`email` \| `sms` \| `whatsapp`).
 
 ---
 
 ## HTTP API routes
 
-Base URL in development: `http://localhost:3001` (see `PORT` in `server.ts`). The Vite dev server proxies or clients call this origin per `candidatesClient` / `jobsClient`.
+Base URL in development: **`http://localhost:3001`** (`PORT` env). The Vite app typically calls `/api` via proxy.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/health` | Liveness check; returns `{ ok: true }`. |
-| `GET` | `/api/candidates` | Lists candidates with current job summary and counts for the All Candidates table. |
-| `GET` | `/api/candidates/:id` | Candidate detail for profile page (jobs, stage, communication count). |
-| `GET` | `/api/candidates/:candidateId/communications` | Timeline for a candidate: optional `?jobId=`; returns current job info, flattened timeline rows, and `otherJobEmailSections` for non-current jobs. |
-| `GET` | `/api/jobs` | Lists all jobs (id, title, code, status, location, department). |
-| `GET` | `/api/jobs/:jobId` | Job header plus candidates applied to that job (with job-count per candidate). |
-| `GET` | `/api/email-templates` | Email templates (`channel: email`) for compose UI. |
-| `GET` | `/api/employees` | Mock employee directory for CC type-ahead; optional `?q=` search. |
-| `POST` | `/api/candidates/:candidateId/compose-email` | Sends email via Resend; validates from-address, job link, optional `threadId` for replies/follow-ups; persists `Communication`. |
-| `POST` | `/api/candidates/:candidateId/compose-sms` | Sends SMS via Twilio; persists `Communication`. |
-| `POST` | `/api/candidates/:candidateId/compose-whatsapp` | Sends WhatsApp via Twilio; persists `Communication`. |
-| `POST` | `/api/candidates/:candidateId/schedule-meeting` | Creates `Communication` + `Meeting`, sends invite emails to participants, updates delivery status. |
-| `GET` | `/api/test-send` | Test harness: `?channel=email|sms|whatsapp` and optional `?to=`; uses first seeded candidate/job pair. |
+| `GET` | `/api/health` | Liveness check. |
+| `GET` | `/api/candidates` | All Candidates table data. |
+| `GET` | `/api/candidates/:id` | Candidate detail. |
+| `GET` | `/api/candidates/:candidateId/communications` | Timeline; optional `?jobId=`. |
+| `GET` | `/api/jobs` | Job list. |
+| `GET` | `/api/jobs/:jobId` | Job detail with candidates. |
+| `GET` | `/api/email-templates` | Templates for compose UI. |
+| `GET` | `/api/employees` | Mock employee directory for CC type-ahead; optional `?q=`. |
+| `POST` | `/api/candidates/:candidateId/compose-email` | Send or **schedule** email (`scheduledFor` → `scheduled` + `scheduled_for`). |
+| `POST` | `/api/candidates/:candidateId/scheduled-emails/:communicationId/cancel` | Cancel scheduled email (candidate-scoped). |
+| `POST` | `/api/communications/:communicationId/send-now` | Send scheduled email immediately via Resend. |
+| `POST` | `/api/communications/:communicationId/cancel-scheduled` | Cancel scheduled message (email/SMS/WhatsApp row). |
+| `PATCH` | `/api/communications/:communicationId` | Edit scheduled message (subject/body/`scheduledFor` when allowed). |
+| `POST` | `/api/candidates/:candidateId/compose-sms` | Send SMS. |
+| `POST` | `/api/candidates/:candidateId/compose-whatsapp` | Send WhatsApp (Twilio). |
+| `POST` | `/api/candidates/:candidateId/schedule-meeting` | Create `Communication` + `Meeting`, email invites. |
+| `POST` | `/api/meetings/:meetingId/cancel-scheduled` | Cancel meeting + related communication status. |
+| `GET` | `/api/test-send` | Test harness: `?channel=email|sms|whatsapp`, optional `?to=`. |
+| `GET` | `/api/v1/recruitment/comms-hub/analytics/activity` | Paginated activity feed (filters: period, status, job, channel, search, sort). |
+| `GET` | `/api/v1/recruitment/comms-hub/analytics/dashboard` | Dashboard metrics + charts data; optional `job_opening_id`. |
+| `GET` | `/api/v1/recruitment/comms-hub/analytics/scheduled` | Paginated scheduled comms + meetings. |
+| `GET` | `/api/v1/recruitment/comms-hub/thread` | Thread detail: requires `candidate_id`, `job_opening_id`. |
 
 ### Real-time (not REST)
 
 | Mechanism | Description |
 | --- | --- |
-| Socket.IO | Server attaches to the same HTTP server; CORS allows the Vite origin. Clients listen for `new-message` (see `socket-io.ts`, `inbound-poller.ts`, `CommunicationsCurrentJobSection.tsx`). |
+| Socket.IO | Same HTTP server as Express; CORS allows Vite origin. Events: **`new-message`**, **`message-updated`**. |
 
 ---
 
-## React components and pages
+## React routes and pages
 
-Routes are defined in `src/App.tsx`. Every main view uses `AppLayout` (sidebar + top bar + outlet).
+Defined in `src/App.tsx`. Layout: `ToastProvider` → `PersonaProvider` → `AppLayout` (sidebar + top bar + outlet).
 
-### Shell and providers
-
-| Component | File | Where it appears |
+| Route | Page component | File |
 | --- | --- | --- |
-| `App` | `App.tsx` | Root; wraps all routes. |
-| `PersonaProvider` | `PersonaContext.tsx` | Wraps all routes; provides persona and permissions. |
-| `AppLayout` | `AppLayout.tsx` | `/recruitment/*` (all four main pages). |
-| `Sidebar` | `Sidebar.tsx` | Inside `AppLayout` on every main page. |
-| `TopBar` | `TopBar.tsx` | Inside `AppLayout` on every main page. |
+| `/` | Redirect | → `/recruitment/job-openings` |
+| `/recruitment/job-openings` | `JobOpeningsPage` | `pages/JobOpeningsPage.tsx` |
+| `/recruitment/jobs/:jobId` | `JobDetailPage` | `pages/JobDetailPage.tsx` |
+| `/recruitment/candidates` | `CandidatesPage` | `pages/CandidatesPage.tsx` |
+| `/recruitment/candidates/:candidateId` | `CandidateDetailPage` | `pages/CandidateDetailPage.tsx` |
+| `/recruitment/communication-hub` | `CommunicationHubPage` | `pages/CommunicationHubPage.tsx` |
+| `/recruitment/communication-hub/activity` | `ActivityCommandCenterPage` | `pages/ActivityCommandCenterPage.tsx` |
+| `/recruitment/communication-analytics` | Redirect | → `/recruitment/communication-hub` |
+| `/recruitment/communication-analytics/activity` | Redirect | → `/recruitment/communication-hub/activity` |
+| `*` | Redirect | → `/recruitment/job-openings` |
 
-### Page components (route elements)
+### Page-level components (summary)
 
-| Page | Route path | File |
-| --- | --- | --- |
-| Job Openings | `/recruitment/job-openings` | `JobOpeningsPage.tsx` |
-| Job Detail | `/recruitment/jobs/:jobId` | `JobDetailPage.tsx` |
-| All Candidates | `/recruitment/candidates` | `CandidatesPage.tsx` |
-| Candidate Detail | `/recruitment/candidates/:candidateId` | `CandidateDetailPage.tsx` |
-
-`/` and unknown paths redirect to `/recruitment/job-openings`.
-
-### Components by page
-
-**`/recruitment/job-openings` — `JobOpeningsPage`**
-
-| Component | Notes |
+| Area | Notable components |
 | --- | --- |
-| `PageHeader` | Title “Job Openings”, badge, create actions. |
-| `ListToolbar` | Search bar. |
-| `FilterTabs` | All Openings / Open / Drafts / On Hold / Archived (client-side filter). |
-| `PaginationFooter` | Result range footer. |
-| `StatusBadge` | Local helper in file; status pill per row. |
+| **Job Openings** | `PageHeader`, `ListToolbar`, `FilterTabs`, `PaginationFooter` |
+| **Job Detail** | Bulk modals (`ComposeEmailModal`, `BulkChannelMessageModal`, `BulkScheduleMeetingModal`), `BulkSelectionSendButton`, `BulkSelectionBar` |
+| **All Candidates** | Same bulk patterns as job detail |
+| **Candidate Detail** | `CandidateDetailHeader`, `CandidateDetailTabs`, `CommunicationsCurrentJobSection` (Communications tab), `SendChannelMessageModal`, `CandidateDetailSidebar` |
+| **Communication Hub** | `MetricsBar`, Chart.js widgets (`ChannelMixWidget`), `RecentActivityWidget`, `ScheduledMessagesWidget`, `ScheduledMessagesAllPanel`, `useDashboardAnalytics` |
+| **Activity Command Center** | `ActivityCommunicationListPanel`, `ActivityAdvancedFilterPanel`, `ActivityRecruitmentBreadcrumbs`; uses `activityCommandCenterClient` |
 
-**`/recruitment/jobs/:jobId` — `JobDetailPage`**
+### Communications tab (candidate detail)
 
-| Component | Notes |
-| --- | --- |
-| `PageHeader` | Job title and meta. |
-| `LoadingSpinner` | Loading state. |
-| `ComposeEmailModal` | Bulk email when candidates selected (recruiter persona). |
-| `BulkChannelMessageModal` | Bulk SMS or WhatsApp. |
-| `BulkScheduleMeetingModal` | Bulk meeting scheduling. |
-| `BulkSelectionSendButton` | Fixed bottom bar actions. |
-
-**`/recruitment/candidates` — `CandidatesPage`**
-
-| Component | Notes |
-| --- | --- |
-| `PageHeader` | Title “All Candidates”. |
-| `ListToolbar` | Search placeholder. |
-| `LoadingSpinner` | Table loading row. |
-| `PaginationFooter` | Result range. |
-| `ComposeEmailModal` | Bulk or (intended) single-recipient flows when selection is active. |
-| `BulkChannelMessageModal` | Bulk SMS or WhatsApp. |
-| `BulkScheduleMeetingModal` | Bulk meetings. |
-| `BulkSelectionSendButton` | Fixed bottom bar actions. |
-
-**`/recruitment/candidates/:candidateId` — `CandidateDetailPage`**
-
-| Component | Notes |
-| --- | --- |
-| `LoadingSpinner` | Initial load. |
-| `CandidateDetailHeader` | Profile header and SMS/WhatsApp buttons. |
-| `CandidateDetailTabs` | Main tabs. |
-| `HiringFlowPlaceholder` | **Overview** tab. |
-| `FilterTabs` | **Application** tab: snapshot / resume / etc. sub-pills. |
-| `TabPanelPlaceholder` | Local; **Application** (non-snapshot), **Activity**, **Other Apps**. |
-| `CommunicationsCurrentJobSection` | **Communications** tab only: full timeline stack. |
-| `SendChannelMessageModal` | SMS and WhatsApp modals from header (when job + persona allow). |
-| `CandidateDetailSidebar` | Right column for all tabs; layout adjusts on Communications. |
-
-**`CommunicationsCurrentJobSection` only (Candidate Detail → Communications tab)**
-
-These are not mounted on other pages:
-
-| Component | Role |
-| --- | --- |
-| `FilterTabs` | Job switcher when multiple applications exist. |
-| `CommunicationFilterPanel` | Advanced filters drawer. |
-| `CommunicationsJobEmailSection` | Thread list, message actions, “load more”. |
-| `ComposeEmailModal` | New email from timeline. |
-| `EmailDetailModal` | Open a message for reading. |
-| `FollowUpEmailModal` | Follow-up from eligible threads. |
-| `ReplyThreadModal` | Reply in thread when allowed. |
-| `ScheduleMeetingModal` | Schedule 1:1 from communications. |
-| `IconSearchOutline`, `IconFilterFunnelOutline` | Local icons inside `CommunicationsCurrentJobSection`. |
-
-**Nested under `CommunicationsJobEmailSection` (same tab)**
-
-| Component | Role |
-| --- | --- |
-| `CommunicationToolbarIcons` | Reply / follow-up / overflow icons. |
-| `ChannelTimelineIcon` | Channel glyph per row. |
-| `ChannelTypeBadge` | Channel label badge. |
-| `LoadingSpinner` | Inline loading where used. |
-
-**Modals that embed timeline bits**
-
-| Component | Used inside |
-| --- | --- |
-| `DeliveryStatusGlyph` | `EmailDetailModal`, `FollowUpEmailModal`, `ReplyThreadModal`. |
-
-### `SidebarIcons`
-
-Imported only by `Sidebar` for navigation module icons.
+`CommunicationsCurrentJobSection` orchestrates search/filters, Socket.IO, `CommunicationsJobEmailSection`, email modals (`ComposeEmailModal`, `ReplyThreadModal`, `FollowUpEmailModal`, `ScheduleMeetingModal`), `ScheduledEmailTimelineMenu`, `EditScheduledEmailModal`, `EmailDetailModal`, etc.
 
 ---
 
@@ -497,11 +434,13 @@ Imported only by `Sidebar` for navigation module icons.
 
 | Module | Role |
 | --- | --- |
-| `candidatesClient.ts` | Fetches candidates, detail, communications; normalizes API types. |
-| `jobsClient.ts` | Fetches job list and job detail. |
-| Timeline / filter utils | Used by `CommunicationsCurrentJobSection` and `CommunicationsJobEmailSection`. |
-| SDS `lib/*` classes | Shared Tailwind strings for buttons, tables, forms, modals across pages. |
+| `candidatesClient.ts` | Candidates, communications, compose, scheduled email helpers. |
+| `jobsClient.ts` | Jobs list and detail. |
+| `activityCommandCenterClient.ts` | Activity feed + thread API. |
+| `commsHubDashboardClient.ts` | Dashboard + scheduled messages API. |
+| Timeline / filter utils | `communicationTimeline*`, `communicationsTimelineFilter`. |
+| SDS `lib/*` classes | Shared Tailwind strings for buttons, tables, forms, modals. |
 
 ---
 
-*Generated for the Communication Centre prototype. Update this file when adding routes, models, or major UI surfaces.*
+*Update this file when adding routes, models, major UI surfaces, or background jobs.*
