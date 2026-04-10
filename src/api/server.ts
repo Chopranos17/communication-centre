@@ -1,4 +1,6 @@
 import "dotenv/config";
+import path from "path";
+import { fileURLToPath } from "url";
 import { createServer } from "http";
 import express from "express";
 import { Server } from "socket.io";
@@ -1663,13 +1665,25 @@ app.get("/api/v1/recruitment/comms-hub/thread", async (req, res) => {
   }
 });
 
+// Serve Vite frontend build in production
+if (process.env.NODE_ENV === "production") {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const distPath = path.resolve(__dirname, "../../dist");
+  app.use(express.static(distPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
+
 const httpServer = createServer(app);
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? [process.env.PUBLIC_URL || ""].filter(Boolean)
+    : ["http://localhost:5173", "http://127.0.0.1:5173"];
+
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ],
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
     methods: ["GET", "POST"],
   },
 });
@@ -1702,7 +1716,7 @@ setInterval(() => {
   void runScheduledEmailSweep();
 }, 60_000);
 
-httpServer.listen(PORT, () => {
-  console.log(`API listening on http://localhost:${PORT}`);
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`API listening on 0.0.0.0:${PORT}`);
   startPolling();
 });
