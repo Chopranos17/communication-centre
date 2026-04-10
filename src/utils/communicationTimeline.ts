@@ -311,6 +311,37 @@ export function isContactDarwinboxDisplay(fromAddress: string): boolean {
  * Task 13: whether to show Follow Up vs Reply on a timeline email group.
  * `rows` must be one thread or one standalone email (all `channel === "email"`).
  */
+/** Primary CTA for touchpoints (Recent Activity, etc.) — aligns with Communications timeline rules. */
+export type ActivityPrimaryActionType = "reply" | "followup" | "view";
+
+/**
+ * Derives Reply vs Follow up vs View from timeline rows for one thread or one non-email message.
+ * Email: reuses {@link getContactThreadActions} (contact@ threads). SMS/WhatsApp: Reply only when
+ * the latest row is inbound (matches hover Reply on the Communications tab). Meeting/system: view.
+ */
+export function getActivityPrimaryActionFromTimelineRows(
+  rows: CurrentJobEmailRow[],
+): ActivityPrimaryActionType {
+  if (!rows.length) return "view";
+  const sorted = [...rows].sort(
+    (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+  );
+  const latest = sorted[sorted.length - 1]!;
+  const ch = latest.channel;
+  if (ch === "system") return "view";
+  if (ch === "meeting") return "view";
+  if (ch === "sms" || ch === "whatsapp") {
+    return latest.direction === "inbound" ? "reply" : "view";
+  }
+  if (ch === "email") {
+    const ta = getContactThreadActions(rows);
+    if (!ta.eligible) return "view";
+    if (ta.reply) return "reply";
+    if (ta.followUp) return "followup";
+  }
+  return "view";
+}
+
 export function getContactThreadActions(rows: CurrentJobEmailRow[]): {
   eligible: boolean;
   followUp: boolean;

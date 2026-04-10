@@ -14,6 +14,7 @@ import {
 import {
   fetchActivityFeed,
   fetchCommsHubDashboard,
+  fetchScheduledMessagesPage,
   fetchThread,
 } from "./services/activity-command-center";
 
@@ -817,13 +818,13 @@ app.post(
       const existing = await prisma.communication.findFirst({
         where: {
           id: communicationId,
-          channel: "email",
+          channel: { in: ["email", "sms", "whatsapp"] },
           delivery_status: "scheduled",
         },
         include: { job: true },
       });
       if (!existing) {
-        return res.status(404).json({ error: "Scheduled email not found" });
+        return res.status(404).json({ error: "Scheduled message not found" });
       }
 
       const updated = await prisma.communication.update({
@@ -869,13 +870,13 @@ app.patch("/api/communications/:communicationId", async (req, res) => {
     const existing = await prisma.communication.findFirst({
       where: {
         id: communicationId,
-        channel: "email",
+        channel: { in: ["email", "sms", "whatsapp"] },
         delivery_status: "scheduled",
       },
       include: { job: true },
     });
     if (!existing) {
-      return res.status(404).json({ error: "Scheduled email not found" });
+      return res.status(404).json({ error: "Scheduled message not found" });
     }
 
     const data: {
@@ -884,11 +885,17 @@ app.patch("/api/communications/:communicationId", async (req, res) => {
       scheduled_for?: Date;
     } = {};
 
-    if (typeof body.subject === "string" && body.subject.trim()) {
-      data.subject = body.subject.trim();
-    }
-    if (typeof body.htmlBody === "string" && body.htmlBody.trim()) {
-      data.body = body.htmlBody;
+    if (existing.channel === "email") {
+      if (typeof body.subject === "string" && body.subject.trim()) {
+        data.subject = body.subject.trim();
+      }
+      if (typeof body.htmlBody === "string" && body.htmlBody.trim()) {
+        data.body = body.htmlBody;
+      }
+    } else {
+      if (typeof body.htmlBody === "string" && body.htmlBody.trim()) {
+        data.body = body.htmlBody;
+      }
     }
     const scheduledForRaw =
       typeof body.scheduledFor === "string" ? body.scheduledFor.trim() : "";
@@ -1545,6 +1552,87 @@ app.get(
     }
   },
 );
+
+app.get(
+  "/api/v1/recruitment/comms-hub/analytics/scheduled",
+  async (req, res) => {
+    const jobOpeningId =
+      typeof req.query.job_opening_id === "string"
+        ? req.query.job_opening_id.trim()
+        : "";
+    const pageRaw =
+      typeof req.query.page === "string" ? req.query.page.trim() : "1";
+    const limitRaw =
+      typeof req.query.limit === "string" ? req.query.limit.trim() : "20";
+    const page = Math.max(1, Number.parseInt(pageRaw, 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(limitRaw, 10) || 20));
+
+    try {
+      const data = await fetchScheduledMessagesPage({
+        jobOpeningId: jobOpeningId || undefined,
+        page,
+        limit,
+      });
+      res.json(data);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(500).json({ error: msg });
+    }
+  },
+);
+
+app.post("/api/meetings/:meetingId/cancel-scheduled", async (req, res) => {
+  const { meetingId } = req.params;
+  try {
+    const m = await prisma.meeting.findFirst({
+      where: { id: meetingId, status: "scheduled" },
+      include: { communication: true, job: true },
+    });
+    if (!m) {
+      return res.status(404).json({ error: "Scheduled meeting not found" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.meeting.update({
+        where: { id: meetingId },
+        data: { status: "cancelled" },
+      });
+      if (m.communication_id) {
+        await tx.communication.update({
+          where: { id: m.communication_id },
+          data: { delivery_status: "cancelled" },
+        });
+      }
+    });
+
+    const updatedComm = m.communication_id
+      ? await prisma.communication.findUnique({
+          where: { id: m.communication_id },
+          include: { job: true },
+        })
+      : null;
+    if (updatedComm?.candidate_id && updatedComm.job_id && updatedComm.job) {
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: updatedComm.candidate_id },
+        select: { id: true, name: true, email: true },
+      });
+      if (candidate) {
+        emitMessageUpdated(
+          buildMessageSocketPayload(updatedComm, candidate, {
+            id: updatedComm.job.id,
+            title: updatedComm.job.title,
+            job_code: updatedComm.job.job_code,
+          }),
+        );
+      }
+    }
+
+    return res.json({ ok: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({ error: msg });
+  }
+});
 
 app.get("/api/v1/recruitment/comms-hub/thread", async (req, res) => {
   const candidateId =

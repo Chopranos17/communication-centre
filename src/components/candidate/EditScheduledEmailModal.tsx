@@ -6,10 +6,10 @@ import { patchScheduledCommunication } from "../../api/candidatesClient";
 import { plainTextEmailToHtml } from "../../utils/emailTemplateVars";
 import { useToast } from "../../contexts/ToastContext";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
-import { sdsButtonSecondary } from "../../lib/sdsButtonClasses";
+import { sdsButtonPrimary, sdsButtonSecondary } from "../../lib/sdsButtonClasses";
 import {
   sdsModalCloseButton,
-  sdsModalFooterToolbar,
+  sdsModalFooter,
   sdsModalHeader,
   sdsModalTitle,
   sdsSidePanelBackdropButton,
@@ -163,7 +163,7 @@ export function EditScheduledEmailModal({
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 px-6 py-4">
+        <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
           <div>
             <label className={`${sdsLabel} mb-1 block`} htmlFor="edit-sched-from">
               Send from
@@ -219,12 +219,14 @@ export function EditScheduledEmailModal({
           </div>
         </div>
 
-        <div className={sdsModalFooterToolbar}>
+        <div
+          className={`${sdsModalFooter} w-full shrink-0 justify-end`}
+        >
           <button
             type="button"
             disabled={saving}
             onClick={onClose}
-            className={`${sdsButtonSecondary} font-medium`}
+            className={sdsButtonSecondary}
           >
             Cancel
           </button>
@@ -232,14 +234,14 @@ export function EditScheduledEmailModal({
             type="button"
             disabled={saving}
             onClick={() => void handleSubmit()}
-            className={`${sdsButtonSecondary} font-semibold text-[#131313]`}
+            className={sdsButtonPrimary}
           >
             {saving ? (
               <span className="inline-flex items-center gap-2">
                 <LoadingSpinner
                   size="sm"
                   aria-hidden
-                  className="border-[#131313] border-t-transparent"
+                  className="border-white border-t-transparent"
                 />
                 Updating…
               </span>

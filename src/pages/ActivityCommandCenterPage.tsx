@@ -6,6 +6,10 @@ import {
   type ActivityFeedResponse,
   type ActivityListItemDto,
 } from '../api/activityCommandCenterClient'
+import {
+  fetchCandidateCurrentJobEmails,
+  type CurrentJobEmailRow,
+} from '../api/candidatesClient'
 import { fetchJobs, type JobListRow } from '../api/jobsClient'
 import { ActivityCommandCenterBreadcrumb } from '../components/activity-command-center/ActivityRecruitmentBreadcrumbs'
 import { ActivityCommunicationListPanel } from '../components/activity-command-center/ActivityCommunicationListPanel'
@@ -14,17 +18,21 @@ import {
   type ActivityAdvancedFilters,
 } from '../components/activity-command-center/ActivityAdvancedFilterPanel'
 import { CommunicationsPanel } from '../components/candidate/CommunicationsPanel'
+import { FollowUpEmailModal } from '../components/candidate/FollowUpEmailModal'
+import { ReplyThreadModal } from '../components/candidate/ReplyThreadModal'
 import { SendChannelMessageModal } from '../components/candidate/SendChannelMessageModal'
 import { FilterTabs } from '../components/layout/FilterTabs'
 import { PageHeader } from '../components/layout/PageHeader'
+import { useToast } from '../contexts/ToastContext'
 import { usePersona } from '../context/PersonaContext'
-import { initials } from '../lib/activityPresentation'
+import { channelKeyFromApi, initials } from '../lib/activityPresentation'
 import { sdsButtonSecondaryIcon } from '../lib/sdsButtonClasses'
 import {
   sdsSidePanelBackdropButton,
   sdsSidePanelContainerWide,
   sdsSidePanelRoot,
 } from '../lib/sdsModalClasses'
+import { buildTimelineThreadGroups } from '../utils/communicationTimeline'
 
 const PERIODS = new Set(['quarter', 'month', 'week', 'all'])
 const SORTS = new Set(['newest', 'unresponsive_first', 'name_asc'])
@@ -109,12 +117,15 @@ function advancedFromSearchParams(sp: URLSearchParams): ActivityAdvancedFilters 
 
 export function ActivityCommandCenterPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { showToast } = useToast()
   const { canManageRecruitment } = usePersona()
   const [jobs, setJobs] = useState<JobListRow[]>([])
   const [feed, setFeed] = useState<ActivityFeedResponse | null>(null)
   const [feedLoading, setFeedLoading] = useState(true)
   const [feedError, setFeedError] = useState<string | null>(null)
   const [selectedRow, setSelectedRow] = useState<ActivityListItemDto | null>(null)
+  const [selectedFocusCommunicationId, setSelectedFocusCommunicationId] =
+    useState<string | null>(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [searchExpanded, setSearchExpanded] = useState(() =>
     Boolean(searchParams.get('q')?.trim()),
@@ -123,6 +134,23 @@ export function ActivityCommandCenterPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [smsModalOpen, setSmsModalOpen] = useState(false)
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
+  const [channelModalContext, setChannelModalContext] =
+    useState<ActivityListItemDto | null>(null)
+  const [replyRows, setReplyRows] = useState<CurrentJobEmailRow[] | null>(null)
+  const [followUpRows, setFollowUpRows] = useState<CurrentJobEmailRow[] | null>(
+    null,
+  )
+  const [composeJob, setComposeJob] = useState<{
+    id: string
+    title: string
+  } | null>(null)
+  const [composeContext, setComposeContext] = useState<ActivityListItemDto | null>(
+    null,
+  )
+  const [primaryActionLoadingId, setPrimaryActionLoadingId] = useState<
+    string | null
+  >(null)
+  const exitOuterPanelAfterDetailCloseRef = useRef(false)
   const [communicationsRefresh, setCommunicationsRefresh] = useState(0)
   const [panelEntered, setPanelEntered] = useState(false)
 
@@ -202,6 +230,35 @@ export function ActivityCommandCenterPage() {
     void loadFeed()
   }, [loadFeed])
 
+  const closeCommunicationsPanel = useCallback(() => {
+    setSelectedRow(null)
+    setSelectedFocusCommunicationId(null)
+    exitOuterPanelAfterDetailCloseRef.current = false
+  }, [])
+
+  const openCommunicationsPanel = useCallback(
+    (row: ActivityListItemDto, focusMessageId?: string | null) => {
+      setSelectedRow(row)
+      setSelectedFocusCommunicationId(focusMessageId ?? null)
+      exitOuterPanelAfterDetailCloseRef.current = false
+    },
+    [],
+  )
+
+  const markOpenedMessageDetailFromFocus = useCallback(() => {
+    exitOuterPanelAfterDetailCloseRef.current = true
+  }, [])
+
+  const clearSelectedFocusCommunication = useCallback(() => {
+    setSelectedFocusCommunicationId(null)
+  }, [])
+
+  const handleActivityMessageDetailClosed = useCallback(() => {
+    if (!exitOuterPanelAfterDetailCloseRef.current) return
+    exitOuterPanelAfterDetailCloseRef.current = false
+    closeCommunicationsPanel()
+  }, [closeCommunicationsPanel])
+
   useEffect(() => {
     if (!feed || !selectedRow) return
     const k = rowKey(selectedRow)
@@ -220,11 +277,11 @@ export function ActivityCommandCenterPage() {
   useEffect(() => {
     if (!selectedRow) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedRow(null)
+      if (e.key === 'Escape') closeCommunicationsPanel()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [selectedRow])
+  }, [selectedRow, closeCommunicationsPanel])
 
   useEffect(() => {
     if (!selectedRow) {
@@ -238,15 +295,15 @@ export function ActivityCommandCenterPage() {
     return () => cancelAnimationFrame(id)
   }, [selectedRow])
 
-  const statusTabs = useMemo(() => {
-    const s = feed?.summary
-    return [
-      { id: 'all', label: 'All', count: s?.total ?? 0 },
-      { id: 'engaged', label: 'Engaged', count: s?.engaged ?? 0 },
-      { id: 'pending', label: 'Pending', count: s?.pending ?? 0 },
-      { id: 'unresponsive', label: 'Unresponsive', count: s?.unresponsive ?? 0 },
-    ]
-  }, [feed?.summary])
+  const statusTabs = useMemo(
+    () => [
+      { id: 'all', label: 'All' },
+      { id: 'engaged', label: 'Engaged' },
+      { id: 'pending', label: 'Pending' },
+      { id: 'unresponsive', label: 'Unresponsive' },
+    ],
+    [],
+  )
 
   const pushStatus = useCallback(
     (id: string) => {
@@ -271,6 +328,7 @@ export function ActivityCommandCenterPage() {
       p.set('page', '1')
       setSearchParams(p, { replace: true })
       setSelectedRow(null)
+      setSelectedFocusCommunicationId(null)
     },
     [searchParams, setSearchParams],
   )
@@ -284,7 +342,73 @@ export function ActivityCommandCenterPage() {
     [searchParams, setSearchParams],
   )
 
-  const selectedKey = selectedRow ? rowKey(selectedRow) : null
+  const closeEmailCompose = useCallback(() => {
+    setReplyRows(null)
+    setFollowUpRows(null)
+    setComposeJob(null)
+    setComposeContext(null)
+  }, [])
+
+  const handleActivityPrimaryAction = useCallback(
+    async (item: ActivityListItemDto) => {
+      const channel = channelKeyFromApi(item.channel)
+      if (item.primaryAction === 'view') {
+        openCommunicationsPanel(item)
+        return
+      }
+      if (channel === 'sms' || channel === 'whatsapp') {
+        if (!canManageRecruitment) {
+          openCommunicationsPanel(item)
+          return
+        }
+        setChannelModalContext(item)
+        if (channel === 'sms') setSmsModalOpen(true)
+        else setWhatsappModalOpen(true)
+        return
+      }
+      if (
+        channel === 'email' &&
+        (item.primaryAction === 'reply' || item.primaryAction === 'followup')
+      ) {
+        if (!canManageRecruitment) {
+          openCommunicationsPanel(item)
+          return
+        }
+        setPrimaryActionLoadingId(item.communicationId)
+        try {
+          const data = await fetchCandidateCurrentJobEmails(
+            item.candidateId,
+            item.jobId,
+          )
+          const groups = buildTimelineThreadGroups(data.emails)
+          const group = groups.find((g) =>
+            g.rows.some((r) => r.id === item.communicationId),
+          )
+          const rows =
+            group?.rows ??
+            data.emails.filter((r) => r.id === item.communicationId)
+          if (rows.length === 0) {
+            showToast('error', 'Could not load this thread.')
+            return
+          }
+          setComposeContext(item)
+          setComposeJob({ id: item.jobId, title: item.jobTitle })
+          if (item.primaryAction === 'reply') {
+            setFollowUpRows(null)
+            setReplyRows(rows)
+          } else {
+            setReplyRows(null)
+            setFollowUpRows(rows)
+          }
+        } catch {
+          showToast('error', 'Failed to load communications.')
+        } finally {
+          setPrimaryActionLoadingId(null)
+        }
+      }
+    },
+    [canManageRecruitment, showToast, openCommunicationsPanel],
+  )
 
   const bumpCommunications = useCallback(() => {
     setCommunicationsRefresh((n) => n + 1)
@@ -309,11 +433,15 @@ export function ActivityCommandCenterPage() {
   const hasWhatsAppTarget = Boolean(
     selectedRow?.candidateWhatsapp?.trim() || selectedRow?.candidatePhone?.trim(),
   )
-  const smsToDisplay = selectedRow
-    ? `${selectedRow.candidateName} · ${selectedRow.candidatePhone?.trim() || '—'}`
+  const smsCtx = smsModalOpen ? (channelModalContext ?? selectedRow) : null
+  const whatsappCtx = whatsappModalOpen
+    ? (channelModalContext ?? selectedRow)
+    : null
+  const smsToDisplay = smsCtx
+    ? `${smsCtx.candidateName} · ${smsCtx.candidatePhone?.trim() || '—'}`
     : ''
-  const whatsappToDisplay = selectedRow
-    ? `${selectedRow.candidateName} · ${selectedRow.candidateWhatsapp?.trim() || selectedRow.candidatePhone?.trim() || '—'}`
+  const whatsappToDisplay = whatsappCtx
+    ? `${whatsappCtx.candidateName} · ${whatsappCtx.candidateWhatsapp?.trim() || whatsappCtx.candidatePhone?.trim() || '—'}`
     : ''
 
   const openSearch = useCallback(() => {
@@ -392,12 +520,16 @@ export function ActivityCommandCenterPage() {
           total={feed?.total ?? 0}
           page={feed?.page ?? page}
           limit={feed?.limit ?? limit}
-          selectedKey={selectedKey}
-          onSelect={(row) => setSelectedRow(row)}
           onPageChange={onPageChange}
           isLoading={feedLoading}
           error={feedError}
           listSummaryText={listSummaryText}
+          onOpenCommunicationsPanel={(row) => openCommunicationsPanel(row)}
+          onViewThisMessage={(row) =>
+            openCommunicationsPanel(row, row.communicationId)
+          }
+          onPrimaryAction={handleActivityPrimaryAction}
+          primaryActionLoadingId={primaryActionLoadingId}
         />
 
         <ActivityAdvancedFilterPanel
@@ -416,7 +548,7 @@ export function ActivityCommandCenterPage() {
                 type="button"
                 className={sdsSidePanelBackdropButton}
                 aria-label="Close panel"
-                onClick={() => setSelectedRow(null)}
+                onClick={() => closeCommunicationsPanel()}
               />
               <div
                 className={[
@@ -448,7 +580,7 @@ export function ActivityCommandCenterPage() {
                     type="button"
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sds-4 text-[#4d4d4d] transition-colors hover:bg-[#f5f5f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0183FF] focus-visible:ring-offset-1"
                     aria-label="Close"
-                    onClick={() => setSelectedRow(null)}
+                    onClick={() => closeCommunicationsPanel()}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
@@ -470,11 +602,25 @@ export function ActivityCommandCenterPage() {
                     jobApplicationCount={1}
                     timelineJobId={selectedRow.jobId}
                     refreshSignal={communicationsRefresh}
+                    focusCommunicationId={selectedFocusCommunicationId}
+                    onFocusCommunicationConsumed={clearSelectedFocusCommunication}
+                    onMessageDetailClosed={handleActivityMessageDetailClosed}
+                    onOpenedMessageDetailFromFocus={markOpenedMessageDetailFromFocus}
                     onSendSms={
-                      canManageRecruitment ? () => setSmsModalOpen(true) : undefined
+                      canManageRecruitment
+                        ? () => {
+                            setChannelModalContext(null)
+                            setSmsModalOpen(true)
+                          }
+                        : undefined
                     }
                     onSendWhatsApp={
-                      canManageRecruitment ? () => setWhatsappModalOpen(true) : undefined
+                      canManageRecruitment
+                        ? () => {
+                            setChannelModalContext(null)
+                            setWhatsappModalOpen(true)
+                          }
+                        : undefined
                     }
                     smsDisabled={!hasPhone}
                     whatsappDisabled={!hasWhatsAppTarget}
@@ -494,29 +640,76 @@ export function ActivityCommandCenterPage() {
           )
         : null}
 
-      {selectedRow && panelJob && canManageRecruitment ? (
-        <>
-          <SendChannelMessageModal
-            open={smsModalOpen}
-            onClose={() => setSmsModalOpen(false)}
-            variant="sms"
-            candidateId={selectedRow.candidateId}
-            candidateName={selectedRow.candidateName}
-            jobId={selectedRow.jobId}
-            toDisplay={smsToDisplay}
-            onSent={bumpCommunications}
-          />
-          <SendChannelMessageModal
-            open={whatsappModalOpen}
-            onClose={() => setWhatsappModalOpen(false)}
-            variant="whatsapp"
-            candidateId={selectedRow.candidateId}
-            candidateName={selectedRow.candidateName}
-            jobId={selectedRow.jobId}
-            toDisplay={whatsappToDisplay}
-            onSent={bumpCommunications}
-          />
-        </>
+      {canManageRecruitment && smsModalOpen && smsCtx ? (
+        <SendChannelMessageModal
+          open
+          onClose={() => {
+            setSmsModalOpen(false)
+            setChannelModalContext(null)
+          }}
+          variant="sms"
+          candidateId={smsCtx.candidateId}
+          candidateName={smsCtx.candidateName}
+          jobId={smsCtx.jobId}
+          toDisplay={smsToDisplay}
+          onSent={bumpCommunications}
+        />
+      ) : null}
+
+      {canManageRecruitment && whatsappModalOpen && whatsappCtx ? (
+        <SendChannelMessageModal
+          open
+          onClose={() => {
+            setWhatsappModalOpen(false)
+            setChannelModalContext(null)
+          }}
+          variant="whatsapp"
+          candidateId={whatsappCtx.candidateId}
+          candidateName={whatsappCtx.candidateName}
+          jobId={whatsappCtx.jobId}
+          toDisplay={whatsappToDisplay}
+          onSent={bumpCommunications}
+        />
+      ) : null}
+
+      {canManageRecruitment &&
+      composeJob &&
+      composeContext &&
+      replyRows ? (
+        <ReplyThreadModal
+          open
+          onClose={closeEmailCompose}
+          candidateId={composeContext.candidateId}
+          candidateName={composeContext.candidateName}
+          candidateEmail={composeContext.candidateEmail}
+          jobId={composeJob.id}
+          jobTitle={composeJob.title}
+          threadRows={replyRows}
+          onSent={() => {
+            bumpCommunications()
+            closeEmailCompose()
+          }}
+        />
+      ) : null}
+
+      {canManageRecruitment &&
+      composeJob &&
+      composeContext &&
+      followUpRows ? (
+        <FollowUpEmailModal
+          open
+          onClose={closeEmailCompose}
+          candidateId={composeContext.candidateId}
+          candidateName={composeContext.candidateName}
+          candidateEmail={composeContext.candidateEmail}
+          jobId={composeJob.id}
+          jobTitle={composeJob.title}
+          threadRows={followUpRows}
+          onSent={() => {
+            bumpCommunications()
+            closeEmailCompose()
+          }}
+        />
       ) : null}
     </>
   )

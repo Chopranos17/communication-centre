@@ -117,6 +117,10 @@ export function CommunicationsCurrentJobSection({
   smsDisabledTitle,
   whatsappDisabledTitle,
   onCommunicationsFilterSummary,
+  focusCommunicationId = null,
+  onFocusCommunicationConsumed,
+  onMessageDetailClosed,
+  onOpenedMessageDetailFromFocus,
 }: {
   candidateId: string;
   candidateName: string;
@@ -134,6 +138,12 @@ export function CommunicationsCurrentJobSection({
   smsDisabledTitle?: string;
   whatsappDisabledTitle?: string;
   onCommunicationsFilterSummary?: (summary: CommunicationsFilterSummary) => void;
+  /** Open {@link EmailDetailModal} for this message after timeline loads (hub / activity / profile deep link). */
+  focusCommunicationId?: string | null;
+  onFocusCommunicationConsumed?: () => void;
+  /** Hub / activity: notify when message detail modal is dismissed. */
+  onMessageDetailClosed?: () => void;
+  onOpenedMessageDetailFromFocus?: () => void;
 }) {
   const [data, setData] = useState<CandidateCurrentJobEmails | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -443,6 +453,29 @@ export function CommunicationsCurrentJobSection({
   ]);
 
   useEffect(() => {
+    if (!focusCommunicationId?.trim() || loading) return;
+    if (!data && !loadError) return;
+    const id = focusCommunicationId.trim();
+    const row =
+      emailsForPersona.find((r) => r.id === id) ??
+      allPersonaRowsFlat.find((r) => r.id === id);
+    if (row) {
+      setDetailEmail(row);
+      onOpenedMessageDetailFromFocus?.();
+    }
+    onFocusCommunicationConsumed?.();
+  }, [
+    loading,
+    loadError,
+    data,
+    focusCommunicationId,
+    emailsForPersona,
+    allPersonaRowsFlat,
+    onFocusCommunicationConsumed,
+    onOpenedMessageDetailFromFocus,
+  ]);
+
+  useEffect(() => {
     if (!onCommunicationsFilterSummary || loading) return;
     onCommunicationsFilterSummary({
       filtersActive,
@@ -488,7 +521,13 @@ export function CommunicationsCurrentJobSection({
 
   return (
     <div className="space-y-4">
-      <EmailDetailModal email={detailEmail} onClose={() => setDetailEmail(null)} />
+      <EmailDetailModal
+        email={detailEmail}
+        onClose={() => {
+          setDetailEmail(null);
+          onMessageDetailClosed?.();
+        }}
+      />
       {canManageRecruitment ? (
         <EditScheduledEmailModal
           open={editScheduledRow != null}

@@ -47,7 +47,7 @@ function TabPanelPlaceholder({ title }: { title: string }) {
 
 export function CandidateDetailPage() {
   const { candidateId } = useParams<{ candidateId: string }>()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [detail, setDetail] = useState<CandidateDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -106,6 +106,17 @@ export function CandidateDetailPage() {
       detail.whatsappNumber?.trim() || detail.phone?.trim() || '—'
     return `${detail.name} · ${num}`
   }, [detail])
+
+  const communicationsThreadFocus = useMemo(() => {
+    if (mainTab !== 'communications') return null
+    return searchParams.get('thread')?.trim() || null
+  }, [mainTab, searchParams])
+
+  const clearCommunicationsThreadParam = useCallback(() => {
+    const p = new URLSearchParams(searchParams)
+    p.delete('thread')
+    setSearchParams(p, { replace: true })
+  }, [searchParams, setSearchParams])
 
   if (!candidateId) {
     return (
@@ -307,6 +318,8 @@ export function CandidateDetailPage() {
                 jobApplicationCount={jobApplicationCount}
                 profileCommunicationCount={detail.communicationCount}
                 refreshSignal={communicationsRefresh}
+                focusCommunicationId={communicationsThreadFocus}
+                onFocusCommunicationConsumed={clearCommunicationsThreadParam}
                 onSendSms={
                   canManageRecruitment ? () => setSmsModalOpen(true) : undefined
                 }

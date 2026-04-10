@@ -248,6 +248,21 @@ export async function cancelScheduledCommunication(
   return { ok: true }
 }
 
+/** POST /api/meetings/:meetingId/cancel-scheduled */
+export async function cancelScheduledMeeting(
+  meetingId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const r = await fetch(
+    `/api/meetings/${encodeURIComponent(meetingId)}/cancel-scheduled`,
+    { method: 'POST' },
+  )
+  const data = (await r.json()) as { ok?: boolean; error?: string }
+  if (!r.ok) {
+    return { ok: false, error: data.error ?? 'Could not cancel' }
+  }
+  return { ok: true }
+}
+
 /** POST /api/communications/:id/send-now */
 export async function sendScheduledEmailNow(
   communicationId: string,

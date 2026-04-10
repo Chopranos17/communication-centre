@@ -20,26 +20,12 @@
  * ORDER BY scheduled_at ASC LIMIT 5;
  */
 
-import { Link } from 'react-router-dom'
-import { CHANNEL_META, channelKeyFromApi } from '../../lib/activityPresentation'
+import { useMemo } from 'react'
+import type { ScheduledMessageDto } from '../../api/commsHubDashboardClient'
+import { ScheduledMessageOverflowMenu } from './ScheduledMessageOverflowMenu'
+import { ScheduledMessageRowView } from './ScheduledMessageRowView'
 
-export interface ScheduledItem {
-  communicationId: string
-  candidateId: string
-  candidateName: string
-  channel: string
-  subject: string
-  scheduledAt: string
-}
-
-export interface ScheduledMessagesProps {
-  items: ScheduledItem[]
-  totalQueued: number
-  isLoading?: boolean
-}
-
-const linkFocusRing =
-  'outline-none focus-visible:ring-2 focus-visible:ring-[#0183FF] focus-visible:ring-offset-1'
+export type { ScheduledMessageDto }
 
 const skeletonPulse = `
   @keyframes scheduled-msgs-skeleton-pulse {
@@ -51,56 +37,37 @@ const skeletonPulse = `
   }
 `
 
-function threadPath(candidateId: string, communicationId: string): string {
-  const base = `/recruitment/candidates/${candidateId}`
-  return `${base}?tab=communications&thread=${encodeURIComponent(communicationId)}`
+export interface ScheduledMessagesProps {
+  items: ScheduledMessageDto[]
+  totalQueued: number
+  isLoading?: boolean
+  onViewAll: () => void
+  onEditEmail: (item: ScheduledMessageDto) => void | Promise<void>
+  onScheduledMutated: () => void | Promise<void>
+  /** When false, overflow actions are hidden (matches Communications tab). */
+  canManageRecruitment?: boolean
 }
 
-function dayLabelFor(iso: string): string {
-  const d = new Date(iso)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(d)
-  target.setHours(0, 0, 0, 0)
-  const diffMs = target.getTime() - today.getTime()
-  const diffDays = Math.round(diffMs / 86400000)
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Tomorrow'
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function timeLabelFor(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
-function channelBadgeLabel(raw: string): string {
-  const lower = raw.trim().toLowerCase()
-  if (lower === 'meeting' || lower === '1:1' || lower === '1:1 meeting') {
-    return '1:1'
-  }
-  const key = channelKeyFromApi(lower)
-  if (key === 'meeting') return '1:1'
-  return CHANNEL_META[key].label
-}
-
-function channelBadgeClasses(raw: string): string {
-  const lower = raw.trim().toLowerCase()
-  const key =
-    lower === 'meeting' || lower === '1:1' || lower === '1:1 meeting'
-      ? 'meeting'
-      : channelKeyFromApi(lower)
-  return CHANNEL_META[key].className
+function sortByScheduledAtAsc(items: ScheduledMessageDto[]): ScheduledMessageDto[] {
+  return [...items].sort(
+    (a, b) =>
+      new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+  )
 }
 
 export function ScheduledMessagesWidget({
   items,
   totalQueued,
   isLoading = false,
+  onViewAll,
+  onEditEmail,
+  onScheduledMutated,
+  canManageRecruitment = false,
 }: ScheduledMessagesProps) {
-  const rows = items.slice(0, 5)
+  const rows = useMemo(
+    () => sortByScheduledAtAsc(items).slice(0, 5),
+    [items],
+  )
 
   return (
     <>
@@ -109,30 +76,49 @@ export function ScheduledMessagesWidget({
         className="w-full rounded-sds-12 border-[0.5px] border-[#e0e0e0] bg-white p-5 shadow-[var(--elevation-1)]"
         aria-labelledby="scheduled-msgs-heading"
       >
-        <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h2
               id="scheduled-msgs-heading"
               className="text-[15px] font-medium leading-tight text-[#131313]"
             >
               Scheduled
             </h2>
-            <p className="mt-0.5 text-[12px] leading-snug text-[#4d4d4d]">
-              Upcoming messages
-            </p>
+            {isLoading ? (
+              <span
+                className="scheduled-msgs-skeleton-pulse inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-[var(--charcoal-50)]"
+                aria-hidden
+              />
+            ) : (
+              <span
+                className="h-[5px] w-[5px] shrink-0 rounded-full bg-[#378ADD]"
+                aria-hidden
+              />
+            )}
+            {isLoading ? (
+              <div
+                className="scheduled-msgs-skeleton-pulse h-4 w-16 shrink-0 rounded-sds-2"
+                aria-hidden
+              />
+            ) : (
+              <span className="text-[12px] font-medium leading-tight text-[#185FA5]">
+                {totalQueued} queued
+              </span>
+            )}
           </div>
           {isLoading ? (
             <div
-              className="scheduled-msgs-skeleton-pulse h-7 w-[5.5rem] shrink-0 rounded-sds-8"
+              className="scheduled-msgs-skeleton-pulse h-5 w-14 shrink-0 rounded-sds-2"
               aria-hidden
             />
           ) : (
-            <span
-              className="inline-flex shrink-0 items-center rounded-sds-8 border border-[#CCE6FF] bg-[#E6F3FF] px-2.5 py-1 text-[12px] font-medium text-[#0183FF]"
-              aria-live="polite"
+            <button
+              type="button"
+              className="shrink-0 text-[13px] font-normal text-[var(--text-link,#0183FF)] underline-offset-2 outline-none transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-[#0183FF] focus-visible:ring-offset-1"
+              onClick={onViewAll}
             >
-              {totalQueued} queued
-            </span>
+              View all
+            </button>
           )}
         </div>
 
@@ -149,6 +135,7 @@ export function ScheduledMessagesWidget({
                   <div className="scheduled-msgs-skeleton-pulse h-3 w-[70%] rounded-sds-2" />
                 </div>
                 <div className="scheduled-msgs-skeleton-pulse h-6 w-14 shrink-0 rounded-full" />
+                <div className="scheduled-msgs-skeleton-pulse h-8 w-8 shrink-0 rounded-sds-2" />
               </li>
             ))}
           </ul>
@@ -158,50 +145,25 @@ export function ScheduledMessagesWidget({
           </p>
         ) : (
           <ul className="mt-0 list-none p-0">
-            {rows.map((item) => {
-              const to = threadPath(item.candidateId, item.communicationId)
-              const badgeLabel = channelBadgeLabel(item.channel)
-              const badgeCls = channelBadgeClasses(item.channel)
-              return (
-                <li
-                  key={`${item.communicationId}-${item.scheduledAt}`}
-                  className="border-b-[0.5px] border-[#e0e0e0] last:border-b-0"
-                >
-                  <Link
-                    to={to}
-                    className={`flex items-center gap-2.5 py-3 transition-colors hover:bg-[#fafafa] ${linkFocusRing} rounded-sds-2`}
-                  >
-                    <div className="flex min-w-[54px] shrink-0 flex-col">
-                      <span className="text-[11px] text-[#797979]">
-                        {dayLabelFor(item.scheduledAt)}
-                      </span>
-                      <time
-                        className="text-[11px] font-medium text-[#4d4d4d]"
-                        dateTime={item.scheduledAt}
-                      >
-                        {timeLabelFor(item.scheduledAt)}
-                      </time>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-medium text-[#131313]">
-                        {item.candidateName}
-                      </p>
-                      <p
-                        className="truncate text-[11px] text-[#4d4d4d]"
-                        title={item.subject}
-                      >
-                        {item.subject}
-                      </p>
-                    </div>
-                    <span
-                      className={`inline-flex shrink-0 items-center rounded-full border bg-white px-2.5 py-0.5 text-[11px] font-medium ${badgeCls}`}
-                    >
-                      {badgeLabel}
-                    </span>
-                  </Link>
-                </li>
-              )
-            })}
+            {rows.map((item) => (
+              <li
+                key={`${item.communicationId}-${item.scheduledAt}`}
+                className="border-b-[0.5px] border-[#e0e0e0] last:border-b-0"
+              >
+                <ScheduledMessageRowView
+                  item={item}
+                  trailing={
+                    canManageRecruitment ? (
+                      <ScheduledMessageOverflowMenu
+                        item={item}
+                        onEditEmail={onEditEmail}
+                        onMutated={onScheduledMutated}
+                      />
+                    ) : null
+                  }
+                />
+              </li>
+            ))}
           </ul>
         )}
       </section>

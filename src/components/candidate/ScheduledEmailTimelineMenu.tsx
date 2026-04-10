@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Clock, MoreHorizontal, Pencil, Play, X } from "lucide-react";
+import { Clock, MoreHorizontal } from "lucide-react";
 
 import type { CurrentJobEmailRow } from "../../api/candidatesClient";
 import {
@@ -80,21 +80,20 @@ export function ScheduledEmailTimelineMenu({
             type="button"
             role="menuitem"
             disabled={busy}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left font-darwin text-[13px] text-[#131313] hover:bg-[#f5f5f5]"
+            className="flex w-full items-center px-3 py-2 text-left font-darwin text-[13px] text-[#131313] hover:bg-[#f5f5f5]"
             onClick={(e) => {
               e.stopPropagation();
               setOpen(false);
               onEdit();
             }}
           >
-            <Pencil className="h-3.5 w-3.5 shrink-0 text-[#4d4d4d]" aria-hidden />
             Edit & reschedule
           </button>
           <button
             type="button"
             role="menuitem"
             disabled={busy}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left font-darwin text-[13px] text-[#131313] hover:bg-[#f5f5f5]"
+            className="flex w-full items-center px-3 py-2 text-left font-darwin text-[13px] text-[#131313] hover:bg-[#f5f5f5]"
             onClick={(e) => {
               e.stopPropagation();
               void run(async () => {
@@ -111,14 +110,13 @@ export function ScheduledEmailTimelineMenu({
               });
             }}
           >
-            <Play className="h-3.5 w-3.5 shrink-0 text-[#4d4d4d]" aria-hidden />
             Send now
           </button>
           <button
             type="button"
             role="menuitem"
             disabled={busy}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left font-darwin text-[13px] text-[#d32f2f] hover:bg-[#f5f5f5]"
+            className="flex w-full items-center px-3 py-2 text-left font-darwin text-[13px] text-[#131313] hover:bg-[#f5f5f5]"
             onClick={(e) => {
               e.stopPropagation();
               void run(async () => {
@@ -131,7 +129,6 @@ export function ScheduledEmailTimelineMenu({
               });
             }}
           >
-            <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
             Cancel scheduled
           </button>
         </div>

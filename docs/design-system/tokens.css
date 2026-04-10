@@ -170,6 +170,11 @@
   --radius-md: 8px;     /* Medium — cards, modals */
   --radius-lg: 12px;    /* Large — larger cards */
   --radius-full: 9999px; /* Full — avatars, pills */
+
+  /* Activity Command Center — data table */
+  --color-background-secondary: var(--charcoal-20);
+  --border-tertiary: #e0e0e0;
+  --border-secondary: #e0e0e0;
 }
 
 /* ─── GOOGLE FONTS IMPORT (Outfit = Darwin Sans open-source base) ─── */

@@ -14,6 +14,7 @@ export type ActivityListItemDto = {
   preview: string
   sentAt: string
   status: 'engaged' | 'pending' | 'unresponsive'
+  primaryAction: 'reply' | 'followup' | 'view'
 }
 
 export type ActivityFeedResponse = {

@@ -39,6 +39,17 @@ export type CommunicationsPanelProps = {
   profileCommunicationCount?: number;
   /** `card` = bordered surface like candidate profile tab; `plain` = no outer chrome. */
   variant?: "card" | "plain";
+  /** After load, open message detail for this communication id (e.g. “View this message”). */
+  focusCommunicationId?: string | null;
+  /** Called after focus is applied or skipped so parent can clear state / URL. */
+  onFocusCommunicationConsumed?: () => void;
+  /**
+   * Hub / activity: when user dismisses message detail after opening via “View this message”,
+   * parent can close the outer panel so the full timeline is not left visible underneath.
+   */
+  onMessageDetailClosed?: () => void;
+  /** Hub / activity: timeline opened a message detail from {@link focusCommunicationId}. */
+  onOpenedMessageDetailFromFocus?: () => void;
 };
 
 export function CommunicationsPanel({
@@ -57,6 +68,10 @@ export function CommunicationsPanel({
   whatsappDisabledTitle,
   profileCommunicationCount,
   variant = "plain",
+  focusCommunicationId = null,
+  onFocusCommunicationConsumed,
+  onMessageDetailClosed,
+  onOpenedMessageDetailFromFocus,
 }: CommunicationsPanelProps) {
   const [commFilterStats, setCommFilterStats] =
     useState<CommunicationsFilterSummary | null>(null);
@@ -93,6 +108,10 @@ export function CommunicationsPanel({
         smsDisabledTitle={smsDisabledTitle}
         whatsappDisabledTitle={whatsappDisabledTitle}
         onCommunicationsFilterSummary={setCommFilterStats}
+        focusCommunicationId={focusCommunicationId}
+        onFocusCommunicationConsumed={onFocusCommunicationConsumed}
+        onMessageDetailClosed={onMessageDetailClosed}
+        onOpenedMessageDetailFromFocus={onOpenedMessageDetailFromFocus}
       />
     </>
   );

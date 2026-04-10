@@ -1,5 +1,10 @@
 import type { Candidate, Communication, Job } from "@prisma/client";
+import type { CurrentJobEmailRow } from "../candidatesClient";
 import { prisma } from "../db";
+import {
+  getActivityPrimaryActionFromTimelineRows,
+  type ActivityPrimaryActionType,
+} from "../../utils/communicationTimeline";
 import { getSpanJobIds, spanUserIdFromEnv } from "./comms-hub-span";
 
 const ACTIVITY_CHANNELS = ["email", "sms", "whatsapp", "meeting"] as const;
@@ -76,7 +81,101 @@ export type ActivityListItem = {
   preview: string;
   sentAt: string;
   status: ActivityRowStatus;
+  primaryAction: ActivityPrimaryActionType;
 };
+
+function senderLabelForTimeline(
+  senderType: string,
+  senderName: string | null,
+): {
+  senderLabel: string;
+  filterBucket: "system" | "user";
+  senderType: string;
+} {
+  if (senderType === "system") {
+    return { senderType, senderLabel: "System", filterBucket: "system" };
+  }
+  if (senderType === "CRM") {
+    return { senderType, senderLabel: "CRM", filterBucket: "system" };
+  }
+  if (senderType === "candidate") {
+    const label = senderName?.trim() || "Candidate";
+    return { senderType, senderLabel: label, filterBucket: "user" };
+  }
+  if (senderType === "recruiter" || senderType === "hiring_lead") {
+    const label = senderName?.trim() || "Employee";
+    return { senderType, senderLabel: label, filterBucket: "user" };
+  }
+  const label = senderName?.trim() || "Employee";
+  return { senderType, senderLabel: label, filterBucket: "user" };
+}
+
+function prismaCommunicationToTimelineRow(row: Communication): CurrentJobEmailRow {
+  const mapped = senderLabelForTimeline(row.sender_type, row.sender_name);
+  const ch = row.channel;
+  const channel: CurrentJobEmailRow["channel"] =
+    ch === "sms" || ch === "whatsapp"
+      ? ch
+      : ch === "meeting"
+        ? "meeting"
+        : ch === "system_notification"
+          ? "system"
+          : "email";
+  return {
+    id: row.id,
+    channel,
+    direction: row.direction === "inbound" ? "inbound" : "outbound",
+    senderType: mapped.senderType,
+    senderLabel: mapped.senderLabel,
+    filterBucket: mapped.filterBucket,
+    subject: row.subject,
+    body: row.body,
+    sentAt: row.sent_at.toISOString(),
+    fromAddress: row.from_address ?? "",
+    toAddress: row.to_address ?? "",
+    deliveryStatus: row.delivery_status as CurrentJobEmailRow["deliveryStatus"],
+    scheduledFor: row.scheduled_for?.toISOString() ?? null,
+    threadId: channel === "email" ? (row.thread_id?.trim() || row.id) : null,
+    meeting: null,
+  };
+}
+
+function emailThreadMembers(
+  all: Communication[],
+  anchor: Communication,
+): Communication[] {
+  if (anchor.channel !== "email") return [];
+  const key = anchor.thread_id?.trim() || anchor.id;
+  return all.filter((c) => {
+    if (c.channel !== "email") return false;
+    const k = c.thread_id?.trim() || c.id;
+    return k === key;
+  });
+}
+
+function computePrimaryActionForPair(
+  all: Communication[],
+  lastOverall: Communication,
+): ActivityPrimaryActionType {
+  const ch = lastOverall.channel.toLowerCase();
+  if (ch === "system_notification") return "view";
+  if (ch === "meeting") return "view";
+  if (ch === "sms" || ch === "whatsapp") {
+    const row = prismaCommunicationToTimelineRow(lastOverall);
+    return getActivityPrimaryActionFromTimelineRows([row]);
+  }
+  if (ch === "email") {
+    const members = emailThreadMembers(all, lastOverall);
+    const rows = members
+      .map(prismaCommunicationToTimelineRow)
+      .sort(
+        (a, b) =>
+          new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+      );
+    return getActivityPrimaryActionFromTimelineRows(rows);
+  }
+  return "view";
+}
 
 function sortActivityItems(
   builtAll: ActivityListItem[],
@@ -190,6 +289,7 @@ export async function buildActivityListItems(params: {
       a.sent_at >= b.sent_at ? a : b,
     );
     const status = deriveStatus(lastOverall, now, slaMs);
+    const primaryAction = computePrimaryActionForPair(all, lastOverall);
 
     const anchorCh = anchor.channel.toLowerCase();
     if (channelFilter.length > 0 && !channelFilter.includes(anchorCh)) {
@@ -220,6 +320,7 @@ export async function buildActivityListItems(params: {
       preview,
       sentAt: anchor.sent_at.toISOString(),
       status,
+      primaryAction,
     });
   }
 
@@ -314,6 +415,19 @@ export async function fetchActivityFeed(params: {
   };
 }
 
+/** One queued scheduled communication or meeting for dashboard / scheduled list APIs. */
+export type ScheduledMessageRow = {
+  communicationId: string;
+  candidateId: string;
+  candidateName: string;
+  channel: string;
+  subject: string;
+  scheduledAt: string;
+  jobId: string;
+  /** Set when this row is a 1:1 meeting (cancel uses meeting id). */
+  meetingId: string | null;
+};
+
 export type CommsHubDashboardResponse = {
   summary: {
     messagesSent: number;
@@ -326,23 +440,21 @@ export type CommsHubDashboardResponse = {
     communicationId: string;
     candidateId: string;
     candidateName: string;
+    candidateEmail: string;
+    candidatePhone: string;
+    candidateWhatsapp: string;
     jobId: string;
     jobTitle: string;
+    jobCode: string;
     currentStage: string;
     channel: string;
     direction: string;
     preview: string;
     status: ActivityRowStatus;
     sentAt: string;
+    primaryAction: ActivityPrimaryActionType;
   }>;
-  scheduled: Array<{
-    communicationId: string;
-    candidateId: string;
-    candidateName: string;
-    channel: string;
-    subject: string;
-    scheduledAt: string;
-  }>;
+  scheduled: ScheduledMessageRow[];
   scheduledQueuedTotal: number;
   unresponsiveCount: number;
 };
@@ -488,11 +600,8 @@ async function computeChannelDistribution(
   }));
 }
 
-async function fetchScheduledDashboardRows(
-  jobIds: string[],
-  take: number,
-): Promise<{
-  rows: CommsHubDashboardResponse["scheduled"];
+async function buildAllScheduledRows(jobIds: string[]): Promise<{
+  rows: ScheduledMessageRow[];
   total: number;
 }> {
   if (jobIds.length === 0) {
@@ -537,11 +646,10 @@ async function fetchScheduledDashboardRows(
       }),
     ]);
 
-  type Sched = CommsHubDashboardResponse["scheduled"][number];
-  const combined: Sched[] = [];
+  const combined: ScheduledMessageRow[] = [];
 
   for (const c of scheduledComms) {
-    if (!c.candidate || !c.scheduled_for) continue;
+    if (!c.candidate || !c.scheduled_for || !c.job_id) continue;
     combined.push({
       communicationId: c.id,
       candidateId: c.candidate_id!,
@@ -549,6 +657,8 @@ async function fetchScheduledDashboardRows(
       channel: c.channel,
       subject: (c.subject ?? "").trim() || "(No subject)",
       scheduledAt: c.scheduled_for.toISOString(),
+      jobId: c.job_id,
+      meetingId: null,
     });
   }
 
@@ -556,7 +666,7 @@ async function fetchScheduledDashboardRows(
     const comm = m.communication;
     const cand = m.candidate;
     if (!cand) continue;
-    const commId = comm?.id ?? `meeting-${m.id}`;
+    const commId = comm?.id ?? m.id;
     combined.push({
       communicationId: commId,
       candidateId: m.candidate_id,
@@ -564,6 +674,8 @@ async function fetchScheduledDashboardRows(
       channel: "meeting",
       subject: (m.title ?? "").trim() || "(Meeting)",
       scheduledAt: m.scheduled_at.toISOString(),
+      jobId: m.job_id,
+      meetingId: m.id,
     });
   }
 
@@ -573,8 +685,52 @@ async function fetchScheduledDashboardRows(
   );
 
   return {
-    rows: combined.slice(0, take),
+    rows: combined,
     total: commCount + mtgCount,
+  };
+}
+
+async function fetchScheduledDashboardRows(
+  jobIds: string[],
+  take: number,
+): Promise<{
+  rows: ScheduledMessageRow[];
+  total: number;
+}> {
+  const { rows, total } = await buildAllScheduledRows(jobIds);
+  return {
+    rows: rows.slice(0, take),
+    total,
+  };
+}
+
+export async function fetchScheduledMessagesPage(params: {
+  jobOpeningId?: string;
+  page: number;
+  limit: number;
+}): Promise<{
+  items: ScheduledMessageRow[];
+  total: number;
+  page: number;
+  limit: number;
+}> {
+  let jobIds = await getSpanJobIds(spanUserIdFromEnv());
+  const jobOpeningId = params.jobOpeningId?.trim();
+  if (jobOpeningId) {
+    jobIds = jobIds.includes(jobOpeningId) ? [jobOpeningId] : [];
+  }
+
+  const page = Math.max(1, params.page);
+  const limit = Math.min(100, Math.max(1, params.limit));
+  const { rows, total } = await buildAllScheduledRows(jobIds);
+  const start = (page - 1) * limit;
+  const items = rows.slice(start, start + limit);
+
+  return {
+    items,
+    total,
+    page,
+    limit,
   };
 }
 
@@ -609,14 +765,19 @@ export async function fetchCommsHubDashboard(params: {
     communicationId: r.communicationId,
     candidateId: r.candidateId,
     candidateName: r.candidateName,
+    candidateEmail: r.candidateEmail,
+    candidatePhone: r.candidatePhone,
+    candidateWhatsapp: r.candidateWhatsapp,
     jobId: r.jobId,
     jobTitle: r.jobTitle,
+    jobCode: r.jobCode,
     currentStage: r.currentStage,
     channel: r.channel,
     direction: r.direction,
     preview: r.preview,
     status: r.status,
     sentAt: r.sentAt,
+    primaryAction: r.primaryAction,
   }));
 
   const unresponsiveCount = builtAll.filter(

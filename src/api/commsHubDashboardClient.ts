@@ -3,6 +3,17 @@ export type DashboardFilters = {
   jobOpeningId?: string
 }
 
+export type ScheduledMessageDto = {
+  communicationId: string
+  candidateId: string
+  candidateName: string
+  channel: string
+  subject: string
+  scheduledAt: string
+  jobId: string
+  meetingId: string | null
+}
+
 export type CommsHubDashboardDto = {
   summary: {
     messagesSent: number
@@ -15,23 +26,21 @@ export type CommsHubDashboardDto = {
     communicationId: string
     candidateId: string
     candidateName: string
+    candidateEmail: string
+    candidatePhone: string
+    candidateWhatsapp: string
     jobId: string
     jobTitle: string
+    jobCode: string
     currentStage: string
     channel: string
     direction: string
     preview: string
     status: 'engaged' | 'pending' | 'unresponsive'
     sentAt: string
+    primaryAction: 'reply' | 'followup' | 'view'
   }>
-  scheduled: Array<{
-    communicationId: string
-    candidateId: string
-    candidateName: string
-    channel: string
-    subject: string
-    scheduledAt: string
-  }>
+  scheduled: ScheduledMessageDto[]
   scheduledQueuedTotal: number
   unresponsiveCount: number
 }
@@ -57,4 +66,41 @@ export async function fetchCommsHubDashboard(
     throw new Error(err.error ?? 'Failed to load dashboard analytics')
   }
   return r.json() as Promise<CommsHubDashboardDto>
+}
+
+export type ScheduledMessagesPageQuery = {
+  period: string
+  jobOpeningId?: string
+  page: number
+  limit: number
+}
+
+export async function fetchScheduledMessagesPage(
+  q: ScheduledMessagesPageQuery,
+): Promise<{
+  items: ScheduledMessageDto[]
+  total: number
+  page: number
+  limit: number
+}> {
+  const p = new URLSearchParams()
+  p.set('period', q.period)
+  if (q.jobOpeningId?.trim()) {
+    p.set('job_opening_id', q.jobOpeningId.trim())
+  }
+  p.set('page', String(q.page))
+  p.set('limit', String(q.limit))
+  const r = await fetch(
+    `/api/v1/recruitment/comms-hub/analytics/scheduled?${p.toString()}`,
+  )
+  if (!r.ok) {
+    const err = (await r.json().catch(() => ({}))) as { error?: string }
+    throw new Error(err.error ?? 'Failed to load scheduled messages')
+  }
+  return r.json() as Promise<{
+    items: ScheduledMessageDto[]
+    total: number
+    page: number
+    limit: number
+  }>
 }
