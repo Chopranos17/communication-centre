@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import {
   ACTIVITY_STATUS_DOT,
   CHANNEL_META,
+  SMS_VIA_LINE_MUTED_CLASS,
   STATUS_STYLES,
   channelKeyFromApi,
+  formatSmsViaLineLabel,
   initials,
   truncatePreview,
   type ActivityStatusKey,
@@ -268,6 +270,10 @@ export function ActivityCommunicationListPanel({
                   const primaryLabel = primaryButtonLabel(row.primaryAction)
                   const loadingPrimary =
                     primaryActionLoadingId === row.communicationId
+                  const smsVia =
+                    channelKeyFromApi(row.channel) === 'sms'
+                      ? formatSmsViaLineLabel(row.smsNumber ?? null)
+                      : null
 
                   return (
                     <tr
@@ -298,13 +304,22 @@ export function ActivityCommunicationListPanel({
                         </Link>
                       </td>
                       <td className={`${tdClass} max-w-0`}>
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <span className="shrink-0 pt-0.5">
-                            <DirectionArrow inbound={inbound} />
-                          </span>
-                          <span className="min-w-0 truncate text-[12px] text-[#4d4d4d]">
-                            {truncatePreview(row.preview)}
-                          </span>
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <span className="shrink-0 pt-0.5">
+                              <DirectionArrow inbound={inbound} />
+                            </span>
+                            <span className="min-w-0 truncate text-[12px] text-[#4d4d4d]">
+                              {truncatePreview(row.preview)}
+                            </span>
+                          </div>
+                          {smsVia ? (
+                            <p
+                              className={`truncate pl-[17px] ${SMS_VIA_LINE_MUTED_CLASS}`}
+                            >
+                              {smsVia}
+                            </p>
+                          ) : null}
                         </div>
                       </td>
                       <td className={tdClass}>

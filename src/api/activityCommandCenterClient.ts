@@ -1,3 +1,5 @@
+import type { ActivitySmsNumberDto } from '../lib/activityPresentation'
+
 export type ActivityListItemDto = {
   communicationId: string
   candidateId: string
@@ -15,7 +17,10 @@ export type ActivityListItemDto = {
   sentAt: string
   status: 'engaged' | 'pending' | 'unresponsive'
   primaryAction: 'reply' | 'followup' | 'view'
+  smsNumber: ActivitySmsNumberDto | null
 }
+
+export type { ActivitySmsNumberDto }
 
 export type ActivityFeedResponse = {
   items: ActivityListItemDto[]
@@ -43,6 +48,8 @@ export type ActivityQuery = {
   q: string
   /** Comma-separated: email, sms, whatsapp, meeting — empty = all */
   channel: string
+  /** Prototype user id — limit to SMS anchors on that user's assigned line. */
+  smsOwnerId?: string
 }
 
 function buildActivityQueryString(query: ActivityQuery): string {
@@ -55,6 +62,7 @@ function buildActivityQueryString(query: ActivityQuery): string {
   p.set('limit', String(query.limit))
   if (query.q.trim()) p.set('q', query.q.trim())
   if (query.channel.trim()) p.set('channel', query.channel.trim())
+  if (query.smsOwnerId?.trim()) p.set('sms_owner_id', query.smsOwnerId.trim())
   return p.toString()
 }
 

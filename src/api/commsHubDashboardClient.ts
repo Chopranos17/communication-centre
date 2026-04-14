@@ -39,6 +39,12 @@ export type CommsHubDashboardDto = {
     status: 'engaged' | 'pending' | 'unresponsive'
     sentAt: string
     primaryAction: 'reply' | 'followup' | 'view'
+    smsNumber: {
+      id: string
+      displayLabel: string | null
+      assignedToName: string | null
+      numberType: string
+    } | null
   }>
   scheduled: ScheduledMessageDto[]
   scheduledQueuedTotal: number

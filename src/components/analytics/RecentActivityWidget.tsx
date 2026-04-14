@@ -12,10 +12,13 @@ import { formatRelativeTime } from '../../lib/relativeTime'
 import {
   ACTIVITY_STATUS_DOT,
   CHANNEL_META,
+  SMS_VIA_LINE_MUTED_CLASS,
   STATUS_STYLES,
+  formatSmsViaLineLabel,
   initials,
   truncatePreview,
   type ActivityChannelKey,
+  type ActivitySmsNumberDto,
   type ActivityStatusKey,
 } from '../../lib/activityPresentation'
 import type { ActivityPrimaryActionType } from '../../utils/communicationTimeline'
@@ -37,6 +40,7 @@ export interface ActivityItem {
   status: ActivityStatusKey
   sentAt: string
   primaryAction: ActivityPrimaryActionType
+  smsNumber?: ActivitySmsNumberDto | null
 }
 
 export interface PrimaryAction {
@@ -230,6 +234,10 @@ export function RecentActivityWidget({
               const menuIdThis = `${menuId}-${item.communicationId}`
               const primary = primaryActionDisplay(item.primaryAction)
               const loadingPrimary = primaryActionLoadingId === item.communicationId
+              const smsVia =
+                item.channel === 'sms'
+                  ? formatSmsViaLineLabel(item.smsNumber ?? null)
+                  : null
 
               return (
                 <li
@@ -299,6 +307,11 @@ export function RecentActivityWidget({
                         {preview}
                       </span>
                     </div>
+                    {smsVia ? (
+                      <p className={`mt-0.5 truncate pl-[17px] ${SMS_VIA_LINE_MUTED_CLASS}`}>
+                        {smsVia}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div

@@ -197,6 +197,7 @@ export function CommunicationHubPage() {
         status: a.status,
         sentAt: a.sentAt,
         primaryAction: (a.primaryAction ?? 'view') as ActivityPrimaryActionType,
+        smsNumber: a.smsNumber ?? null,
       }),
     )
   }, [data])

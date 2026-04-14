@@ -125,6 +125,13 @@ export type CurrentJobEmailRow = {
   threadId: string | null
   /** Populated when channel === "meeting". */
   meeting?: MeetingTimelineMeta | null
+  /** Populated when channel === "sms" and linked to an {@link SmsNumber}. */
+  smsNumber?: {
+    id: string
+    displayLabel: string | null
+    assignedToName: string | null
+    numberType: string
+  } | null
 }
 
 export type OtherJobEmailSection = {

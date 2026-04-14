@@ -65,6 +65,13 @@ function deriveStatus(
   return "unresponsive";
 }
 
+export type ActivitySmsNumberSummary = {
+  id: string;
+  displayLabel: string | null;
+  assignedToName: string | null;
+  numberType: string;
+};
+
 export type ActivityListItem = {
   communicationId: string;
   candidateId: string;
@@ -82,6 +89,8 @@ export type ActivityListItem = {
   sentAt: string;
   status: ActivityRowStatus;
   primaryAction: ActivityPrimaryActionType;
+  /** Present for SMS rows tied to an {@link SmsNumber}. */
+  smsNumber: ActivitySmsNumberSummary | null;
 };
 
 function senderLabelForTimeline(
@@ -213,12 +222,35 @@ function sortActivityItems(
  * Builds the full activity list (one row per candidate–job pair) using the same rules as
  * {@link fetchActivityFeed}, including span filtering.
  */
+function smsNumberFromPrisma(
+  row: {
+    sms_number: {
+      id: string;
+      display_label: string | null;
+      assigned_to_name: string | null;
+      number_type: string;
+      assigned_to_id: string | null;
+    } | null;
+  },
+): ActivitySmsNumberSummary | null {
+  const sn = row.sms_number;
+  if (!sn) return null;
+  return {
+    id: sn.id,
+    displayLabel: sn.display_label,
+    assignedToName: sn.assigned_to_name,
+    numberType: sn.number_type,
+  };
+}
+
 export async function buildActivityListItems(params: {
   period: string;
   jobId: string;
   sort: string;
   search: string;
   channel: string;
+  /** When set, only pairs whose period anchor is SMS on a line assigned to this user id. */
+  smsOwnerId?: string;
 }): Promise<{ builtAll: ActivityListItem[]; slaDays: number }> {
   const slaMs = getSlaMs();
   const slaDays = Math.round(slaMs / (24 * 60 * 60 * 1000));
@@ -248,12 +280,26 @@ export async function buildActivityListItems(params: {
       candidate_id: { not: null },
       channel: { in: [...ACTIVITY_CHANNELS] },
     },
-    include: { candidate: true, job: true },
+    include: {
+      candidate: true,
+      job: true,
+      sms_number: {
+        select: {
+          id: true,
+          display_label: true,
+          assigned_to_name: true,
+          number_type: true,
+          assigned_to_id: true,
+        },
+      },
+    },
     orderBy: { sent_at: "desc" },
   });
 
+  type CommRow = (typeof rows)[number];
+
   type PairAgg = {
-    all: Communication[];
+    all: CommRow[];
     candidate: Candidate;
     job: Job;
   };
@@ -272,6 +318,7 @@ export async function buildActivityListItems(params: {
 
   const searchRaw = params.search.trim();
   const channelFilter = parseChannelCsv(params.channel);
+  const smsOwnerFilter = params.smsOwnerId?.trim() ?? "";
 
   const builtAll: ActivityListItem[] = [];
 
@@ -294,6 +341,12 @@ export async function buildActivityListItems(params: {
     const anchorCh = anchor.channel.toLowerCase();
     if (channelFilter.length > 0 && !channelFilter.includes(anchorCh)) {
       continue;
+    }
+
+    if (smsOwnerFilter) {
+      if (anchorCh !== "sms") continue;
+      const ownerId = anchor.sms_number?.assigned_to_id ?? null;
+      if (ownerId !== smsOwnerFilter) continue;
     }
 
     const body = anchor.body ?? "";
@@ -321,6 +374,7 @@ export async function buildActivityListItems(params: {
       sentAt: anchor.sent_at.toISOString(),
       status,
       primaryAction,
+      smsNumber: smsNumberFromPrisma(anchor),
     });
   }
 
@@ -361,6 +415,8 @@ export async function fetchActivityFeed(params: {
   search: string;
   /** Comma-separated: email, sms, whatsapp, meeting — empty = all channels */
   channel: string;
+  /** Only SMS anchors on a line whose assigned user matches this id (e.g. prototype persona user). */
+  smsOwnerId?: string;
 }): Promise<{
   items: ActivityListItem[];
   total: number;
@@ -380,6 +436,7 @@ export async function fetchActivityFeed(params: {
     sort: params.sort,
     search: params.search,
     channel: params.channel,
+    smsOwnerId: params.smsOwnerId,
   });
 
   const summary = {
@@ -453,6 +510,7 @@ export type CommsHubDashboardResponse = {
     status: ActivityRowStatus;
     sentAt: string;
     primaryAction: ActivityPrimaryActionType;
+    smsNumber: ActivitySmsNumberSummary | null;
   }>;
   scheduled: ScheduledMessageRow[];
   scheduledQueuedTotal: number;
@@ -778,6 +836,7 @@ export async function fetchCommsHubDashboard(params: {
     status: r.status,
     sentAt: r.sentAt,
     primaryAction: r.primaryAction,
+    smsNumber: r.smsNumber,
   }));
 
   const unresponsiveCount = builtAll.filter(

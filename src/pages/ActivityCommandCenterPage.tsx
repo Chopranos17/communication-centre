@@ -24,9 +24,14 @@ import { SendChannelMessageModal } from '../components/candidate/SendChannelMess
 import { FilterTabs } from '../components/layout/FilterTabs'
 import { PageHeader } from '../components/layout/PageHeader'
 import { useToast } from '../contexts/ToastContext'
+import { PERSONA_TO_USER_ID } from '../constants/personaUserIds'
 import { usePersona } from '../context/PersonaContext'
 import { channelKeyFromApi, initials } from '../lib/activityPresentation'
-import { sdsButtonSecondaryIcon } from '../lib/sdsButtonClasses'
+import {
+  sdsButtonSecondaryIcon,
+  sdsPillMdSelected,
+  sdsPillMdUnselected,
+} from '../lib/sdsButtonClasses'
 import {
   sdsSidePanelBackdropButton,
   sdsSidePanelContainerWide,
@@ -118,7 +123,7 @@ function advancedFromSearchParams(sp: URLSearchParams): ActivityAdvancedFilters 
 export function ActivityCommandCenterPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { showToast } = useToast()
-  const { canManageRecruitment } = usePersona()
+  const { canManageRecruitment, persona } = usePersona()
   const [jobs, setJobs] = useState<JobListRow[]>([])
   const [feed, setFeed] = useState<ActivityFeedResponse | null>(null)
   const [feedLoading, setFeedLoading] = useState(true)
@@ -171,6 +176,12 @@ export function ActivityCommandCenterPage() {
   )
 
   const qFromUrl = searchParams.get('q')?.trim() ?? ''
+  const smsOwnerIdFromUrl = searchParams.get('sms_owner_id')?.trim() ?? ''
+
+  const mySmsLineActive = useMemo(() => {
+    const uid = PERSONA_TO_USER_ID[persona as 'recruiter' | 'hiring_lead']
+    return Boolean(uid && smsOwnerIdFromUrl === uid)
+  }, [persona, smsOwnerIdFromUrl])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -195,8 +206,9 @@ export function ActivityCommandCenterPage() {
       limit,
       q: qFromUrl,
       channel: advanced.channel,
+      smsOwnerId: smsOwnerIdFromUrl,
     }),
-    [advanced, statusChip, page, limit, qFromUrl],
+    [advanced, statusChip, page, limit, qFromUrl, smsOwnerIdFromUrl],
   )
 
   const loadJobs = useCallback(async () => {
@@ -268,7 +280,8 @@ export function ActivityCommandCenterPage() {
       fresh.communicationId !== selectedRow.communicationId ||
       fresh.sentAt !== selectedRow.sentAt ||
       fresh.status !== selectedRow.status ||
-      fresh.preview !== selectedRow.preview
+      fresh.preview !== selectedRow.preview ||
+      fresh.smsNumber?.id !== selectedRow.smsNumber?.id
     ) {
       setSelectedRow(fresh)
     }
@@ -315,6 +328,16 @@ export function ActivityCommandCenterPage() {
     },
     [searchParams, setSearchParams],
   )
+
+  const toggleMySmsLine = useCallback(() => {
+    const uid = PERSONA_TO_USER_ID[persona as 'recruiter' | 'hiring_lead']
+    if (!uid) return
+    const p = new URLSearchParams(searchParams)
+    if (p.get('sms_owner_id') === uid) p.delete('sms_owner_id')
+    else p.set('sms_owner_id', uid)
+    p.set('page', '1')
+    setSearchParams(p, { replace: true })
+  }, [persona, searchParams, setSearchParams])
 
   const onAdvancedApply = useCallback(
     (next: ActivityAdvancedFilters) => {
@@ -507,12 +530,23 @@ export function ActivityCommandCenterPage() {
       </header>
 
       <div className="mx-auto flex w-full min-w-0 max-w-screen-xl flex-col gap-4 px-6 pb-6 pt-6">
-        <div className="flex min-w-0 overflow-x-auto pb-0.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto pb-0.5">
           <FilterTabs
             tabs={statusTabs}
             activeId={statusChip}
             onChange={pushStatus}
           />
+          {canManageRecruitment ? (
+            <button
+              type="button"
+              onClick={toggleMySmsLine}
+              className={
+                mySmsLineActive ? sdsPillMdSelected : sdsPillMdUnselected
+              }
+            >
+              My SMS line
+            </button>
+          ) : null}
         </div>
 
         <ActivityCommunicationListPanel

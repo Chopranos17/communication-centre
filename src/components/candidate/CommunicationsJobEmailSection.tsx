@@ -10,6 +10,10 @@ import {
   stripHtml,
 } from "../../utils/communicationTimeline";
 import {
+  SMS_VIA_LINE_MUTED_CLASS,
+  formatSmsViaLineLabel,
+} from "../../lib/activityPresentation";
+import {
   ScheduledEmailTimelineMenu,
   ScheduledSendTimestamp,
 } from "./ScheduledEmailTimelineMenu";
@@ -597,6 +601,11 @@ export function CommunicationsJobEmailSection({
                       candidateName,
                     );
 
+                    const smsViaLabel =
+                      ch === "sms"
+                        ? formatSmsViaLineLabel(latest.smsNumber ?? null)
+                        : null;
+
                     const showHoverSmsWaReply =
                       (latest.channel === "sms" ||
                         latest.channel === "whatsapp") &&
@@ -781,9 +790,18 @@ export function CommunicationsJobEmailSection({
                           </p>
                         </>
                       ) : (
-                        <p className="mt-1.5 truncate text-sm text-[#4d4d4d]">
-                          {bodyOneLine || "—"}
-                        </p>
+                        <>
+                          <p className="mt-1.5 truncate text-sm text-[#4d4d4d]">
+                            {bodyOneLine || "—"}
+                          </p>
+                          {smsViaLabel ? (
+                            <p
+                              className={`mt-0.5 truncate ${SMS_VIA_LINE_MUTED_CLASS}`}
+                            >
+                              {smsViaLabel}
+                            </p>
+                          ) : null}
+                        </>
                       );
 
                     if (isThread && latest.channel === "email") {

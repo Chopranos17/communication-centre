@@ -101,3 +101,30 @@ export function channelKeyFromApi(ch: string): ActivityChannelKey {
   if (ch === 'sms' || ch === 'whatsapp' || ch === 'meeting') return ch
   return 'email'
 }
+
+/** SMS line ownership surfaced on activity rows and timeline (API camelCase). */
+export type ActivitySmsNumberDto = {
+  id: string
+  displayLabel: string | null
+  assignedToName: string | null
+  numberType: string
+}
+
+/** Subtle footer copy for SMS rows, e.g. "via team line" / "via Sarah's line". */
+export function formatSmsViaLineLabel(
+  sms: ActivitySmsNumberDto | null | undefined,
+): string | null {
+  if (!sms) return null
+  const nt = sms.numberType?.trim().toLowerCase()
+  if (nt === 'shared') return 'via team line'
+  const name = (sms.assignedToName ?? '').trim()
+  if (name) {
+    const first = name.split(/\s+/)[0] ?? name
+    return `via ${first}'s line`
+  }
+  const label = (sms.displayLabel ?? '').trim()
+  if (label) return `via ${label}`
+  return 'via SMS line'
+}
+
+export const SMS_VIA_LINE_MUTED_CLASS = 'text-[10px] text-[#aaaaaa]'

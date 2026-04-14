@@ -191,7 +191,17 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
         job_id: jobId,
         channel: { in: [...TIMELINE_CHANNELS] },
       },
-      include: { meeting_detail: true },
+      include: {
+        meeting_detail: true,
+        sms_number: {
+          select: {
+            id: true,
+            display_label: true,
+            assigned_to_name: true,
+            number_type: true,
+          },
+        },
+      },
       orderBy: { sent_at: "desc" },
     });
 
@@ -207,6 +217,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
               ? "system"
               : "email";
       const mtg = row.meeting_detail;
+      const sn = row.sms_number;
       return {
         id: row.id,
         channel,
@@ -236,6 +247,15 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
                 meetingLink: mtg.meeting_link,
               }
             : null,
+        smsNumber:
+          channel === "sms" && sn
+            ? {
+                id: sn.id,
+                displayLabel: sn.display_label,
+                assignedToName: sn.assigned_to_name,
+                numberType: sn.number_type,
+              }
+            : null,
       };
     };
 
@@ -250,7 +270,17 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
             job_id: link.job_id,
             channel: { in: [...TIMELINE_CHANNELS] },
           },
-          include: { meeting_detail: true },
+          include: {
+            meeting_detail: true,
+            sms_number: {
+              select: {
+                id: true,
+                display_label: true,
+                assigned_to_name: true,
+                number_type: true,
+              },
+            },
+          },
           orderBy: { sent_at: "desc" },
         });
         if (otherRows.length === 0) return null;
@@ -1582,6 +1612,10 @@ app.get(
       typeof req.query.q === "string" ? req.query.q.trim() : "";
     const channel =
       typeof req.query.channel === "string" ? req.query.channel.trim() : "";
+    const smsOwnerIdRaw =
+      typeof req.query.sms_owner_id === "string"
+        ? req.query.sms_owner_id.trim()
+        : "";
     const page = Math.max(
       1,
       Number.parseInt(String(req.query.page ?? "1"), 10) || 1,
@@ -1601,6 +1635,7 @@ app.get(
         limit,
         search,
         channel,
+        smsOwnerId: smsOwnerIdRaw || undefined,
       });
       res.json(result);
     } catch (e) {
