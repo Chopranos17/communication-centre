@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -28,6 +28,11 @@ model Candidate {
   jobs           CandidateJob[]
   communications Communication[]
   meetings       Meeting[]
+
+  // Add to Candidate model fields:
+  sms_consent_status  String    @default("pending") // pending | granted | revoked
+  sms_consent_at      DateTime?
+  sms_opted_out_at    DateTime?
 }
 
 model CandidateJob {
@@ -96,8 +101,29 @@ model Communication {
   template       EmailTemplate? @relation(fields: [template_id], references: [id], onDelete: SetNull)
   meeting_detail Meeting?
 
+  // Add to Communication model fields:
+  sms_number_id    String?
+  sms_number       SmsNumber? @relation(fields: [sms_number_id], references: [id])
+
+  @@index([sms_number_id])
   @@index([candidate_id, job_id])
   @@index([thread_id])
+}
+
+model SmsNumber {
+  id               String    @id @default(cuid())
+  phone_number     String    
+  twilio_phone_sid String?   @unique
+  display_label    String?
+  number_type      String    @default("dedicated") // dedicated | shared
+  assigned_to_id   String?
+  assigned_to_name String?
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  // Relation: communications sent from / received on this number
+  communications   Communication[]
 }
 
 model Meeting {

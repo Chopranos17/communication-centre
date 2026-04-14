@@ -4,7 +4,10 @@ import { createPortal } from "react-dom";
 import {
   composeSendSms,
   composeSendWhatsApp,
+  fetchSmsNumberForUser,
 } from "../../api/candidatesClient";
+import { PERSONA_TO_USER_ID } from "../../constants/personaUserIds";
+import { usePersona } from "../../context/PersonaContext";
 import {
   resolveWhatsAppErrorBannerText,
   smsVendorError,
@@ -25,8 +28,6 @@ import {
   sdsSidePanelRoot,
 } from "../../lib/sdsModalClasses";
 
-const SMS_FROM =
-  import.meta.env.VITE_SMS_SENDER_LABEL ?? "Twilio SMS (Sender ID)";
 const WHATSAPP_FROM =
   import.meta.env.VITE_WHATSAPP_BUSINESS_NAME ?? "Darwinbox WhatsApp Business";
 
@@ -67,6 +68,13 @@ export function BulkChannelMessageModal({
   onSent,
 }: BulkChannelMessageModalProps) {
   const { showToast } = useToast();
+  const { canManageRecruitment, persona } = usePersona();
+  const senderUserId =
+    canManageRecruitment &&
+    (persona === "recruiter" || persona === "hiring_lead")
+      ? PERSONA_TO_USER_ID[persona]
+      : undefined;
+
   const [recipients, setRecipients] = useState<BulkChannelRecipient[]>([]);
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<Phase>("compose");
@@ -75,6 +83,12 @@ export function BulkChannelMessageModal({
   const [sentOk, setSentOk] = useState(0);
   const [sentFail, setSentFail] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [smsFromLoading, setSmsFromLoading] = useState(false);
+  const [smsFromLine, setSmsFromLine] = useState<{
+    label: string;
+    phone: string;
+  } | null>(null);
+  const [smsFromWarning, setSmsFromWarning] = useState<string | null>(null);
 
   const recipientKey = useMemo(
     () => initialRecipients.map((r) => r.candidateId).join("|"),
@@ -92,6 +106,54 @@ export function BulkChannelMessageModal({
     setSentFail(0);
     setLastError(null);
   }, [open, recipientKey, variant]);
+
+  useEffect(() => {
+    if (!open || variant !== "sms") {
+      setSmsFromLoading(false);
+      setSmsFromLine(null);
+      setSmsFromWarning(null);
+      return;
+    }
+    if (!senderUserId) {
+      setSmsFromLoading(false);
+      setSmsFromLine(null);
+      setSmsFromWarning(
+        "Switch to Recruiter or Hiring Lead to send with a dedicated number.",
+      );
+      return;
+    }
+    let cancelled = false;
+    setSmsFromLoading(true);
+    setSmsFromWarning(null);
+    void (async () => {
+      try {
+        const data = await fetchSmsNumberForUser(senderUserId);
+        if (cancelled) return;
+        if (data.phoneNumber) {
+          setSmsFromLine({
+            label: data.displayLabel ?? data.phoneNumber,
+            phone: data.phoneNumber,
+          });
+          setSmsFromWarning(data.warning ?? null);
+        } else {
+          setSmsFromLine(null);
+          setSmsFromWarning(
+            data.warning ?? "No SMS sending number is configured.",
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setSmsFromLine(null);
+          setSmsFromWarning("Could not load sending number.");
+        }
+      } finally {
+        if (!cancelled) setSmsFromLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, variant, senderUserId]);
 
   useEffect(() => {
     if (!open) return;
@@ -118,7 +180,6 @@ export function BulkChannelMessageModal({
   }, []);
 
   const smsHint = smsSegmentHint(text);
-  const fromLabel = variant === "sms" ? SMS_FROM : WHATSAPP_FROM;
   const title =
     variant === "sms"
       ? `Send SMS (${recipients.length} candidate${recipients.length === 1 ? "" : "s"})`
@@ -149,6 +210,9 @@ export function BulkChannelMessageModal({
           jobId: r.jobId.trim() || jobIdFallback,
           text: body,
           senderName: "Recruiter" as const,
+          ...(variant === "sms" && senderUserId
+            ? { senderUserId }
+            : {}),
         };
         const result =
           variant === "sms"
@@ -205,6 +269,7 @@ export function BulkChannelMessageModal({
     onSent,
     onComplete,
     showToast,
+    senderUserId,
   ]);
 
   if (!open) return null;
@@ -353,14 +418,44 @@ export function BulkChannelMessageModal({
               </div>
 
               <div className="space-y-4 text-[length:var(--body-m)]">
-                <div>
-                  <span className={`mb-1 block ${sdsLabel}`}>
-                    From
-                  </span>
-                  <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
-                    {fromLabel}
-                  </p>
-                </div>
+                {variant === "whatsapp" ? (
+                  <div>
+                    <span className={`mb-1 block ${sdsLabel}`}>From</span>
+                    <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
+                      {WHATSAPP_FROM}
+                    </p>
+                  </div>
+                ) : null}
+                {variant === "sms" ? (
+                  <>
+                    {smsFromWarning ? (
+                      <div
+                        className="rounded-[var(--radius-md)] border border-amber-200 bg-amber-50 px-3 py-2 text-[length:var(--body-s)] text-amber-950"
+                        role="status"
+                      >
+                        {smsFromWarning}
+                      </div>
+                    ) : null}
+                    <div>
+                      <span className={`mb-1 block ${sdsLabel}`}>
+                        Sending from
+                      </span>
+                      {smsFromLoading ? (
+                        <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-label)]">
+                          Loading…
+                        </p>
+                      ) : smsFromLine ? (
+                        <p className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--charcoal-10)] px-3 py-2 text-[var(--text-body)]">
+                          {smsFromLine.label} ({smsFromLine.phone})
+                        </p>
+                      ) : (
+                        <p className="rounded-[4px] border border-amber-200 bg-amber-50 px-3 py-2 text-[length:var(--body-s)] text-amber-950">
+                          No number assigned for sending.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                ) : null}
                 <div>
                   <label
                     className={`mb-1 block ${sdsLabel}`}

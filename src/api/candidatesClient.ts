@@ -323,6 +323,27 @@ export type ComposeSmsPayload = {
   jobId: string
   text: string
   senderName?: string
+  /** Seed user id for per-recruiter SMS from-number (optional). */
+  senderUserId?: string
+}
+
+export type SmsNumberForUserResponse = {
+  phoneNumber: string | null
+  displayLabel: string | null
+  fromDatabase: boolean
+  warning?: string
+}
+
+export async function fetchSmsNumberForUser(
+  userId: string,
+): Promise<SmsNumberForUserResponse> {
+  const r = await fetch(
+    `/api/sms-numbers/for-user/${encodeURIComponent(userId)}`,
+  )
+  if (!r.ok) {
+    throw new Error("Failed to load SMS number")
+  }
+  return r.json() as Promise<SmsNumberForUserResponse>
 }
 
 export type ComposeSmsResult = ComposeEmailResult

@@ -18,15 +18,67 @@ function envPhone(key: string, fallback: string): string {
 }
 
 async function main() {
+  // === Clear all tables (order matters for FK constraints) ===
   await prisma.meeting.deleteMany();
   await prisma.communication.deleteMany();
   await prisma.candidateJob.deleteMany();
   await prisma.candidate.deleteMany();
   await prisma.job.deleteMany();
   await prisma.emailTemplate.deleteMany();
+  await prisma.smsNumber.deleteMany();  // NEW — clear SMS numbers
 
   const now = new Date();
 
+  // ============================================================
+  // SMS NUMBER CONFIGURATION
+  // For dev/demo: all 3 use the same trial number from .env
+  // When Twilio upgrade completes, set distinct numbers in .env
+  // ============================================================
+  const smsPhoneDefault = process.env.TWILIO_PHONE_NUMBER || '+15551234567';
+  const smsPhoneRecruiter = process.env.TWILIO_NUMBER_RECRUITER || smsPhoneDefault;
+  const smsPhoneHiringLead = process.env.TWILIO_NUMBER_HIRING_LEAD || smsPhoneDefault;
+  const smsPhoneShared = process.env.TWILIO_NUMBER_SHARED || smsPhoneDefault;
+
+  console.log('Seeding SMS numbers...');
+  const smsNumberRecruiter = await prisma.smsNumber.create({
+    data: {
+      phone_number: smsPhoneRecruiter,
+      display_label: "Atharva's Line",
+      number_type: 'dedicated',
+      assigned_to_id: 'emp-rec-001',
+      assigned_to_name: 'Atharva M',
+      is_active: true,
+    },
+  });
+  console.log(`  ✓ Recruiter: ${smsNumberRecruiter.phone_number} → ${smsNumberRecruiter.assigned_to_name}`);
+
+  const smsNumberHiringLead = await prisma.smsNumber.create({
+    data: {
+      phone_number: smsPhoneHiringLead,
+      display_label: "Hiring Lead Line",
+      number_type: 'dedicated',
+      assigned_to_id: 'emp-hl-001',
+      assigned_to_name: 'Hiring Lead',
+      is_active: true,
+    },
+  });
+  console.log(`  ✓ Hiring Lead: ${smsNumberHiringLead.phone_number} → ${smsNumberHiringLead.assigned_to_name}`);
+
+  const smsNumberShared = await prisma.smsNumber.create({
+    data: {
+      phone_number: smsPhoneShared,
+      display_label: 'Recruiting Team',
+      number_type: 'shared',
+      assigned_to_id: null,
+      assigned_to_name: null,
+      is_active: true,
+    },
+  });
+  console.log(`  ✓ Shared: ${smsNumberShared.phone_number} → Recruiting Team`);
+
+  // ============================================================
+  // EMAIL TEMPLATES (unchanged)
+  // ============================================================
   const templates = await prisma.emailTemplate.createMany({
     data: [
       {
@@ -112,6 +164,9 @@ async function main() {
     (typeof tplRows)[0]
   >;
 
+  // ============================================================
+  // JOBS (unchanged)
+  // ============================================================
   const jobs = await prisma.$transaction([
     prisma.job.create({
       data: {
@@ -186,6 +241,9 @@ async function main() {
     source: string;
     recruiter_id: string;
     hiring_lead_id: string;
+    sms_consent_status: string;        // NEW
+    sms_consent_at: Date | null;       // NEW
+    sms_opted_out_at: Date | null;     // NEW
   };
 
   const candidateDefs: CDef[] = [
@@ -198,6 +256,9 @@ async function main() {
       source: "job_portal",
       recruiter_id: "emp-rec-001",
       hiring_lead_id: "emp-hl-001",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-01-10"),
+      sms_opted_out_at: null,
     },
     {
       name: "Arjun Mehta",
@@ -208,6 +269,9 @@ async function main() {
       source: "referral",
       recruiter_id: "emp-rec-001",
       hiring_lead_id: "emp-hl-001",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-01-12"),
+      sms_opted_out_at: null,
     },
     {
       name: "Sneha Iyer",
@@ -218,6 +282,9 @@ async function main() {
       source: "IJP",
       recruiter_id: "emp-rec-002",
       hiring_lead_id: "emp-hl-002",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-02-01"),
+      sms_opted_out_at: null,
     },
     {
       name: "Vikram Singh",
@@ -228,6 +295,9 @@ async function main() {
       source: "external_recruiter",
       recruiter_id: "emp-rec-002",
       hiring_lead_id: "emp-hl-002",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-01-20"),
+      sms_opted_out_at: null,
     },
     {
       name: "Mayank Prabhakar",
@@ -238,6 +308,9 @@ async function main() {
       source: "job_portal",
       recruiter_id: "emp-rec-001",
       hiring_lead_id: "emp-hl-001",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-01-18"),
+      sms_opted_out_at: null,
     },
     {
       name: "Karan Patel",
@@ -248,6 +321,9 @@ async function main() {
       source: "CRM",
       recruiter_id: "emp-rec-003",
       hiring_lead_id: "emp-hl-003",
+      sms_consent_status: "pending",     // PENDING — demo: consent not yet obtained
+      sms_consent_at: null,
+      sms_opted_out_at: null,
     },
     {
       name: "Divya Nair",
@@ -258,6 +334,9 @@ async function main() {
       source: "referral",
       recruiter_id: "emp-rec-001",
       hiring_lead_id: "emp-hl-001",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-02-05"),
+      sms_opted_out_at: null,
     },
     {
       name: "Rohit Khanna",
@@ -268,6 +347,9 @@ async function main() {
       source: "job_portal",
       recruiter_id: "emp-rec-002",
       hiring_lead_id: "emp-hl-001",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2024-12-15"),
+      sms_opted_out_at: null,
     },
     {
       name: "Meera Joshi",
@@ -278,6 +360,9 @@ async function main() {
       source: "job_portal",
       recruiter_id: "emp-rec-001",
       hiring_lead_id: "emp-hl-002",
+      sms_consent_status: "revoked",     // REVOKED — demo: opted out
+      sms_consent_at: new Date("2025-01-05"),
+      sms_opted_out_at: new Date("2025-03-01"),
     },
     {
       name: "Akshat Chopra",
@@ -288,6 +373,9 @@ async function main() {
       source: "IJP",
       recruiter_id: "emp-rec-002",
       hiring_lead_id: "emp-hl-001",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-02-10"),
+      sms_opted_out_at: null,
     },
     {
       name: "Vinay Rao",
@@ -298,6 +386,9 @@ async function main() {
       source: "job_portal",
       recruiter_id: "emp-rec-003",
       hiring_lead_id: "emp-hl-003",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-02-15"),
+      sms_opted_out_at: null,
     },
     {
       name: "Suresh Menon",
@@ -308,6 +399,9 @@ async function main() {
       source: "referral",
       recruiter_id: "emp-rec-001",
       hiring_lead_id: "emp-hl-001",
+      sms_consent_status: "granted",
+      sms_consent_at: new Date("2025-01-25"),
+      sms_opted_out_at: null,
     },
   ];
 
@@ -324,6 +418,9 @@ async function main() {
           hiring_lead_id: c.hiring_lead_id,
           hiring_manager_id: "emp-hm-001",
           source: c.source,
+          sms_consent_status: c.sms_consent_status,     // NEW
+          sms_consent_at: c.sms_consent_at,             // NEW
+          sms_opted_out_at: c.sms_opted_out_at,         // NEW
         },
       }),
     ),
@@ -368,6 +465,9 @@ async function main() {
   const atharva = "Atharva M";
   const recruiterName = atharva;
 
+  // ============================================================
+  // COMMUNICATIONS
+  // ============================================================
   type CommIn = {
     candidateId: string;
     jobId: string;
@@ -387,6 +487,7 @@ async function main() {
     vendor_message_id?: string;
     sent_at: Date;
     read_at?: Date | null;
+    sms_number_id?: string;   // NEW — link to SmsNumber
   };
 
   function comm(c: CommIn) {
@@ -409,6 +510,7 @@ async function main() {
       vendor_message_id: c.vendor_message_id,
       sent_at: c.sent_at,
       read_at: c.read_at ?? undefined,
+      sms_number_id: c.sms_number_id ?? undefined,  // NEW
     };
   }
 
@@ -468,7 +570,7 @@ async function main() {
       from_address: "contact@darwinbox.in",
       to_address: cPriya.email,
       subject: "Re: RSM role — quick question on your availability",
-      body: "Tuesday 5 PM works — I’ll send a calendar invite shortly.",
+      body: "Tuesday 5 PM works — I'll send a calendar invite shortly.",
       delivery_status: "sent",
       vendor_message_id: "re_01seed_rsm_priya_03",
       sent_at: d1(2),
@@ -518,12 +620,12 @@ async function main() {
       from_address: cArjun.email,
       to_address: "contact@darwinbox.in",
       subject: "Re: PM screening — take-home context",
-      body: "Got it — I’ll submit by EOD Friday. One question: expected length?",
+      body: "Got it — I'll submit by EOD Friday. One question: expected length?",
       delivery_status: "delivered",
       vendor_message_id: "re_01seed_pm_arjun_02",
       sent_at: d1(4),
     },
-    // --- Thread: Aditya @ SE — no-reply only (follow-up eligible: different thread on contact@) ---
+    // --- Thread: Aditya @ SE — no-reply only ---
     {
       candidateId: cAditya.id,
       jobId: jobSe.id,
@@ -551,7 +653,7 @@ async function main() {
       from_address: "contact@darwinbox.in",
       to_address: cAditya.email,
       subject: "Technical round — scheduling",
-      body: "Hi Aditya, we’d like to schedule your technical discussion. Please suggest two slots.",
+      body: "Hi Aditya, we'd like to schedule your technical discussion. Please suggest two slots.",
       delivery_status: "delivered",
       vendor_message_id: "re_01seed_se_aditya_contact_01",
       sent_at: d1(2),
@@ -586,7 +688,8 @@ async function main() {
       sent_at: d1(days),
     });
 
-  const mkSms = (cid: string, jid: string, body: string, days: number, st: string) =>
+  // UPDATED: SMS helper now includes sms_number_id
+  const mkSms = (cid: string, jid: string, body: string, days: number, st: string, smsNumId?: string) =>
     extra.push({
       candidateId: cid,
       jobId: jid,
@@ -594,12 +697,14 @@ async function main() {
       direction: "outbound",
       sender_type: "recruiter",
       sender_name: recruiterName,
-      from_address: "+911204445566",
+      sender_id: "emp-rec-001",
+      from_address: smsPhoneRecruiter,
       to_address: createdCandidates.find((x) => x.id === cid)?.phone ?? undefined,
       body,
       delivery_status: st,
       vendor_message_id: st === "failed" ? undefined : `SM_mock_${extra.length}`,
       sent_at: d1(days),
+      sms_number_id: smsNumId,   // NEW
     });
 
   const mkWa = (cid: string, jid: string, body: string, hours: number) =>
@@ -650,9 +755,12 @@ async function main() {
   mkSystem(cDivya.id, jobSe.id, "Coding round reminder", "Reminder: complete the coding exercise.", 2);
   mkSystem(cRohit.id, jobSe.id, "Offer paperwork", "Please upload documents.", 20, "Offer Letter");
   mkSystem(cMeera.id, jobPm.id, "Not moving forward", "Thank you for your interest.", 15, "Application Update — Not Moving Forward");
-  mkSms(cPriya.id, jobRsm.id, "Hi Priya — confirming Tuesday 5 PM call.", 2, "delivered");
-  mkSms(cArjun.id, jobPm.id, "Reminder: take-home due tomorrow.", 1, "sent");
-  mkSms(cSneha.id, jobSe.id, "Your interview slot is confirmed.", 3, "failed");
+
+  // SMS messages now linked to sms_number_id
+  mkSms(cPriya.id, jobRsm.id, "Hi Priya — confirming Tuesday 5 PM call.", 2, "delivered", smsNumberRecruiter.id);
+  mkSms(cArjun.id, jobPm.id, "Reminder: take-home due tomorrow.", 1, "sent", smsNumberRecruiter.id);
+  mkSms(cSneha.id, jobSe.id, "Your interview slot is confirmed.", 3, "failed", smsNumberHiringLead.id);
+
   mkWa(cPriya.id, jobRsm.id, "Hi Priya, following up on WhatsApp as discussed.", 30);
   mkWa(cVikram.id, jobPm.id, "Congratulations on clearing the panel — next steps on email.", 50);
   mkNotify(cAnanya.id, jobRsm.id, "Pipeline update: moved to Pre-Offer.", 1);
@@ -727,7 +835,9 @@ async function main() {
 
   await prisma.$transaction(allComms.map((c) => prisma.communication.create({ data: comm(c) })));
 
-  // Meetings: need Communication rows first, then Meeting
+  // ============================================================
+  // MEETINGS (unchanged)
+  // ============================================================
   const mtgCommScheduled = await prisma.communication.create({
     data: {
       candidate_id: cSneha.id,
@@ -843,6 +953,7 @@ async function main() {
   console.log(
     JSON.stringify(
       {
+        smsNumbers: await prisma.smsNumber.count(),  // NEW
         templates: await prisma.emailTemplate.count(),
         jobs: await prisma.job.count(),
         candidates: await prisma.candidate.count(),

@@ -3,6 +3,7 @@ import type { Communication, Job } from "@prisma/client";
 import { Resend } from "resend";
 import twilio from "twilio";
 import { prisma } from "../db";
+import { getSmsNumberForUser } from "./sms-number-lookup";
 
 type CommunicationWithJob = Communication & { job: Job | null };
 
@@ -25,6 +26,8 @@ export interface SendEmailParams {
 export interface SendSMSParams {
   to: string;
   body: string;
+  /** Seed user id (e.g. emp-rec-001) for per-recruiter Twilio from-number; optional. */
+  senderUserId?: string | null;
 }
 
 export interface SendWhatsAppParams {
@@ -49,7 +52,14 @@ export interface SendMessageParams {
   templateId?: string | null;
   /** PRD §4.5 / Task 13: link outbound email to an existing thread. */
   threadId?: string | null;
+  /** Seed user id for SMS from-number lookup; optional (email/WhatsApp ignore). */
+  senderUserId?: string | null;
 }
+
+export type SendSmsResult = VendorSendResult & {
+  smsNumberId?: string | null;
+  resolvedFrom?: string | null;
+};
 
 export interface SendMessageResult extends VendorSendResult {
   communicationId: string;
@@ -137,15 +147,39 @@ export async function sendEmail(
   }
 }
 
-export async function sendSMS(params: SendSMSParams): Promise<VendorSendResult> {
+export async function sendSMS(params: SendSMSParams): Promise<SendSmsResult> {
   const client = getTwilioClient();
-  const from = process.env.TWILIO_PHONE_NUMBER?.trim();
+  let from = process.env.TWILIO_PHONE_NUMBER?.trim() ?? "";
+  let smsNumberId: string | null = null;
+
+  if (params.senderUserId?.trim()) {
+    const uid = params.senderUserId.trim();
+    const assigned = await getSmsNumberForUser(uid);
+    if (assigned) {
+      from = assigned.phone_number.trim();
+      smsNumberId = assigned.id;
+      console.log(
+        `[message-sender] SMS using number id=${assigned.id} phone=${from} label=${assigned.display_label ?? "(none)"} user=${uid}`,
+      );
+    } else {
+      console.warn(
+        `[message-sender] No SmsNumber row for user ${uid}; falling back to TWILIO_PHONE_NUMBER`,
+      );
+      from = process.env.TWILIO_PHONE_NUMBER?.trim() ?? "";
+    }
+  } else {
+    console.log(
+      "[message-sender] SMS using TWILIO_PHONE_NUMBER (senderUserId not provided)",
+    );
+  }
+
+  const resolvedFrom = from || null;
 
   if (!client || !from) {
     console.warn(
       "[message-sender] Twilio SMS not fully configured — mock SMS (DB only)",
     );
-    return { success: true };
+    return { success: true, smsNumberId, resolvedFrom };
   }
 
   try {
@@ -154,10 +188,15 @@ export async function sendSMS(params: SendSMSParams): Promise<VendorSendResult> 
       from,
       to: params.to,
     });
-    return { success: true, messageId: msg.sid };
+    return {
+      success: true,
+      messageId: msg.sid,
+      smsNumberId,
+      resolvedFrom,
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { success: false, error: msg };
+    return { success: false, error: msg, smsNumberId, resolvedFrom };
   }
 }
 
@@ -204,6 +243,8 @@ export async function sendMessage(
   } = params;
 
   let vendor: VendorSendResult;
+  let smsNumberId: string | null = null;
+  let smsResolvedFrom: string | null = null;
 
   if (channel === "email") {
     vendor = await sendEmail({
@@ -214,7 +255,14 @@ export async function sendMessage(
       htmlBody: body,
     });
   } else if (channel === "sms") {
-    vendor = await sendSMS({ to, body });
+    const smsRes = await sendSMS({
+      to,
+      body,
+      senderUserId: params.senderUserId,
+    });
+    vendor = smsRes;
+    smsNumberId = smsRes.smsNumberId ?? null;
+    smsResolvedFrom = smsRes.resolvedFrom ?? null;
   } else {
     vendor = await sendWhatsApp({ to, body });
   }
@@ -227,7 +275,10 @@ export async function sendMessage(
           from?.trim() ||
           DEFAULT_EMAIL_FROM)
       : channel === "sms"
-        ? process.env.TWILIO_PHONE_NUMBER?.trim() ?? from?.trim() ?? null
+        ? smsResolvedFrom ??
+          process.env.TWILIO_PHONE_NUMBER?.trim() ??
+          from?.trim() ??
+          null
         : process.env.TWILIO_WHATSAPP_NUMBER?.trim() ?? from?.trim() ?? null;
 
   const toStored = channel === "whatsapp" ? normalizeWhatsAppTo(to) : to;
@@ -254,6 +305,9 @@ export async function sendMessage(
       delivery_status: deliveryStatus,
       vendor_message_id:
         vendor.success && vendor.messageId ? vendor.messageId : null,
+      ...(channel === "sms" && smsNumberId
+        ? { sms_number_id: smsNumberId }
+        : {}),
     },
   });
 

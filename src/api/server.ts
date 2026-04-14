@@ -19,6 +19,7 @@ import {
   fetchScheduledMessagesPage,
   fetchThread,
 } from "./services/activity-command-center";
+import { getSmsNumberForUser } from "./services/sms-number-lookup";
 
 function normalizeSmsToE164(raw: string): string {
   const t = raw.trim().replace(/\s/g, "");
@@ -956,12 +957,46 @@ app.patch("/api/communications/:communicationId", async (req, res) => {
   }
 });
 
+app.get("/api/sms-numbers/for-user/:userId", async (req, res) => {
+  try {
+    const userId =
+      typeof req.params.userId === "string" ? req.params.userId.trim() : "";
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    const row = await getSmsNumberForUser(userId);
+    const envFallback = process.env.TWILIO_PHONE_NUMBER?.trim() ?? null;
+    if (row) {
+      return res.json({
+        phoneNumber: row.phone_number,
+        displayLabel: row.display_label?.trim() || row.phone_number,
+        fromDatabase: true,
+      });
+    }
+    return res.json({
+      phoneNumber: envFallback,
+      displayLabel: envFallback ? "Default (environment)" : null,
+      fromDatabase: false,
+      ...(envFallback
+        ? {}
+        : {
+            warning:
+              "No SMS number is assigned for this user and TWILIO_PHONE_NUMBER is not set.",
+          }),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
 app.post("/api/candidates/:candidateId/compose-sms", async (req, res) => {
   const { candidateId } = req.params;
   const body = req.body as {
     jobId?: string;
     text?: string;
     senderName?: string;
+    senderUserId?: string;
   };
 
   const jobId = typeof body.jobId === "string" ? body.jobId.trim() : "";
@@ -970,6 +1005,10 @@ app.post("/api/candidates/:candidateId/compose-sms", async (req, res) => {
     typeof body.senderName === "string" && body.senderName.trim()
       ? body.senderName.trim()
       : "Recruiter";
+  const senderUserId =
+    typeof body.senderUserId === "string" && body.senderUserId.trim()
+      ? body.senderUserId.trim()
+      : undefined;
 
   if (!jobId) {
     return res.status(400).json({ error: "jobId is required" });
@@ -1005,6 +1044,7 @@ app.post("/api/candidates/:candidateId/compose-sms", async (req, res) => {
       jobId,
       senderType: "recruiter",
       senderName,
+      senderUserId,
     });
 
     return res.json({
