@@ -24,6 +24,8 @@ type Props = {
   whatsappDisabledTitle?: string
   /** When false, hides SMS/WhatsApp actions (e.g. Candidate persona read-only). */
   showCommunicationActions?: boolean
+  /** Candidate revoked SMS consent — show badge instead of Send SMS. */
+  smsOptedOut?: boolean
 }
 
 export function CandidateDetailHeader({
@@ -35,6 +37,7 @@ export function CandidateDetailHeader({
   smsDisabledTitle,
   whatsappDisabledTitle,
   showCommunicationActions = true,
+  smsOptedOut = false,
 }: Props) {
   const [actionsOpen, setActionsOpen] = useState(false)
   const actionsRef = useRef<HTMLDivElement>(null)
@@ -91,7 +94,15 @@ export function CandidateDetailHeader({
               </p>
             </div>
             {showCommunicationActions ? (
-              <div className="relative shrink-0" ref={actionsRef}>
+              <div className="relative flex shrink-0 items-center gap-2" ref={actionsRef}>
+                {smsOptedOut ? (
+                  <span
+                    className="inline-flex items-center rounded-sds-4 border border-[#E53935] bg-[#FFEBEE] px-2.5 py-1 text-body-s font-medium text-[#C62828]"
+                    role="status"
+                  >
+                    SMS opted out
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setActionsOpen((o) => !o)}
@@ -109,6 +120,7 @@ export function CandidateDetailHeader({
                     className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
                     role="menu"
                   >
+                    {smsOptedOut ? null : (
                     <button
                       type="button"
                       role="menuitem"
@@ -120,10 +132,11 @@ export function CandidateDetailHeader({
                           setActionsOpen(false)
                         }
                       }}
-                      className={sdsMenuItemBtn}
+                      className={`${sdsMenuItemBtn} ${smsDisabled ? 'text-[#aaaaaa]' : ''}`}
                     >
                       Send SMS
                     </button>
+                    )}
                     <button
                       type="button"
                       role="menuitem"

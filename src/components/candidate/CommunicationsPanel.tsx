@@ -32,6 +32,7 @@ export type CommunicationsPanelProps = {
   onSendSms?: () => void;
   onSendWhatsApp?: () => void;
   smsDisabled?: boolean;
+  smsOptedOut?: boolean;
   whatsappDisabled?: boolean;
   smsDisabledTitle?: string;
   whatsappDisabledTitle?: string;
@@ -63,6 +64,7 @@ export function CommunicationsPanel({
   onSendSms,
   onSendWhatsApp,
   smsDisabled = false,
+  smsOptedOut = false,
   whatsappDisabled = false,
   smsDisabledTitle,
   whatsappDisabledTitle,
@@ -104,6 +106,7 @@ export function CommunicationsPanel({
         onSendSms={onSendSms}
         onSendWhatsApp={onSendWhatsApp}
         smsDisabled={smsDisabled}
+        smsOptedOut={smsOptedOut}
         whatsappDisabled={whatsappDisabled}
         smsDisabledTitle={smsDisabledTitle}
         whatsappDisabledTitle={whatsappDisabledTitle}

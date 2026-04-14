@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { fetchCandidateDetail, type CandidateDetail } from '../api/candidatesClient'
+import {
+  fetchCandidateDetail,
+  fetchSmsEligibility,
+  type CandidateDetail,
+  type SmsEligibilityResponse,
+} from '../api/candidatesClient'
+import { PERSONA_TO_USER_ID } from '../constants/personaUserIds'
 import { CandidateDetailHeader } from '../components/candidate/CandidateDetailHeader'
 import { CandidateDetailSidebar } from '../components/candidate/CandidateDetailSidebar'
 import {
@@ -56,7 +62,10 @@ export function CandidateDetailPage() {
   const [smsModalOpen, setSmsModalOpen] = useState(false)
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false)
   const [communicationsRefresh, setCommunicationsRefresh] = useState(0)
-  const { canManageRecruitment } = usePersona()
+  const [smsEligibility, setSmsEligibility] =
+    useState<SmsEligibilityResponse | null>(null)
+  const [smsEligibilityLoading, setSmsEligibilityLoading] = useState(false)
+  const { canManageRecruitment, persona } = usePersona()
 
   const bumpCommunications = useCallback(() => {
     setCommunicationsRefresh((n) => n + 1)
@@ -84,6 +93,36 @@ export function CandidateDetailPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!candidateId || !canManageRecruitment) {
+      setSmsEligibility(null)
+      setSmsEligibilityLoading(false)
+      return
+    }
+    if (persona !== 'recruiter' && persona !== 'hiring_lead') {
+      setSmsEligibility(null)
+      setSmsEligibilityLoading(false)
+      return
+    }
+    const senderUserId = PERSONA_TO_USER_ID[persona]
+    let cancelled = false
+    setSmsEligibilityLoading(true)
+    setSmsEligibility(null)
+    void fetchSmsEligibility(candidateId, senderUserId)
+      .then((e) => {
+        if (!cancelled) setSmsEligibility(e)
+      })
+      .catch(() => {
+        if (!cancelled) setSmsEligibility(null)
+      })
+      .finally(() => {
+        if (!cancelled) setSmsEligibilityLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [candidateId, canManageRecruitment, persona])
 
   useEffect(() => {
     const raw = searchParams.get('tab')
@@ -176,6 +215,24 @@ export function CandidateDetailPage() {
     detail.whatsappNumber?.trim() || detail.phone?.trim(),
   )
 
+  const smsOptedOut =
+    canManageRecruitment && smsEligibility?.reason === 'SMS_OPTED_OUT'
+
+  const smsBlockedByEligibility =
+    canManageRecruitment &&
+    !smsEligibilityLoading &&
+    smsEligibility !== null &&
+    !smsEligibility.eligible
+
+  const smsDisabledForEligibility =
+    smsEligibilityLoading || smsBlockedByEligibility
+
+  const smsDisabledTitleForEligibility = smsEligibilityLoading
+    ? 'Checking SMS eligibility…'
+    : smsEligibility && !smsEligibility.eligible
+      ? smsEligibility.message
+      : undefined
+
   const noJobTitle = 'No current job is linked — open a role first.'
 
   return (
@@ -199,10 +256,17 @@ export function CandidateDetailPage() {
           onSendWhatsApp={
             canManageRecruitment ? () => setWhatsappModalOpen(true) : undefined
           }
-          smsDisabled={!detail.currentJob || !hasPhone}
+          smsOptedOut={smsOptedOut}
+          smsDisabled={
+            !detail.currentJob || !hasPhone || smsDisabledForEligibility
+          }
           whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
           smsDisabledTitle={
-            !detail.currentJob ? noJobTitle : !hasPhone ? 'Candidate has no phone number.' : undefined
+            !detail.currentJob
+              ? noJobTitle
+              : !hasPhone
+                ? 'Candidate has no phone number.'
+                : smsDisabledTitleForEligibility
           }
           whatsappDisabledTitle={
             !detail.currentJob
@@ -328,14 +392,17 @@ export function CandidateDetailPage() {
                     ? () => setWhatsappModalOpen(true)
                     : undefined
                 }
-                smsDisabled={!detail.currentJob || !hasPhone}
+                smsDisabled={
+                  !detail.currentJob || !hasPhone || smsDisabledForEligibility
+                }
+                smsOptedOut={smsOptedOut}
                 whatsappDisabled={!detail.currentJob || !hasWhatsAppTarget}
                 smsDisabledTitle={
                   !detail.currentJob
                     ? noJobTitle
                     : !hasPhone
                       ? 'Candidate has no phone number.'
-                      : undefined
+                      : smsDisabledTitleForEligibility
                 }
                 whatsappDisabledTitle={
                   !detail.currentJob

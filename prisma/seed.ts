@@ -263,8 +263,8 @@ async function main() {
     {
       name: "Arjun Mehta",
       email: demo2,
-      phone: phoneDemo2,
-      whatsapp_number: phoneDemo2,
+      phone: "+16476741670",
+      whatsapp_number: "+16476741670",
       stage: "assessment",
       source: "referral",
       recruiter_id: "emp-rec-001",

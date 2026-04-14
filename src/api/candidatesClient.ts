@@ -55,6 +55,32 @@ export async function fetchCandidateDetail(id: string): Promise<CandidateDetail>
   return r.json() as Promise<CandidateDetail>
 }
 
+export type SmsEligibilityReasonCode =
+  | "OK"
+  | "SMS_OPTED_OUT"
+  | "SMS_NO_CONSENT"
+  | "SMS_NO_NUMBER"
+
+export type SmsEligibilityResponse = {
+  eligible: boolean
+  reason: SmsEligibilityReasonCode
+  message: string
+  senderNumber: string | null
+}
+
+export async function fetchSmsEligibility(
+  candidateId: string,
+  senderUserId: string,
+): Promise<SmsEligibilityResponse> {
+  const q = new URLSearchParams({ senderUserId })
+  const r = await fetch(
+    `/api/candidates/${encodeURIComponent(candidateId)}/sms-eligibility?${q.toString()}`,
+  )
+  if (r.status === 404) throw new Error("NOT_FOUND")
+  if (!r.ok) throw new Error("Failed to load SMS eligibility")
+  return r.json() as Promise<SmsEligibilityResponse>
+}
+
 export type EmailDeliveryStatus =
   | "pending"
   | "sent"
@@ -136,9 +162,18 @@ export type NewMessageSocketPayload = {
     sent_at: string
     read_at: string | null
     scheduled_for?: string | null
+    /** Set for inbound/outbound SMS tied to an {@link SmsNumber} row. */
+    sms_number_id?: string | null
   }
   candidate: { id: string; name: string; email: string }
   job: { id: string; title: string; job_code: string }
+  /** Present for inbound SMS when the receiving Twilio line was resolved. */
+  sms_line?: {
+    id: string
+    display_label: string | null
+    assigned_to_id: string | null
+    assigned_to_name: string | null
+  }
 }
 
 /** Socket.io `message-updated` (scheduled send completed / cancelled). */
@@ -346,7 +381,10 @@ export async function fetchSmsNumberForUser(
   return r.json() as Promise<SmsNumberForUserResponse>
 }
 
-export type ComposeSmsResult = ComposeEmailResult
+export type ComposeSmsResult = ComposeEmailResult & {
+  /** Present when the server rejects the send (e.g. consent / number gates). */
+  code?: string
+}
 
 export async function composeSendSms(
   candidateId: string,
@@ -360,11 +398,15 @@ export async function composeSendSms(
       body: JSON.stringify(payload),
     },
   )
-  const data = (await r.json()) as ComposeSmsResult & { error?: string }
+  const data = (await r.json()) as ComposeSmsResult & {
+    error?: string
+    code?: string
+  }
   if (!r.ok) {
     return {
       success: false,
       error: data.error ?? "Failed to send SMS",
+      code: data.code,
     }
   }
   return data

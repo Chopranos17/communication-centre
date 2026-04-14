@@ -3,6 +3,128 @@ import { PERSONA_TO_USER_ID } from "../../constants/personaUserIds";
 
 export { PERSONA_TO_USER_ID };
 
+/** Fields needed for inbound routing (matches {@link SmsNumber} scalars we read). */
+type SmsNumberRow = {
+  id: string;
+  phone_number: string;
+  number_type: string;
+  assigned_to_id: string | null;
+  assigned_to_name: string | null;
+  display_label: string | null;
+};
+
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, "");
+}
+
+function phoneDigitsMatch(
+  incomingDigits: string,
+  stored: string | null | undefined,
+): boolean {
+  if (!stored || !incomingDigits) return false;
+  const b = digitsOnly(stored);
+  if (!b) return false;
+  return (
+    incomingDigits === b ||
+    incomingDigits.endsWith(b) ||
+    b.endsWith(incomingDigits)
+  );
+}
+
+async function findSmsNumbersMatchingReceivingNumber(
+  receivingTwilioNumber: string,
+): Promise<SmsNumberRow[]> {
+  const want = digitsOnly(receivingTwilioNumber);
+  if (!want) return [];
+  const all = await prisma.smsNumber.findMany({
+    where: { is_active: true },
+  });
+  return all.filter((n) => phoneDigitsMatch(want, n.phone_number));
+}
+
+async function findCandidateIdsByPhoneDigits(
+  digits: string,
+): Promise<string[]> {
+  if (!digits) return [];
+  const rows = await prisma.candidate.findMany();
+  const ids: string[] = [];
+  for (const c of rows) {
+    if (
+      phoneDigitsMatch(digits, c.phone) ||
+      phoneDigitsMatch(digits, c.whatsapp_number)
+    ) {
+      ids.push(c.id);
+    }
+  }
+  return ids;
+}
+
+export type SmsEligibilityReason =
+  | "OK"
+  | "SMS_OPTED_OUT"
+  | "SMS_NO_CONSENT"
+  | "SMS_NO_NUMBER";
+
+export type SmsEligibilityResult = {
+  eligible: boolean;
+  reason: SmsEligibilityReason;
+  message: string;
+  senderNumber: string | null;
+};
+
+/**
+ * Rules: consent must be granted; sender must resolve to an active {@link SmsNumber}
+ * via {@link getSmsNumberForUser} (dedicated or shared).
+ */
+export async function evaluateSmsSendEligibility(
+  smsConsentStatus: string,
+  senderUserId: string | null | undefined,
+): Promise<SmsEligibilityResult> {
+  if (smsConsentStatus === "revoked") {
+    return {
+      eligible: false,
+      reason: "SMS_OPTED_OUT",
+      message: "Candidate has opted out of SMS.",
+      senderNumber: null,
+    };
+  }
+  if (smsConsentStatus === "pending" || smsConsentStatus !== "granted") {
+    return {
+      eligible: false,
+      reason: "SMS_NO_CONSENT",
+      message: "SMS consent has not been granted for this candidate.",
+      senderNumber: null,
+    };
+  }
+
+  const uid = senderUserId?.trim();
+  if (!uid) {
+    return {
+      eligible: false,
+      reason: "SMS_NO_NUMBER",
+      message: "No sender user id — cannot resolve an SMS sending number.",
+      senderNumber: null,
+    };
+  }
+
+  const row = await getSmsNumberForUser(uid);
+  if (!row) {
+    return {
+      eligible: false,
+      reason: "SMS_NO_NUMBER",
+      message: "No SMS sending number is assigned for this sender.",
+      senderNumber: null,
+    };
+  }
+
+  return {
+    eligible: true,
+    reason: "OK",
+    message: "",
+    senderNumber: row.phone_number,
+  };
+}
+
 /**
  * Look up the SMS number assigned to a specific user (dedicated).
  * Falls back to the shared team number if no dedicated number exists.
@@ -14,7 +136,7 @@ export async function getSmsNumberForUser(userId: string) {
   const dedicated = await prisma.smsNumber.findFirst({
     where: {
       assigned_to_id: userId,
-      number_type: 'dedicated',
+      number_type: "dedicated",
       is_active: true,
     },
   });
@@ -24,7 +146,7 @@ export async function getSmsNumberForUser(userId: string) {
   // Fallback: find the shared number
   const shared = await prisma.smsNumber.findFirst({
     where: {
-      number_type: 'shared',
+      number_type: "shared",
       is_active: true,
     },
   });
@@ -46,71 +168,80 @@ export async function getSmsNumberByPhone(phoneNumber: string) {
   });
 }
 
+export type InboundSmsOwnerResolution = {
+  smsNumberId: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  lineLabel: string | null;
+};
+
+function pickResolution(row: SmsNumberRow): InboundSmsOwnerResolution {
+  return {
+    smsNumberId: row.id,
+    ownerId: row.assigned_to_id,
+    ownerName: row.assigned_to_name,
+    lineLabel: row.display_label,
+  };
+}
+
 /**
  * For inbound routing: determine which SmsNumber a reply belongs to
- * by checking who last sent an outbound SMS to this candidate.
- * This is especially important in dev mode where all numbers are the same.
+ * by matching the Twilio "To" number, then (when multiple DB rows share that
+ * number — dev mode) using the last outbound SMS to this candidate.
+ * Falls back to the shared number, then first matching row.
+ *
+ * @param candidatePhone - Normalized digit string from the inbound From (same as poller uses); may be empty when no candidate match.
+ * @param receivingTwilioNumber - Twilio inbound `To` (our number).
  */
 export async function resolveInboundSmsOwner(
   candidatePhone: string,
   receivingTwilioNumber: string,
-): Promise<{ smsNumberId: string | null; ownerId: string | null }> {
-  // Step 1: Find all SmsNumber rows matching the Twilio number
-  const smsNumbers = await prisma.smsNumber.findMany({
-    where: { phone_number: receivingTwilioNumber, is_active: true },
-  });
+): Promise<InboundSmsOwnerResolution> {
+  const empty: InboundSmsOwnerResolution = {
+    smsNumberId: null,
+    ownerId: null,
+    ownerName: null,
+    lineLabel: null,
+  };
 
-  if (smsNumbers.length === 0) {
-    return { smsNumberId: null, ownerId: null };
-  }
+  const smsNumbers =
+    await findSmsNumbersMatchingReceivingNumber(receivingTwilioNumber);
+  if (smsNumbers.length === 0) return empty;
 
-  // Step 2: If only one match, it's simple
   if (smsNumbers.length === 1) {
-    return {
-      smsNumberId: smsNumbers[0].id,
-      ownerId: smsNumbers[0].assigned_to_id,
-    };
+    return pickResolution(smsNumbers[0]);
   }
 
-  // Step 3: Multiple matches (dev mode) — check who last messaged this candidate
-  const candidate = await prisma.candidate.findFirst({
-    where: {
-      OR: [
-        { phone: candidatePhone },
-        { whatsapp_number: candidatePhone },
-      ],
-    },
-  });
+  const candDigits = digitsOnly(candidatePhone);
+  const candidateIds = candDigits
+    ? await findCandidateIdsByPhoneDigits(candDigits)
+    : [];
 
-  if (candidate) {
+  if (candidateIds.length > 0) {
     const lastOutbound = await prisma.communication.findFirst({
       where: {
-        candidate_id: candidate.id,
-        channel: 'sms',
-        direction: 'outbound',
+        candidate_id:
+          candidateIds.length === 1
+            ? candidateIds[0]
+            : { in: candidateIds },
+        channel: "sms",
+        direction: "outbound",
         sms_number_id: { not: null },
       },
-      orderBy: { sent_at: 'desc' },
+      orderBy: { sent_at: "desc" },
     });
 
     if (lastOutbound?.sms_number_id) {
-      const matched = smsNumbers.find((n) => n.id === lastOutbound.sms_number_id);
-      if (matched) {
-        return {
-          smsNumberId: matched.id,
-          ownerId: matched.assigned_to_id,
-        };
-      }
+      const matched = smsNumbers.find(
+        (n) => n.id === lastOutbound.sms_number_id,
+      );
+      if (matched) return pickResolution(matched);
     }
   }
 
-  // Step 4: Fallback — pick shared if available, else first
-  const shared = smsNumbers.find((n) => n.number_type === 'shared');
-  const fallback = shared || smsNumbers[0];
-  return {
-    smsNumberId: fallback.id,
-    ownerId: fallback.assigned_to_id,
-  };
+  const shared = smsNumbers.find((n) => n.number_type === "shared");
+  const fallback = shared ?? smsNumbers[0];
+  return pickResolution(fallback);
 }
 
 /**

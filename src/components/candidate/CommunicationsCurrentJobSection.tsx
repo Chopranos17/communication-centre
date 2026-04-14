@@ -113,6 +113,7 @@ export function CommunicationsCurrentJobSection({
   onSendSms,
   onSendWhatsApp,
   smsDisabled = false,
+  smsOptedOut = false,
   whatsappDisabled = false,
   smsDisabledTitle,
   whatsappDisabledTitle,
@@ -134,6 +135,7 @@ export function CommunicationsCurrentJobSection({
   onSendSms?: () => void;
   onSendWhatsApp?: () => void;
   smsDisabled?: boolean;
+  smsOptedOut?: boolean;
   whatsappDisabled?: boolean;
   smsDisabledTitle?: string;
   whatsappDisabledTitle?: string;
@@ -709,6 +711,7 @@ export function CommunicationsCurrentJobSection({
           canManageRecruitment ? () => setMeetingOpen(true) : undefined
         }
         smsDisabled={smsDisabled}
+        smsOptedOut={smsOptedOut}
         whatsappDisabled={whatsappDisabled}
         scheduleMeetingDisabled={!canScheduleMeeting}
         smsDisabledTitle={smsDisabledTitle}
@@ -759,6 +762,7 @@ export function CommunicationsCurrentJobSection({
           onSendSms={canManageRecruitment ? onSendSms : undefined}
           onSendWhatsApp={canManageRecruitment ? onSendWhatsApp : undefined}
           smsDisabled={smsDisabled}
+          smsOptedOut={smsOptedOut}
           whatsappDisabled={whatsappDisabled}
           smsDisabledTitle={smsDisabledTitle}
           whatsappDisabledTitle={whatsappDisabledTitle}

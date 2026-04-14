@@ -3,6 +3,10 @@ import twilio from "twilio";
 import type { Candidate, Communication, Job } from "@prisma/client";
 import { prisma } from "../db";
 import { emitNewMessage } from "../socket-io";
+import {
+  resolveInboundSmsOwner,
+  type InboundSmsOwnerResolution,
+} from "./sms-number-lookup";
 
 const POLL_MS = 30_000;
 
@@ -501,9 +505,11 @@ function emitInboundSaved(
     sent_at: Date;
     read_at: Date | null;
     scheduled_for?: Date | null;
+    sms_number_id?: string | null;
   },
   candidate: Pick<Candidate, "id" | "name" | "email"> | null,
   job: Pick<Job, "id" | "title" | "job_code"> | null,
+  smsOwner?: InboundSmsOwnerResolution | null,
 ): void {
   if (
     !row.candidate_id ||
@@ -535,6 +541,7 @@ function emitInboundSaved(
       sent_at: row.sent_at.toISOString(),
       read_at: row.read_at ? row.read_at.toISOString() : null,
       scheduled_for: row.scheduled_for?.toISOString() ?? null,
+      sms_number_id: row.sms_number_id ?? null,
     },
     candidate: {
       id: candidate.id,
@@ -546,6 +553,16 @@ function emitInboundSaved(
       title: job.title,
       job_code: job.job_code,
     },
+    ...(smsOwner?.smsNumberId != null
+      ? {
+          sms_line: {
+            id: smsOwner.smsNumberId,
+            display_label: smsOwner.lineLabel,
+            assigned_to_id: smsOwner.ownerId,
+            assigned_to_name: smsOwner.ownerName,
+          },
+        }
+      : {}),
   };
   emitNewMessage(payload);
 }
@@ -922,6 +939,10 @@ async function pollTwilioChannel(
         console.warn(
           `[inbound-poller] Inbound ${chLabel} from ${phoneForLog} — no matching candidate found`,
         );
+        const inboundOwnerUnmatched =
+          channel === "sms" && toStored
+            ? await resolveInboundSmsOwner("", toStored)
+            : null;
         await prisma.communication.create({
           data: {
             candidate_id: null,
@@ -939,6 +960,9 @@ async function pollTwilioChannel(
             delivery_status: "delivered",
             vendor_message_id: sid,
             sent_at: sentAt,
+            ...(channel === "sms" && inboundOwnerUnmatched?.smsNumberId
+              ? { sms_number_id: inboundOwnerUnmatched.smsNumberId }
+              : {}),
           },
         });
         created += 1;
@@ -953,6 +977,11 @@ async function pollTwilioChannel(
       }
 
       const { candidate, jobId, threadId } = routing;
+
+      const inboundSmsOwner =
+        channel === "sms" && toStored
+          ? await resolveInboundSmsOwner(digits, toStored)
+          : null;
 
       const row = await prisma.communication.create({
         data: {
@@ -971,6 +1000,9 @@ async function pollTwilioChannel(
           delivery_status: "delivered",
           vendor_message_id: sid,
           sent_at: sentAt,
+          ...(channel === "sms" && inboundSmsOwner?.smsNumberId
+            ? { sms_number_id: inboundSmsOwner.smsNumberId }
+            : {}),
         },
       });
 
@@ -990,7 +1022,12 @@ async function pollTwilioChannel(
       const comm = await prisma.communication.findUniqueOrThrow({
         where: { id: row.id },
       });
-      emitInboundSaved(comm, candidate, job);
+      emitInboundSaved(
+        comm,
+        candidate,
+        job,
+        channel === "sms" ? inboundSmsOwner : null,
+      );
       created += 1;
     } catch (e) {
       console.error(`[inbound-poller] ${channel} ingest error:`, e);

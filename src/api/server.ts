@@ -19,7 +19,10 @@ import {
   fetchScheduledMessagesPage,
   fetchThread,
 } from "./services/activity-command-center";
-import { getSmsNumberForUser } from "./services/sms-number-lookup";
+import {
+  evaluateSmsSendEligibility,
+  getSmsNumberForUser,
+} from "./services/sms-number-lookup";
 
 function normalizeSmsToE164(raw: string): string {
   const t = raw.trim().replace(/\s/g, "");
@@ -112,6 +115,7 @@ function buildMessageSocketPayload(
     sent_at: Date;
     read_at: Date | null;
     scheduled_for: Date | null;
+    sms_number_id?: string | null;
   },
   candidate: { id: string; name: string; email: string },
   job: { id: string; title: string; job_code: string },
@@ -138,6 +142,9 @@ function buildMessageSocketPayload(
       sent_at: row.sent_at.toISOString(),
       read_at: row.read_at ? row.read_at.toISOString() : null,
       scheduled_for: row.scheduled_for?.toISOString() ?? null,
+      ...(row.sms_number_id != null
+        ? { sms_number_id: row.sms_number_id }
+        : {}),
     },
     candidate,
     job,
@@ -369,6 +376,39 @@ app.get("/api/candidates/:id", async (req, res) => {
         appliedOn: formatDateDots(candidate.created_at),
       })),
       communicationCount: candidate._count.communications,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.get("/api/candidates/:candidateId/sms-eligibility", async (req, res) => {
+  const { candidateId } = req.params;
+  const raw =
+    typeof req.query.senderUserId === "string"
+      ? req.query.senderUserId.trim()
+      : "";
+  if (!raw) {
+    return res.status(400).json({ error: "senderUserId is required" });
+  }
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      select: { id: true, sms_consent_status: true },
+    });
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+    const eligibility = await evaluateSmsSendEligibility(
+      candidate.sms_consent_status,
+      raw,
+    );
+    return res.json({
+      eligible: eligibility.eligible,
+      reason: eligibility.reason,
+      message: eligibility.message,
+      senderNumber: eligibility.senderNumber,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1028,6 +1068,17 @@ app.post("/api/candidates/:candidateId/compose-sms", async (req, res) => {
     const hasJob = candidate.jobs.some((j) => j.job_id === jobId);
     if (!hasJob) {
       return res.status(400).json({ error: "jobId is not linked to this candidate" });
+    }
+
+    const eligibility = await evaluateSmsSendEligibility(
+      candidate.sms_consent_status,
+      senderUserId,
+    );
+    if (!eligibility.eligible) {
+      return res.status(403).json({
+        code: eligibility.reason,
+        error: eligibility.message,
+      });
     }
 
     const rawPhone = candidate.phone?.trim() ?? "";

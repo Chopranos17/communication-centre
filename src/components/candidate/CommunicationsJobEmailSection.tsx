@@ -151,6 +151,8 @@ type CommunicationsJobEmailSectionProps = {
   onSendWhatsApp?: () => void;
   onScheduleMeeting?: () => void;
   smsDisabled?: boolean;
+  /** Revoked consent — show badge in ⋯ menu instead of SMS. */
+  smsOptedOut?: boolean;
   whatsappDisabled?: boolean;
   scheduleMeetingDisabled?: boolean;
   smsDisabledTitle?: string;
@@ -192,6 +194,7 @@ export function CommunicationsJobEmailSection({
   onSendWhatsApp,
   onScheduleMeeting,
   smsDisabled = false,
+  smsOptedOut = false,
   whatsappDisabled = false,
   scheduleMeetingDisabled = false,
   smsDisabledTitle,
@@ -350,10 +353,18 @@ export function CommunicationsJobEmailSection({
                   aria-labelledby="comm-actions-more-trigger"
                   className="absolute right-0 top-full z-[60] mt-1 min-w-[12rem] rounded-sds-8 border border-[#e0e0e0]/60 bg-white py-1 shadow-[var(--elevation-2)]"
                 >
+                  {smsOptedOut ? (
+                    <div
+                      className="mx-2 my-1 rounded-sds-4 border border-[#E53935] bg-[#FFEBEE] px-2 py-1.5 text-center text-[length:var(--body-s)] font-medium text-[#C62828]"
+                      role="status"
+                    >
+                      SMS opted out
+                    </div>
+                  ) : (
                   <button
                     type="button"
                     role="menuitem"
-                    className={`${sdsMenuItemBtn} font-medium`}
+                    className={`${sdsMenuItemBtn} font-medium ${smsDisabled ? "text-[#aaaaaa]" : ""}`}
                     disabled={Boolean(smsDisabled || !onSendSms)}
                     title={smsDisabled ? smsDisabledTitle : undefined}
                     onClick={() => {
@@ -363,6 +374,7 @@ export function CommunicationsJobEmailSection({
                   >
                     SMS
                   </button>
+                  )}
                   <button
                     type="button"
                     role="menuitem"
