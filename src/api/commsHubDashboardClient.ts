@@ -45,6 +45,7 @@ export type CommsHubDashboardDto = {
       assignedToName: string | null
       numberType: string
     } | null
+    smsConsentStatus: string
   }>
   scheduled: ScheduledMessageDto[]
   scheduledQueuedTotal: number

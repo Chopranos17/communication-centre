@@ -2,13 +2,27 @@ import "dotenv/config";
 import twilio from "twilio";
 import type { Candidate, Communication, Job } from "@prisma/client";
 import { prisma } from "../db";
-import { emitNewMessage } from "../socket-io";
+import { emitNewMessage, emitSmsConsentUpdated } from "../socket-io";
 import {
   resolveInboundSmsOwner,
   type InboundSmsOwnerResolution,
 } from "./sms-number-lookup";
 
 const POLL_MS = 30_000;
+
+/** Inbound body equals one of these (trimmed, case-insensitive) → treat as opt-out. */
+const SMS_STOP_KEYWORDS = new Set([
+  "stop",
+  "unsubscribe",
+  "cancel",
+  "end",
+  "quit",
+]);
+
+function isSmsStopKeyword(body: string): boolean {
+  const t = body.trim().toLowerCase();
+  return t.length > 0 && SMS_STOP_KEYWORDS.has(t);
+}
 
 /** Twilio list window start; overlapped each poll via buffer. Dedupe prevents duplicates. */
 const TWILIO_LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -1028,6 +1042,30 @@ async function pollTwilioChannel(
         job,
         channel === "sms" ? inboundSmsOwner : null,
       );
+
+      if (channel === "sms" && isSmsStopKeyword(msg.body ?? "")) {
+        try {
+          const updated = await prisma.candidate.update({
+            where: { id: candidate.id },
+            data: {
+              sms_consent_status: "revoked",
+              sms_opted_out_at: new Date(),
+            },
+          });
+          emitSmsConsentUpdated({
+            candidate_id: updated.id,
+            sms_consent_status: updated.sms_consent_status,
+            sms_consent_at: updated.sms_consent_at?.toISOString() ?? null,
+            sms_opted_out_at: updated.sms_opted_out_at?.toISOString() ?? null,
+          });
+        } catch (consentErr) {
+          console.error(
+            "[inbound-poller] SMS STOP consent update failed:",
+            consentErr,
+          );
+        }
+      }
+
       created += 1;
     } catch (e) {
       console.error(`[inbound-poller] ${channel} ingest error:`, e);

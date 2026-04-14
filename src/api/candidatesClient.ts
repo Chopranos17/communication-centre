@@ -1,3 +1,5 @@
+export type SmsConsentStatus = 'granted' | 'revoked' | 'pending'
+
 export type CandidateListRow = {
   id: string
   name: string
@@ -14,6 +16,9 @@ export type CandidateListRow = {
   jobCount: number
   status: string
   applied: string
+  sms_consent_status: SmsConsentStatus
+  sms_consent_at: string | null
+  sms_opted_out_at: string | null
 }
 
 export type CandidateDetail = {
@@ -39,6 +44,9 @@ export type CandidateDetail = {
     appliedOn: string
   }[]
   communicationCount: number
+  sms_consent_status: SmsConsentStatus
+  sms_consent_at: string | null
+  sms_opted_out_at: string | null
 }
 
 export async function fetchCandidates(): Promise<CandidateListRow[]> {
@@ -66,6 +74,37 @@ export type SmsEligibilityResponse = {
   reason: SmsEligibilityReasonCode
   message: string
   senderNumber: string | null
+}
+
+export type PatchSmsConsentResponse = {
+  sms_consent_status: SmsConsentStatus
+  sms_consent_at: string | null
+  sms_opted_out_at: string | null
+}
+
+export async function patchCandidateSmsConsent(
+  candidateId: string,
+  status: SmsConsentStatus,
+): Promise<PatchSmsConsentResponse> {
+  const r = await fetch(
+    `/api/candidates/${encodeURIComponent(candidateId)}/sms-consent`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    },
+  )
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) throw new Error('Failed to update SMS consent')
+  return r.json() as Promise<PatchSmsConsentResponse>
+}
+
+/** Socket.io `sms-consent-updated` (inbound STOP or PATCH). */
+export type SmsConsentUpdatedSocketPayload = {
+  candidate_id: string
+  sms_consent_status: SmsConsentStatus
+  sms_consent_at: string | null
+  sms_opted_out_at: string | null
 }
 
 export async function fetchSmsEligibility(

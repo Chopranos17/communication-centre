@@ -24,7 +24,7 @@ type Props = {
   whatsappDisabledTitle?: string
   /** When false, hides SMS/WhatsApp actions (e.g. Candidate persona read-only). */
   showCommunicationActions?: boolean
-  /** Candidate revoked SMS consent — show badge instead of Send SMS. */
+  /** Candidate revoked SMS consent — hide Send SMS in overflow. */
   smsOptedOut?: boolean
 }
 
@@ -95,14 +95,6 @@ export function CandidateDetailHeader({
             </div>
             {showCommunicationActions ? (
               <div className="relative flex shrink-0 items-center gap-2" ref={actionsRef}>
-                {smsOptedOut ? (
-                  <span
-                    className="inline-flex items-center rounded-sds-4 border border-[#E53935] bg-[#FFEBEE] px-2.5 py-1 text-body-s font-medium text-[#C62828]"
-                    role="status"
-                  >
-                    SMS opted out
-                  </span>
-                ) : null}
                 <button
                   type="button"
                   onClick={() => setActionsOpen((o) => !o)}
@@ -117,7 +109,7 @@ export function CandidateDetailHeader({
                 </button>
                 {actionsOpen ? (
                   <div
-                    className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
+                    className="absolute right-0 top-full z-50 mt-1 min-w-[11rem] rounded-sds-8 border border-[var(--border-card)] bg-[var(--bg-surface)] py-1 shadow-[var(--elevation-2)]"
                     role="menu"
                   >
                     {smsOptedOut ? null : (

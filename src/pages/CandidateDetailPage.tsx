@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { io } from 'socket.io-client'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   fetchCandidateDetail,
   fetchSmsEligibility,
+  patchCandidateSmsConsent,
   type CandidateDetail,
+  type SmsConsentStatus,
+  type SmsConsentUpdatedSocketPayload,
   type SmsEligibilityResponse,
 } from '../api/candidatesClient'
 import { PERSONA_TO_USER_ID } from '../constants/personaUserIds'
@@ -65,6 +69,7 @@ export function CandidateDetailPage() {
   const [smsEligibility, setSmsEligibility] =
     useState<SmsEligibilityResponse | null>(null)
   const [smsEligibilityLoading, setSmsEligibilityLoading] = useState(false)
+  const [smsConsentUpdating, setSmsConsentUpdating] = useState(false)
   const { canManageRecruitment, persona } = usePersona()
 
   const bumpCommunications = useCallback(() => {
@@ -122,7 +127,33 @@ export function CandidateDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [candidateId, canManageRecruitment, persona])
+  }, [candidateId, canManageRecruitment, persona, detail?.sms_consent_status])
+
+  useEffect(() => {
+    if (!candidateId) return
+    const socket = io({
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+    })
+    const onConsent = (payload: SmsConsentUpdatedSocketPayload) => {
+      if (payload.candidate_id !== candidateId) return
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              sms_consent_status: payload.sms_consent_status,
+              sms_consent_at: payload.sms_consent_at,
+              sms_opted_out_at: payload.sms_opted_out_at,
+            }
+          : prev,
+      )
+    }
+    socket.on('sms-consent-updated', onConsent)
+    return () => {
+      socket.off('sms-consent-updated', onConsent)
+      socket.close()
+    }
+  }, [candidateId])
 
   useEffect(() => {
     const raw = searchParams.get('tab')
@@ -156,6 +187,29 @@ export function CandidateDetailPage() {
     p.delete('thread')
     setSearchParams(p, { replace: true })
   }, [searchParams, setSearchParams])
+
+  const handleSmsConsentChange = useCallback(
+    async (status: SmsConsentStatus) => {
+      if (!candidateId) return
+      setSmsConsentUpdating(true)
+      try {
+        const updated = await patchCandidateSmsConsent(candidateId, status)
+        setDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                sms_consent_status: updated.sms_consent_status,
+                sms_consent_at: updated.sms_consent_at,
+                sms_opted_out_at: updated.sms_opted_out_at,
+              }
+            : prev,
+        )
+      } finally {
+        setSmsConsentUpdating(false)
+      }
+    },
+    [candidateId],
+  )
 
   if (!candidateId) {
     return (
@@ -215,8 +269,7 @@ export function CandidateDetailPage() {
     detail.whatsappNumber?.trim() || detail.phone?.trim(),
   )
 
-  const smsOptedOut =
-    canManageRecruitment && smsEligibility?.reason === 'SMS_OPTED_OUT'
+  const smsOptedOut = detail.sms_consent_status === 'revoked'
 
   const smsBlockedByEligibility =
     canManageRecruitment &&
@@ -246,17 +299,17 @@ export function CandidateDetailPage() {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-sds-8 border border-[var(--border-card)] shadow-[var(--elevation-1)]">
+      <div className="overflow-visible rounded-sds-8 border border-[var(--border-card)] shadow-[var(--elevation-1)]">
         <CandidateDetailHeader
           detail={detail}
           showCommunicationActions={canManageRecruitment}
+          smsOptedOut={smsOptedOut}
           onSendSms={
             canManageRecruitment ? () => setSmsModalOpen(true) : undefined
           }
           onSendWhatsApp={
             canManageRecruitment ? () => setWhatsappModalOpen(true) : undefined
           }
-          smsOptedOut={smsOptedOut}
           smsDisabled={
             !detail.currentJob || !hasPhone || smsDisabledForEligibility
           }
@@ -420,6 +473,11 @@ export function CandidateDetailPage() {
           <CandidateDetailSidebar
             detail={detail}
             communicationsLayout={mainTab === 'communications'}
+            showConsentActions={canManageRecruitment}
+            onSmsConsentChange={
+              canManageRecruitment ? handleSmsConsentChange : undefined
+            }
+            smsConsentUpdating={smsConsentUpdating}
           />
         </div>
       </div>

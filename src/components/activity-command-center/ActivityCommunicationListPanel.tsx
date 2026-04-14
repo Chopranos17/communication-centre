@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import {
   ACTIVITY_STATUS_DOT,
   CHANNEL_META,
+  SMS_CONSENT_COLUMN_BADGE,
   SMS_VIA_LINE_MUTED_CLASS,
   STATUS_STYLES,
   channelKeyFromApi,
   formatSmsViaLineLabel,
   initials,
+  smsConsentColumnKey,
   truncatePreview,
   type ActivityStatusKey,
 } from '../../lib/activityPresentation'
@@ -168,13 +170,14 @@ export function ActivityCommunicationListPanel({
           ) : isLoading ? (
             <table className="w-full table-fixed border-collapse">
               <colgroup>
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '27%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '7%' }} />
                 <col style={{ width: '9%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '15%' }} />
+                <col style={{ width: '7%' }} />
+                <col style={{ width: '19%' }} />
               </colgroup>
               <tbody>
                 {Array.from({ length: 6 }, (_, i) => (
@@ -200,6 +203,9 @@ export function ActivityCommunicationListPanel({
                     <td className={tdClass}>
                       <div className="h-5 w-14 animate-pulse rounded-[20px] bg-[var(--charcoal-50)]" />
                     </td>
+                    <td className={tdClass}>
+                      <div className="h-5 w-16 animate-pulse rounded-[20px] bg-[var(--charcoal-50)]" />
+                    </td>
                     <td className={`${tdClass} text-right`}>
                       <div className="ml-auto h-3 w-12 animate-pulse rounded-sds-2 bg-[var(--charcoal-50)]" />
                     </td>
@@ -223,13 +229,14 @@ export function ActivityCommunicationListPanel({
           ) : (
             <table className="w-full table-fixed border-collapse">
               <colgroup>
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '27%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '7%' }} />
                 <col style={{ width: '9%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '15%' }} />
+                <col style={{ width: '7%' }} />
+                <col style={{ width: '19%' }} />
               </colgroup>
               <thead>
                 <tr>
@@ -247,6 +254,9 @@ export function ActivityCommunicationListPanel({
                   </th>
                   <th scope="col" className={thClass}>
                     Channel
+                  </th>
+                  <th scope="col" className={thClass}>
+                    SMS consent
                   </th>
                   <th scope="col" className={`${thClass} text-right`}>
                     Time
@@ -274,6 +284,10 @@ export function ActivityCommunicationListPanel({
                     channelKeyFromApi(row.channel) === 'sms'
                       ? formatSmsViaLineLabel(row.smsNumber ?? null)
                       : null
+                  const smsConsentBadge =
+                    SMS_CONSENT_COLUMN_BADGE[
+                      smsConsentColumnKey(row.smsConsentStatus)
+                    ]
 
                   return (
                     <tr
@@ -342,6 +356,13 @@ export function ActivityCommunicationListPanel({
                           className={`inline-flex max-w-full items-center truncate rounded-[20px] border bg-white px-2 py-0.5 text-[11px] font-medium ${ch.className}`}
                         >
                           {ch.label}
+                        </span>
+                      </td>
+                      <td className={tdClass}>
+                        <span
+                          className={`inline-flex max-w-full items-center truncate rounded-[20px] px-2 py-0.5 text-[11px] font-medium ${smsConsentBadge.className}`}
+                        >
+                          {smsConsentBadge.label}
                         </span>
                       </td>
                       <td className={`${tdClass} text-right`}>

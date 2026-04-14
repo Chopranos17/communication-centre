@@ -128,3 +128,33 @@ export function formatSmsViaLineLabel(
 }
 
 export const SMS_VIA_LINE_MUTED_CLASS = 'text-[10px] text-[#aaaaaa]'
+
+/** Candidate SMS consent column (Activity Command Center). */
+export type SmsConsentColumnKey = 'granted' | 'pending' | 'revoked'
+
+export function smsConsentColumnKey(raw: string): SmsConsentColumnKey {
+  const t = raw.trim().toLowerCase()
+  if (t === 'granted' || t === 'pending' || t === 'revoked') return t
+  return 'pending'
+}
+
+export const SMS_CONSENT_COLUMN_BADGE: Record<
+  SmsConsentColumnKey,
+  { label: string; className: string }
+> = {
+  granted: {
+    label: 'Granted',
+    className:
+      'border-[0.5px] border-[#A5D6A7] bg-[#E8F5E9] text-[#2E7D32]',
+  },
+  pending: {
+    label: 'Pending',
+    className:
+      'border-[0.5px] border-[#FFE082] bg-[#FFF8E1] text-[#F57F17]',
+  },
+  revoked: {
+    label: 'Opted out',
+    className:
+      'border-[0.5px] border-[#E53935] bg-[#FFEBEE] text-[#C62828]',
+  },
+}

@@ -18,6 +18,8 @@ export type ActivityListItemDto = {
   status: 'engaged' | 'pending' | 'unresponsive'
   primaryAction: 'reply' | 'followup' | 'view'
   smsNumber: ActivitySmsNumberDto | null
+  /** Candidate SMS consent (`sms_consent_status`). */
+  smsConsentStatus: string
 }
 
 export type { ActivitySmsNumberDto }
@@ -50,6 +52,8 @@ export type ActivityQuery = {
   channel: string
   /** Prototype user id — limit to SMS anchors on that user's assigned line. */
   smsOwnerId?: string
+  /** Filter: granted | pending | revoked — omit or empty = all */
+  smsConsent?: string
 }
 
 function buildActivityQueryString(query: ActivityQuery): string {
@@ -63,6 +67,7 @@ function buildActivityQueryString(query: ActivityQuery): string {
   if (query.q.trim()) p.set('q', query.q.trim())
   if (query.channel.trim()) p.set('channel', query.channel.trim())
   if (query.smsOwnerId?.trim()) p.set('sms_owner_id', query.smsOwnerId.trim())
+  if (query.smsConsent?.trim()) p.set('sms_consent', query.smsConsent.trim())
   return p.toString()
 }
 

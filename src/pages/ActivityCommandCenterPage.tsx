@@ -43,6 +43,7 @@ const PERIODS = new Set(['quarter', 'month', 'week', 'all'])
 const SORTS = new Set(['newest', 'unresponsive_first', 'name_asc'])
 const STATUS_IDS = new Set(['engaged', 'pending', 'unresponsive'])
 const CHANNEL_IDS = new Set(['email', 'sms', 'whatsapp', 'meeting'])
+const SMS_CONSENT_IDS = new Set(['granted', 'pending', 'revoked'])
 
 const ICON_BUTTON_CLASS = `${sdsButtonSecondaryIcon} text-[var(--icon-default)] hover:text-[var(--icon-hover)]`
 
@@ -107,6 +108,12 @@ function channelFromSearchParams(sp: URLSearchParams): string {
   return ''
 }
 
+function smsConsentFromSearchParams(sp: URLSearchParams): string {
+  const raw = (sp.get('sms_consent') ?? '').trim().toLowerCase()
+  if (SMS_CONSENT_IDS.has(raw)) return raw
+  return ''
+}
+
 function advancedFromSearchParams(sp: URLSearchParams): ActivityAdvancedFilters {
   const periodRaw = sp.get('period') ?? 'quarter'
   const period = PERIODS.has(periodRaw) ? periodRaw : 'quarter'
@@ -117,6 +124,7 @@ function advancedFromSearchParams(sp: URLSearchParams): ActivityAdvancedFilters 
     sort,
     jobId: sp.get('job_id')?.trim() ?? '',
     channel: channelFromSearchParams(sp),
+    smsConsent: smsConsentFromSearchParams(sp),
   }
 }
 
@@ -207,6 +215,7 @@ export function ActivityCommandCenterPage() {
       q: qFromUrl,
       channel: advanced.channel,
       smsOwnerId: smsOwnerIdFromUrl,
+      smsConsent: advanced.smsConsent,
     }),
     [advanced, statusChip, page, limit, qFromUrl, smsOwnerIdFromUrl],
   )
@@ -281,7 +290,8 @@ export function ActivityCommandCenterPage() {
       fresh.sentAt !== selectedRow.sentAt ||
       fresh.status !== selectedRow.status ||
       fresh.preview !== selectedRow.preview ||
-      fresh.smsNumber?.id !== selectedRow.smsNumber?.id
+      fresh.smsNumber?.id !== selectedRow.smsNumber?.id ||
+      fresh.smsConsentStatus !== selectedRow.smsConsentStatus
     ) {
       setSelectedRow(fresh)
     }
@@ -348,6 +358,8 @@ export function ActivityCommandCenterPage() {
       else p.delete('job_id')
       if (next.channel.trim()) p.set('channel', next.channel.trim())
       else p.delete('channel')
+      if (next.smsConsent.trim()) p.set('sms_consent', next.smsConsent.trim())
+      else p.delete('sms_consent')
       p.set('page', '1')
       setSearchParams(p, { replace: true })
       setSelectedRow(null)

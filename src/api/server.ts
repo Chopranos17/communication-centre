@@ -5,7 +5,11 @@ import { createServer } from "http";
 import express from "express";
 import { Server } from "socket.io";
 import { prisma } from "./db";
-import { emitMessageUpdated, setSocketIo } from "./socket-io";
+import {
+  emitMessageUpdated,
+  emitSmsConsentUpdated,
+  setSocketIo,
+} from "./socket-io";
 import { startPolling } from "./services/inbound-poller";
 import {
   deliverDueScheduledCommunications,
@@ -350,6 +354,9 @@ app.get("/api/candidates", async (_req, res) => {
         jobCount: c._count.jobs,
         status: formatStageLabel(c.current_stage),
         applied: formatDateDots(c.created_at),
+        sms_consent_status: c.sms_consent_status,
+        sms_consent_at: c.sms_consent_at?.toISOString() ?? null,
+        sms_opted_out_at: c.sms_opted_out_at?.toISOString() ?? null,
       };
     });
 
@@ -406,9 +413,72 @@ app.get("/api/candidates/:id", async (req, res) => {
         appliedOn: formatDateDots(candidate.created_at),
       })),
       communicationCount: candidate._count.communications,
+      sms_consent_status: candidate.sms_consent_status,
+      sms_consent_at: candidate.sms_consent_at?.toISOString() ?? null,
+      sms_opted_out_at: candidate.sms_opted_out_at?.toISOString() ?? null,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+const SMS_CONSENT_STATUSES = ["granted", "revoked", "pending"] as const;
+
+app.patch("/api/candidates/:candidateId/sms-consent", async (req, res) => {
+  const { candidateId } = req.params;
+  const raw = req.body?.status;
+  const status =
+    typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (!SMS_CONSENT_STATUSES.includes(status as (typeof SMS_CONSENT_STATUSES)[number])) {
+    return res.status(400).json({
+      error: "status must be granted, revoked, or pending",
+    });
+  }
+  const now = new Date();
+  const data =
+    status === "granted"
+      ? {
+          sms_consent_status: "granted",
+          sms_consent_at: now,
+          sms_opted_out_at: null as Date | null,
+        }
+      : status === "revoked"
+        ? {
+            sms_consent_status: "revoked",
+            sms_opted_out_at: now,
+          }
+        : {
+            sms_consent_status: "pending",
+            sms_consent_at: null,
+            sms_opted_out_at: null,
+          };
+  try {
+    const updated = await prisma.candidate.update({
+      where: { id: candidateId },
+      data,
+    });
+    emitSmsConsentUpdated({
+      candidate_id: updated.id,
+      sms_consent_status: updated.sms_consent_status,
+      sms_consent_at: updated.sms_consent_at?.toISOString() ?? null,
+      sms_opted_out_at: updated.sms_opted_out_at?.toISOString() ?? null,
+    });
+    res.json({
+      sms_consent_status: updated.sms_consent_status,
+      sms_consent_at: updated.sms_consent_at?.toISOString() ?? null,
+      sms_opted_out_at: updated.sms_opted_out_at?.toISOString() ?? null,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      "code" in e &&
+      (e as { code?: string }).code === "P2025"
+    ) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
     res.status(500).json({ error: msg });
   }
 });
@@ -507,6 +577,9 @@ app.get("/api/jobs/:jobId", async (req, res) => {
       phone: l.candidate.phone ?? "",
       whatsappNumber: l.candidate.whatsapp_number ?? "",
       jobCount: countMap.get(l.candidate_id) ?? 1,
+      sms_consent_status: l.candidate.sms_consent_status,
+      sms_consent_at: l.candidate.sms_consent_at?.toISOString() ?? null,
+      sms_opted_out_at: l.candidate.sms_opted_out_at?.toISOString() ?? null,
     }));
 
     res.json({
@@ -1616,6 +1689,10 @@ app.get(
       typeof req.query.sms_owner_id === "string"
         ? req.query.sms_owner_id.trim()
         : "";
+    const smsConsentRaw =
+      typeof req.query.sms_consent === "string"
+        ? req.query.sms_consent.trim()
+        : "";
     const page = Math.max(
       1,
       Number.parseInt(String(req.query.page ?? "1"), 10) || 1,
@@ -1636,6 +1713,7 @@ app.get(
         search,
         channel,
         smsOwnerId: smsOwnerIdRaw || undefined,
+        smsConsent: smsConsentRaw || undefined,
       });
       res.json(result);
     } catch (e) {

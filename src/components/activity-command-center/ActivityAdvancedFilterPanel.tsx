@@ -42,12 +42,21 @@ const CHANNEL_OPTS = [
   { id: "meeting", label: "1:1 Meeting" },
 ] as const;
 
+const SMS_CONSENT_OPTS = [
+  { id: "", label: "All SMS consent" },
+  { id: "granted", label: "Granted" },
+  { id: "pending", label: "Pending" },
+  { id: "revoked", label: "Opted out" },
+] as const;
+
 export type ActivityAdvancedFilters = {
   jobId: string;
   period: string;
   sort: string;
   /** Single channel id, or empty = all (matches activity API `channel` param). */
   channel: string;
+  /** granted | pending | revoked — empty = all */
+  smsConsent: string;
 };
 
 function JobOpeningField({
@@ -264,6 +273,25 @@ export function ActivityAdvancedFilterPanel({
               >
                 {CHANNEL_OPTS.map((o) => (
                   <option key={o.id || "all"} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              {selectChevron()}
+            </div>
+          </div>
+          <div className="mb-6">
+            <p className={`mb-2 ${sdsLabel}`}>SMS consent</p>
+            <div className="relative">
+              <select
+                className={`${sdsSelectWFull} appearance-none pr-10`}
+                value={draft.smsConsent}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, smsConsent: e.target.value }))
+                }
+              >
+                {SMS_CONSENT_OPTS.map((o) => (
+                  <option key={o.id || "all-consent"} value={o.id}>
                     {o.label}
                   </option>
                 ))}

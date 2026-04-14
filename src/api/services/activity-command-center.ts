@@ -91,6 +91,8 @@ export type ActivityListItem = {
   primaryAction: ActivityPrimaryActionType;
   /** Present for SMS rows tied to an {@link SmsNumber}. */
   smsNumber: ActivitySmsNumberSummary | null;
+  /** Candidate SMS consent (`Candidate.sms_consent_status`). */
+  smsConsentStatus: string;
 };
 
 function senderLabelForTimeline(
@@ -251,6 +253,8 @@ export async function buildActivityListItems(params: {
   channel: string;
   /** When set, only pairs whose period anchor is SMS on a line assigned to this user id. */
   smsOwnerId?: string;
+  /** Filter by candidate `sms_consent_status`: granted | pending | revoked — omit or empty = all. */
+  smsConsent?: string;
 }): Promise<{ builtAll: ActivityListItem[]; slaDays: number }> {
   const slaMs = getSlaMs();
   const slaDays = Math.round(slaMs / (24 * 60 * 60 * 1000));
@@ -319,6 +323,11 @@ export async function buildActivityListItems(params: {
   const searchRaw = params.search.trim();
   const channelFilter = parseChannelCsv(params.channel);
   const smsOwnerFilter = params.smsOwnerId?.trim() ?? "";
+  const smsConsentFilter = params.smsConsent?.trim().toLowerCase() ?? "";
+  const smsConsentAllowed =
+    smsConsentFilter === "granted" ||
+    smsConsentFilter === "pending" ||
+    smsConsentFilter === "revoked";
 
   const builtAll: ActivityListItem[] = [];
 
@@ -357,6 +366,13 @@ export async function buildActivityListItems(params: {
       continue;
     }
 
+    if (
+      smsConsentAllowed &&
+      candidate.sms_consent_status !== smsConsentFilter
+    ) {
+      continue;
+    }
+
     builtAll.push({
       communicationId: anchor.id,
       candidateId: candidate.id,
@@ -375,6 +391,7 @@ export async function buildActivityListItems(params: {
       status,
       primaryAction,
       smsNumber: smsNumberFromPrisma(anchor),
+      smsConsentStatus: candidate.sms_consent_status,
     });
   }
 
@@ -417,6 +434,8 @@ export async function fetchActivityFeed(params: {
   channel: string;
   /** Only SMS anchors on a line whose assigned user matches this id (e.g. prototype persona user). */
   smsOwnerId?: string;
+  /** Filter rows by candidate SMS consent status. */
+  smsConsent?: string;
 }): Promise<{
   items: ActivityListItem[];
   total: number;
@@ -437,6 +456,7 @@ export async function fetchActivityFeed(params: {
     search: params.search,
     channel: params.channel,
     smsOwnerId: params.smsOwnerId,
+    smsConsent: params.smsConsent,
   });
 
   const summary = {
@@ -511,6 +531,7 @@ export type CommsHubDashboardResponse = {
     sentAt: string;
     primaryAction: ActivityPrimaryActionType;
     smsNumber: ActivitySmsNumberSummary | null;
+    smsConsentStatus: string;
   }>;
   scheduled: ScheduledMessageRow[];
   scheduledQueuedTotal: number;
@@ -815,6 +836,7 @@ export async function fetchCommsHubDashboard(params: {
       sort: "newest",
       search: "",
       channel: "",
+      smsConsent: "",
     }),
   ]);
 
@@ -837,6 +859,7 @@ export async function fetchCommsHubDashboard(params: {
     sentAt: r.sentAt,
     primaryAction: r.primaryAction,
     smsNumber: r.smsNumber,
+    smsConsentStatus: r.smsConsentStatus,
   }));
 
   const unresponsiveCount = builtAll.filter(
