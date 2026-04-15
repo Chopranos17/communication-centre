@@ -35,6 +35,14 @@ import {
   getSmsNumberForUser,
   resolveInboundSmsOwner,
 } from "./services/sms-number-lookup";
+import {
+  assignNumber as assignSmsNumberRow,
+  deactivateNumber as deactivateSmsNumberRow,
+  getAssignableUsers,
+  provisionNumber as provisionTwilioSmsNumber,
+  searchAvailableNumbers as searchTwilioAvailableNumbers,
+  syncTwilioNumbers as syncTwilioSmsNumbers,
+} from "./services/twilio-number-service";
 
 function normalizeSmsToE164(raw: string): string {
   const t = raw.trim().replace(/\s/g, "");
@@ -1164,6 +1172,162 @@ app.get("/api/admin/sms/config", (_req, res) => {
       trustScore: 82,
     },
   });
+});
+
+app.get("/api/admin/sms/assignable-users", (_req, res) => {
+  return res.json({ users: getAssignableUsers() });
+});
+
+app.get("/api/admin/sms/available-numbers", async (req, res) => {
+  try {
+    const country =
+      typeof req.query.country === "string" && req.query.country.trim()
+        ? req.query.country.trim().toUpperCase()
+        : "US";
+    const areaCode =
+      typeof req.query.areaCode === "string" ? req.query.areaCode.trim() : "";
+    const contains =
+      typeof req.query.contains === "string" ? req.query.contains.trim() : "";
+    const limitRaw =
+      typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : NaN;
+    const limit = Number.isFinite(limitRaw) ? limitRaw : undefined;
+
+    const numbers = await searchTwilioAvailableNumbers({
+      country,
+      ...(areaCode ? { areaCode } : {}),
+      ...(contains ? { contains } : {}),
+      ...(limit !== undefined ? { limit } : {}),
+    });
+    return res.json({ numbers });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const status = /not configured/i.test(msg) ? 503 : 400;
+    return res.status(status).json({ error: msg });
+  }
+});
+
+app.post("/api/admin/sms/provision", async (req, res) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const phoneNumber =
+      typeof body.phoneNumber === "string" ? body.phoneNumber.trim() : "";
+    const displayLabel =
+      typeof body.displayLabel === "string" ? body.displayLabel.trim() : "";
+    const numberTypeRaw =
+      typeof body.numberType === "string" ? body.numberType.trim().toLowerCase() : "";
+    const numberType =
+      numberTypeRaw === "shared" ? "shared" : "dedicated";
+    const assignedToId =
+      typeof body.assignedToId === "string" && body.assignedToId.trim()
+        ? body.assignedToId.trim()
+        : null;
+    const assignedToName =
+      typeof body.assignedToName === "string" && body.assignedToName.trim()
+        ? body.assignedToName.trim()
+        : null;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: "phoneNumber is required" });
+    }
+
+    const row = await provisionTwilioSmsNumber({
+      phoneNumber,
+      displayLabel: displayLabel || phoneNumber,
+      numberType,
+      assignedToId,
+      assignedToName,
+    });
+    return res.status(201).json({ number: row });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const status = /not configured/i.test(msg) ? 503 : 400;
+    return res.status(status).json({ error: msg });
+  }
+});
+
+app.post("/api/admin/sms/sync-twilio", async (_req, res) => {
+  try {
+    const result = await syncTwilioSmsNumbers();
+    return res.json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const status = /not configured/i.test(msg) ? 503 : 500;
+    return res.status(status).json({ error: msg });
+  }
+});
+
+app.patch("/api/admin/sms/numbers/:id/assign", async (req, res) => {
+  try {
+    const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
+    if (!id) return res.status(400).json({ error: "id is required" });
+
+    const body = req.body as Record<string, unknown>;
+    const assignedToId =
+      body.assignedToId === null
+        ? null
+        : typeof body.assignedToId === "string"
+          ? body.assignedToId.trim() || null
+          : undefined;
+    const assignedToName =
+      body.assignedToName === null
+        ? null
+        : typeof body.assignedToName === "string"
+          ? body.assignedToName.trim() || null
+          : undefined;
+    const numberTypeRaw =
+      typeof body.numberType === "string" ? body.numberType.trim().toLowerCase() : "";
+    const numberType =
+      numberTypeRaw === "shared"
+        ? "shared"
+        : numberTypeRaw === "dedicated"
+          ? "dedicated"
+          : undefined;
+    const displayLabel =
+      body.displayLabel === null
+        ? null
+        : typeof body.displayLabel === "string"
+          ? body.displayLabel
+          : undefined;
+
+    const updated = await assignSmsNumberRow(id, {
+      ...(assignedToId !== undefined ? { assignedToId } : {}),
+      ...(assignedToName !== undefined ? { assignedToName } : {}),
+      ...(numberType !== undefined ? { numberType } : {}),
+      ...(displayLabel !== undefined ? { displayLabel } : {}),
+    });
+    return res.json({ number: updated });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      e &&
+      typeof e === "object" &&
+      "code" in e &&
+      (e as { code: string }).code === "P2025"
+    ) {
+      return res.status(404).json({ error: "SMS number not found" });
+    }
+    return res.status(500).json({ error: msg });
+  }
+});
+
+app.patch("/api/admin/sms/numbers/:id/deactivate", async (req, res) => {
+  try {
+    const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
+    if (!id) return res.status(400).json({ error: "id is required" });
+    const updated = await deactivateSmsNumberRow(id);
+    return res.json({ number: updated });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      e &&
+      typeof e === "object" &&
+      "code" in e &&
+      (e as { code: string }).code === "P2025"
+    ) {
+      return res.status(404).json({ error: "SMS number not found" });
+    }
+    return res.status(500).json({ error: msg });
+  }
 });
 
 app.get("/api/sms-numbers/for-user/:userId", async (req, res) => {
