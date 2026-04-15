@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -33,6 +33,8 @@ model Candidate {
   sms_consent_status  String    @default("pending") // pending | granted | revoked
   sms_consent_at      DateTime?
   sms_opted_out_at    DateTime?
+  email_consent_status   String    @default("granted")
+  email_unsubscribed_at  DateTime?
 }
 
 model CandidateJob {
@@ -104,8 +106,11 @@ model Communication {
   // Add to Communication model fields:
   sms_number_id    String?
   sms_number       SmsNumber? @relation(fields: [sms_number_id], references: [id])
+  connected_email_id String?
+  connected_email    ConnectedEmail? @relation(fields: [connected_email_id], references: [id], onDelete: SetNull)
 
   @@index([sms_number_id])
+  @@index([connected_email_id])
   @@index([candidate_id, job_id])
   @@index([thread_id])
 }
@@ -124,6 +129,26 @@ model SmsNumber {
 
   // Relation: communications sent from / received on this number
   communications   Communication[]
+}
+
+model ConnectedEmail {
+  id                String    @id @default(cuid())
+  user_id           String    @unique
+  user_name         String
+  email_address     String
+  /// google | microsoft
+  provider          String
+  access_token      String
+  refresh_token     String?
+  token_expires_at  DateTime?
+  scopes            String?
+  is_active         Boolean   @default(true)
+  last_sync_at      DateTime?
+  sync_cursor       String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  communications Communication[]
 }
 
 model Meeting {

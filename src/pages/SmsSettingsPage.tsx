@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { MetricsBar, type MetricItem } from '../components/analytics/MetricsBar'
+import { EmailConnectionSection } from '../components/settings/EmailConnectionSection'
 import { PageHeader } from '../components/layout/PageHeader'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useToast } from '../contexts/ToastContext'
@@ -434,6 +435,8 @@ export function SmsSettingsPage() {
         <section aria-label="SMS consent overview">
           <MetricsBar metrics={metrics} isLoading={loading} />
         </section>
+
+        <EmailConnectionSection />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <section className={cardClass} aria-labelledby="a2p-heading">

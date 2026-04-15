@@ -9,8 +9,10 @@ import type {
 } from "../../api/candidatesClient";
 import {
   composeSendEmail,
+  fetchEmailConnectionStatus,
   fetchEmailTemplates,
   fetchEmployees,
+  type EmailConnectionStatusResponse,
 } from "../../api/candidatesClient";
 import {
   plainTextEmailToHtml,
@@ -22,6 +24,8 @@ import {
   emailVendorError,
 } from "../../utils/sendFeedbackMessages";
 import { useToast } from "../../contexts/ToastContext";
+import { usePersona } from "../../context/PersonaContext";
+import { PERSONA_TO_USER_ID } from "../../constants/personaUserIds";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import {
   sdsButtonLink,
@@ -44,26 +48,13 @@ import {
   sdsSidePanelRoot,
 } from "../../lib/sdsModalClasses";
 import {
-  sdsHelpText,
   sdsInput,
   sdsLabel,
   sdsSelectWFull,
 } from "../../lib/sdsFormClasses";
 
-const FROM_OPTIONS = [
-  {
-    value: "no-reply@darwinbox.in",
-    label: "no-reply@darwinbox.in",
-    hint: "warning" as const,
-    hintText: "Candidate cannot reply to this address.",
-  },
-  {
-    value: "contact@darwinbox.in",
-    label: "contact@darwinbox.in",
-    hint: "info" as const,
-    hintText: "Candidate can reply to this address.",
-  },
-];
+/** Display / Resend path for “system” sends (matches server DISPLAY_FROM_ADDRESSES). */
+const SYSTEM_FROM_DISPLAY = "contact@darwinbox.in";
 
 const CC_QUICK_RECRUITER = "recruiter.cc@darwinbox.in";
 const CC_QUICK_HL = "hiring.lead@darwinbox.in";
@@ -156,6 +147,11 @@ export function ComposeEmailModal({
   initialTemplateCategory = null,
 }: ComposeEmailModalProps) {
   const { showToast } = useToast();
+  const { persona } = usePersona();
+  const composeSenderUserId =
+    persona === "recruiter" || persona === "hiring_lead"
+      ? PERSONA_TO_USER_ID[persona]
+      : undefined;
   const isBulk = recipients.length > 1;
   const [dedupeUnique, setDedupeUnique] = useState(true);
   const [skipMultiJob, setSkipMultiJob] = useState(false);
@@ -177,7 +173,13 @@ export function ComposeEmailModal({
 
   const primaryRecipient = effectiveRecipients[0] ?? recipients[0];
   const recipientKey = recipients.map((r) => r.candidateId).join("|");
-  const [sendFrom, setSendFrom] = useState(FROM_OPTIONS[0].value);
+  const [emailConn, setEmailConn] = useState<
+    | { kind: "loading" }
+    | { kind: "ready"; data: EmailConnectionStatusResponse }
+  >({ kind: "loading" });
+  const [selectedFrom, setSelectedFrom] = useState<"connected" | "system">(
+    "system",
+  );
   const [subject, setSubject] = useState("");
   const [bodyHtml, setBodyHtml] = useState("<p><br /></p>");
   const [templateId, setTemplateId] = useState<string>("");
@@ -253,7 +255,8 @@ export function ComposeEmailModal({
 
   useEffect(() => {
     if (!open) return;
-    setSendFrom(FROM_OPTIONS[0].value);
+    setEmailConn({ kind: "loading" });
+    setSelectedFrom("system");
     setSubject("");
     setBodyHtml("<p><br /></p>");
     setTemplateId("");
@@ -273,6 +276,35 @@ export function ComposeEmailModal({
     setSendOptionsOpen(false);
     setScheduleDateTimeLocal("");
   }, [open, recipientKey]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (!composeSenderUserId) {
+      setEmailConn({ kind: "ready", data: { connected: false } });
+      setSelectedFrom("system");
+      return;
+    }
+
+    let cancelled = false;
+    setEmailConn({ kind: "loading" });
+    void (async () => {
+      try {
+        const data = await fetchEmailConnectionStatus(composeSenderUserId);
+        if (cancelled) return;
+        setEmailConn({ kind: "ready", data });
+        setSelectedFrom(data.connected ? "connected" : "system");
+      } catch {
+        if (!cancelled) {
+          setEmailConn({ kind: "ready", data: { connected: false } });
+          setSelectedFrom("system");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, composeSenderUserId, recipientKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -420,14 +452,22 @@ export function ComposeEmailModal({
         const resolvedSubject = resolveEmailTemplateString(subject.trim(), ctx);
         const resolvedBody = resolveEmailTemplateString(bodyHtml, ctx);
 
+        const useConnected =
+          selectedFrom === "connected" &&
+          emailConn.kind === "ready" &&
+          emailConn.data.connected &&
+          composeSenderUserId;
+
         const result = await composeSendEmail(r.candidateId, {
           jobId: recipientJobId,
-          fromAddress: sendFrom,
+          fromAddress: SYSTEM_FROM_DISPLAY,
           subject: resolvedSubject,
           htmlBody: resolvedBody,
           cc: cc.length ? cc : undefined,
           templateId: tpl,
           senderName: "Recruiter",
+          sendPath: useConnected ? "connected" : "system",
+          ...(useConnected ? { senderUserId: composeSenderUserId } : {}),
         });
         if (result.success) successCount++;
         else {
@@ -493,12 +533,14 @@ export function ComposeEmailModal({
     effectiveRecipients,
     jobId,
     jobTitle,
-    sendFrom,
+    selectedFrom,
+    emailConn,
     onSent,
     onClose,
     recipients.length,
     onBulkComplete,
     showToast,
+    composeSenderUserId,
   ]);
 
   useEffect(() => {
@@ -577,15 +619,23 @@ export function ComposeEmailModal({
     const resolvedBody = resolveEmailTemplateString(bodyHtml, ctx);
 
     try {
+      const useConnected =
+        selectedFrom === "connected" &&
+        emailConn.kind === "ready" &&
+        emailConn.data.connected &&
+        composeSenderUserId;
+
       const result = await composeSendEmail(r0.candidateId, {
         jobId: recipientJobId,
-        fromAddress: sendFrom,
+        fromAddress: SYSTEM_FROM_DISPLAY,
         subject: resolvedSubject,
         htmlBody: resolvedBody,
         cc: cc.length ? cc : undefined,
         templateId: tpl,
         senderName: "Recruiter",
         scheduledFor: when.toISOString(),
+        sendPath: useConnected ? "connected" : "system",
+        ...(useConnected ? { senderUserId: composeSenderUserId } : {}),
       });
       setSending(false);
       if (!result.success) {
@@ -620,10 +670,12 @@ export function ComposeEmailModal({
     templates,
     jobId,
     jobTitle,
-    sendFrom,
+    selectedFrom,
+    emailConn,
     onSent,
     onClose,
     showToast,
+    composeSenderUserId,
   ]);
 
   useEffect(() => {
@@ -651,7 +703,12 @@ export function ComposeEmailModal({
   if (!open) return null;
   if (recipients.length === 0) return null;
 
-  const fromMeta = FROM_OPTIONS.find((o) => o.value === sendFrom);
+  const gmailConnected =
+    emailConn.kind === "ready" && emailConn.data.connected;
+  const connectedAddr =
+    emailConn.kind === "ready" && emailConn.data.connected
+      ? emailConn.data.email
+      : "";
 
   const modal = (
     <div
@@ -723,46 +780,69 @@ export function ComposeEmailModal({
           ) : null}
 
           <div className="space-y-4 text-[length:var(--body-m)]">
-            <div>
-              <label
-                className={`mb-1 block ${sdsLabel}`}
-                htmlFor="compose-send-from"
-              >
-                Send From
-              </label>
-              <div className="relative">
+            {emailConn.kind === "loading" && composeSenderUserId ? (
+              <div className="mb-4 flex items-center gap-2 text-[length:var(--body-s)] text-[var(--text-label)]">
+                <LoadingSpinner size="sm" aria-hidden />
+                Checking email connection…
+              </div>
+            ) : gmailConnected ? (
+              <div className="mb-4">
+                <label
+                  style={{
+                    fontSize: "12px",
+                    color: "#666",
+                    fontWeight: 500,
+                    display: "block",
+                    marginBottom: "4px",
+                  }}
+                  htmlFor="compose-from-select"
+                >
+                  From
+                </label>
                 <select
-                  id="compose-send-from"
-                  value={sendFrom}
-                  onChange={(e) => setSendFrom(e.target.value)}
+                  id="compose-from-select"
+                  value={selectedFrom}
+                  onChange={(e) =>
+                    setSelectedFrom(
+                      e.target.value === "connected" ? "connected" : "system",
+                    )
+                  }
                   className={`${sdsSelectWFull} appearance-none pr-9`}
                 >
-                  {FROM_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
+                  <option value="connected">
+                    {connectedAddr} (Gmail)
+                  </option>
+                  <option value="system">
+                    {SYSTEM_FROM_DISPLAY} (System)
+                  </option>
                 </select>
-                <span
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-label)]"
-                  aria-hidden
-                >
-                  ▾
-                </span>
               </div>
-              {fromMeta ? (
-                <p
-                  className={
-                    fromMeta.hint === "warning"
-                      ? "mt-0.5 text-body-s text-amber-800"
-                      : sdsHelpText
-                  }
-                  role="note"
+            ) : (
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "#666",
+                    fontWeight: 500,
+                  }}
                 >
-                  {fromMeta.hintText}
-                </p>
-              ) : null}
-            </div>
+                  From:
+                </span>
+                <span style={{ fontSize: "13px" }}>{SYSTEM_FROM_DISPLAY}</span>
+                {composeSenderUserId ? (
+                  <a
+                    href="/recruitment/settings/sms"
+                    style={{
+                      fontSize: "11px",
+                      color: "#378ADD",
+                      marginLeft: "8px",
+                    }}
+                  >
+                    Connect your email →
+                  </a>
+                ) : null}
+              </div>
+            )}
 
             <div>
               <span className={`mb-1 block ${sdsLabel}`}>

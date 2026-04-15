@@ -35,10 +35,14 @@ function buildMessageUpdatedPayload(
     read_at: Date | null;
     scheduled_for: Date | null;
     sms_number_id?: string | null;
+    connected_email_id?: string | null;
+    connected_email?: { email_address: string } | null;
   },
   candidate: { id: string; name: string; email: string },
   job: { id: string; title: string; job_code: string },
 ) {
+  const ce = row.connected_email;
+  const ceAddr = ce?.email_address?.trim();
   return {
     communication: {
       id: row.id,
@@ -63,6 +67,12 @@ function buildMessageUpdatedPayload(
       scheduled_for: row.scheduled_for?.toISOString() ?? null,
       ...(row.sms_number_id != null
         ? { sms_number_id: row.sms_number_id }
+        : {}),
+      ...(row.connected_email_id != null
+        ? { connected_email_id: row.connected_email_id }
+        : {}),
+      ...(ceAddr
+        ? { connected_email: { email_address: ceAddr } }
         : {}),
     },
     candidate,
@@ -144,7 +154,10 @@ export async function handleStatusCallback(
 
     const row = await prisma.communication.findFirst({
       where: { vendor_message_id: MessageSid },
-      include: { job: true },
+      include: {
+        job: true,
+        connected_email: { select: { email_address: true } },
+      },
     });
 
     if (!row) {
@@ -160,7 +173,10 @@ export async function handleStatusCallback(
     const updated = await prisma.communication.update({
       where: { id: row.id },
       data: { delivery_status: deliveryStatus },
-      include: { job: true },
+      include: {
+        job: true,
+        connected_email: { select: { email_address: true } },
+      },
     });
 
     if (updated.candidate_id && updated.job_id && updated.job) {

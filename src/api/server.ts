@@ -13,6 +13,7 @@ import {
   setSocketIo,
 } from "./socket-io";
 import { startPolling } from "./services/inbound-poller";
+import { syncAllConnectedInboxes } from "./services/email-inbox-sync";
 import {
   handleInboundSmsWebhook,
   handleStatusCallback,
@@ -43,6 +44,16 @@ import {
   searchAvailableNumbers as searchTwilioAvailableNumbers,
   syncTwilioNumbers as syncTwilioSmsNumbers,
 } from "./services/twilio-number-service";
+import {
+  buildEmailOAuthSettingsRedirectUrl,
+  disconnectGoogleEmail,
+  getGoogleAuthUrl,
+  handleGoogleCallback,
+} from "./services/email-oauth";
+import {
+  getAllConnectedEmails,
+  getConnectedEmailForUser,
+} from "./services/connected-email-lookup";
 
 function normalizeSmsToE164(raw: string): string {
   const t = raw.trim().replace(/\s/g, "");
@@ -154,10 +165,14 @@ function buildMessageSocketPayload(
     read_at: Date | null;
     scheduled_for: Date | null;
     sms_number_id?: string | null;
+    connected_email_id?: string | null;
+    connected_email?: { email_address: string } | null;
   },
   candidate: { id: string; name: string; email: string },
   job: { id: string; title: string; job_code: string },
 ) {
+  const ce = row.connected_email;
+  const ceAddr = ce?.email_address?.trim();
   return {
     communication: {
       id: row.id,
@@ -182,6 +197,16 @@ function buildMessageSocketPayload(
       scheduled_for: row.scheduled_for?.toISOString() ?? null,
       ...(row.sms_number_id != null
         ? { sms_number_id: row.sms_number_id }
+        : {}),
+      ...(row.connected_email_id != null
+        ? { connected_email_id: row.connected_email_id }
+        : {}),
+      ...(ceAddr
+        ? {
+            connected_email: {
+              email_address: ceAddr,
+            },
+          }
         : {}),
     },
     candidate,
@@ -239,6 +264,9 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
             number_type: true,
           },
         },
+        connected_email: {
+          select: { email_address: true },
+        },
       },
       orderBy: { sent_at: "desc" },
     });
@@ -256,6 +284,7 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
               : "email";
       const mtg = row.meeting_detail;
       const sn = row.sms_number;
+      const cemail = row.connected_email;
       return {
         id: row.id,
         channel,
@@ -294,6 +323,10 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
                 numberType: sn.number_type,
               }
             : null,
+        connectedEmail:
+          channel === "email" && cemail?.email_address
+            ? { emailAddress: cemail.email_address }
+            : null,
       };
     };
 
@@ -317,6 +350,9 @@ app.get("/api/candidates/:candidateId/communications", async (req, res) => {
                 assigned_to_name: true,
                 number_type: true,
               },
+            },
+            connected_email: {
+              select: { email_address: true },
             },
           },
           orderBy: { sent_at: "desc" },
@@ -721,6 +757,8 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
     cc?: string[];
     templateId?: string | null;
     senderName?: string;
+    /** Seed user id (e.g. emp-rec-001) for optional Gmail send via connected inbox */
+    senderUserId?: string | null;
     /** Existing thread id or root communication id (Task 13). */
     threadId?: string | null;
     /** ISO 8601 — when set, email is stored as scheduled (no Resend until worker runs). */
@@ -738,6 +776,10 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
     typeof body.senderName === "string" && body.senderName.trim()
       ? body.senderName.trim()
       : "Recruiter";
+  const senderUserId =
+    typeof body.senderUserId === "string" && body.senderUserId.trim()
+      ? body.senderUserId.trim()
+      : undefined;
   const threadIdParam =
     typeof body.threadId === "string" && body.threadId.trim()
       ? body.threadId.trim()
@@ -893,6 +935,7 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
       senderName,
       templateId,
       threadId: resolvedThreadId,
+      senderUserId,
     });
 
     return res.json({
@@ -929,7 +972,10 @@ app.post(
         where: { id: communicationId },
         /** Keep `scheduled_for` so the timeline can show struck-through “Sends …”. */
         data: { delivery_status: "cancelled" },
-        include: { job: true },
+        include: {
+          job: true,
+          connected_email: { select: { email_address: true } },
+        },
       });
 
       const candidate = await prisma.candidate.findUnique({
@@ -1010,7 +1056,10 @@ app.post(
       const updated = await prisma.communication.update({
         where: { id: communicationId },
         data: { delivery_status: "cancelled" },
-        include: { job: true },
+        include: {
+          job: true,
+          connected_email: { select: { email_address: true } },
+        },
       });
 
       const candidateId = updated.candidate_id;
@@ -1104,7 +1153,10 @@ app.patch("/api/communications/:communicationId", async (req, res) => {
     const updated = await prisma.communication.update({
       where: { id: communicationId },
       data,
-      include: { job: true },
+      include: {
+        job: true,
+        connected_email: { select: { email_address: true } },
+      },
     });
 
     const candidateId = updated.candidate_id;
@@ -1360,6 +1412,130 @@ app.get("/api/sms-numbers/for-user/:userId", async (req, res) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     res.status(500).json({ error: msg });
+  }
+});
+
+app.get("/api/auth/email/connect/google", (req, res) => {
+  const userId =
+    typeof req.query.userId === "string" ? req.query.userId.trim() : "";
+  if (!userId) {
+    return res.status(400).json({ error: "userId query parameter is required" });
+  }
+  try {
+    const url = getGoogleAuthUrl(userId);
+    return res.redirect(302, url);
+  } catch (e) {
+    console.error("[email-oauth] connect URL failed:", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.redirect(
+      302,
+      buildEmailOAuthSettingsRedirectUrl({
+        email_oauth_error: "config",
+        email_oauth_message: msg,
+      }),
+    );
+  }
+});
+
+app.get("/api/auth/email/callback", async (req, res) => {
+  const code = typeof req.query.code === "string" ? req.query.code.trim() : "";
+  const stateRaw =
+    typeof req.query.state === "string" ? req.query.state.trim() : "";
+
+  const failRedirect = (reason: string, message?: string) => {
+    console.error("[email-oauth] callback error:", reason, message ?? "");
+    return res.redirect(
+      302,
+      buildEmailOAuthSettingsRedirectUrl({
+        email_oauth_error: reason,
+        ...(message ? { email_oauth_message: message } : {}),
+      }),
+    );
+  };
+
+  if (!code) {
+    return failRedirect("missing_code");
+  }
+  if (!stateRaw) {
+    return failRedirect("missing_state");
+  }
+
+  let userId: string;
+  try {
+    const parsed = JSON.parse(stateRaw) as { userId?: string };
+    userId = typeof parsed.userId === "string" ? parsed.userId.trim() : "";
+    if (!userId) {
+      return failRedirect("invalid_state", "userId missing in state");
+    }
+  } catch (e) {
+    console.error("[email-oauth] state JSON parse failed:", e);
+    return failRedirect("invalid_state");
+  }
+
+  try {
+    await handleGoogleCallback(code, userId);
+    return res.redirect(
+      302,
+      buildEmailOAuthSettingsRedirectUrl({ email_oauth: "success" }),
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[email-oauth] handleGoogleCallback failed:", e);
+    return failRedirect("token_exchange", msg);
+  }
+});
+
+app.get("/api/auth/email/status", async (req, res) => {
+  const userId =
+    typeof req.query.userId === "string" ? req.query.userId.trim() : "";
+  if (!userId) {
+    return res.status(400).json({ error: "userId query parameter is required" });
+  }
+  try {
+    const row = await getConnectedEmailForUser(userId);
+    if (!row) {
+      return res.json({ connected: false });
+    }
+    return res.json({
+      connected: true,
+      connectedEmailId: row.id,
+      email: row.email_address,
+      provider: row.provider,
+      lastSyncAt: row.last_sync_at?.toISOString() ?? null,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[email-oauth] status failed:", e);
+    return res.status(500).json({ error: msg });
+  }
+});
+
+app.delete("/api/auth/email/disconnect/:id", async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
+  if (!id) {
+    return res.status(400).json({ error: "id is required" });
+  }
+  try {
+    await disconnectGoogleEmail(id);
+    return res.json({ success: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[email-oauth] disconnect failed:", e);
+    if (msg.includes("not found")) {
+      return res.status(404).json({ error: msg });
+    }
+    return res.status(500).json({ error: msg });
+  }
+});
+
+app.get("/api/auth/email/connected-emails", async (_req, res) => {
+  try {
+    const rows = await getAllConnectedEmails();
+    return res.json(rows);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[email-oauth] connected-emails failed:", e);
+    return res.status(500).json({ error: msg });
   }
 });
 
@@ -2044,7 +2220,10 @@ app.post("/api/meetings/:meetingId/cancel-scheduled", async (req, res) => {
     const updatedComm = m.communication_id
       ? await prisma.communication.findUnique({
           where: { id: m.communication_id },
-          include: { job: true },
+          include: {
+            job: true,
+            connected_email: { select: { email_address: true } },
+          },
         })
       : null;
     if (updatedComm?.candidate_id && updatedComm.job_id && updatedComm.job) {
@@ -2368,6 +2547,194 @@ app.post("/api/dev/simulate-inbound-sms", async (req, res) => {
   }
 });
 
+app.post("/api/dev/simulate-inbound-email", async (req, res) => {
+  const candidateId =
+    typeof req.body?.candidateId === "string"
+      ? req.body.candidateId.trim()
+      : "";
+  const bodyText = typeof req.body?.body === "string" ? req.body.body : null;
+  const jobIdFromBody =
+    typeof req.body?.jobId === "string" ? req.body.jobId.trim() : "";
+  const subjectRaw =
+    typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+
+  if (!candidateId) {
+    return res.status(400).json({ error: "candidateId is required" });
+  }
+  if (bodyText === null) {
+    return res.status(400).json({ error: "body is required" });
+  }
+
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        recruiter_id: true,
+      },
+    });
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+
+    const fromEmail = candidate.email?.trim() ?? "";
+    if (!fromEmail) {
+      return res.status(400).json({ error: "Candidate has no email address" });
+    }
+
+    let jobId: string | null = jobIdFromBody || null;
+    if (jobId) {
+      const link = await prisma.candidateJob.findUnique({
+        where: {
+          candidate_id_job_id: { candidate_id: candidateId, job_id: jobId },
+        },
+      });
+      if (!link) {
+        return res
+          .status(400)
+          .json({ error: "jobId is not linked to this candidate" });
+      }
+    } else {
+      const current = await prisma.candidateJob.findFirst({
+        where: { candidate_id: candidateId, is_current: true },
+      });
+      jobId = current?.job_id ?? null;
+    }
+    if (!jobId) {
+      return res.status(400).json({
+        error:
+          "Could not resolve job: pass jobId or set a current job (CandidateJob is_current=true)",
+      });
+    }
+
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, title: true, job_code: true },
+    });
+    if (!job) {
+      return res.status(400).json({ error: "Job not found" });
+    }
+
+    const recruiterId = candidate.recruiter_id?.trim() ?? "";
+    const connectedEmail = recruiterId
+      ? await getConnectedEmailForUser(recruiterId)
+      : null;
+
+    const lastOutboundEmail = await prisma.communication.findFirst({
+      where: {
+        candidate_id: candidateId,
+        channel: "email",
+        direction: "outbound",
+      },
+      orderBy: { sent_at: "desc" },
+    });
+
+    const resolvedSubject = subjectRaw
+      ? subjectRaw
+      : lastOutboundEmail?.subject?.trim()
+        ? `Re: ${lastOutboundEmail.subject.trim()}`
+        : "Re: (no subject)";
+
+    let threadId: string | null = null;
+    if (lastOutboundEmail) {
+      threadId =
+        lastOutboundEmail.thread_id?.trim() || lastOutboundEmail.id || null;
+    }
+
+    const toAddress =
+      connectedEmail?.email_address?.trim() || "contact@darwinbox.in";
+    const vendorMessageId = `EMAIL_SIM_${Date.now()}`;
+    const sentAt = new Date();
+
+    const created = await prisma.communication.create({
+      data: {
+        candidate_id: candidateId,
+        job_id: jobId,
+        unmatched: false,
+        channel: "email",
+        direction: "inbound",
+        sender_type: "candidate",
+        sender_name: candidate.name,
+        thread_id: threadId,
+        from_address: fromEmail,
+        to_address: toAddress,
+        subject: resolvedSubject,
+        body: bodyText,
+        delivery_status: "delivered",
+        vendor_message_id: vendorMessageId,
+        sent_at: sentAt,
+        read_at: null,
+        ...(connectedEmail ? { connected_email_id: connectedEmail.id } : {}),
+      },
+    });
+
+    let row = created;
+    if (!threadId) {
+      row = await prisma.communication.update({
+        where: { id: created.id },
+        data: { thread_id: created.id },
+      });
+    }
+
+    emitNewMessage({
+      communication: {
+        id: row.id,
+        candidate_id: row.candidate_id,
+        job_id: row.job_id,
+        channel: row.channel,
+        direction: row.direction,
+        sender_type: row.sender_type,
+        sender_id: row.sender_id,
+        sender_name: row.sender_name,
+        thread_id: row.thread_id,
+        from_address: row.from_address,
+        to_address: row.to_address,
+        cc_addresses: row.cc_addresses,
+        subject: row.subject,
+        body: row.body,
+        template_id: row.template_id,
+        delivery_status: row.delivery_status,
+        vendor_message_id: row.vendor_message_id,
+        sent_at: row.sent_at.toISOString(),
+        read_at: row.read_at ? row.read_at.toISOString() : null,
+        scheduled_for: row.scheduled_for?.toISOString() ?? null,
+        ...(row.connected_email_id != null
+          ? {
+              connected_email_id: row.connected_email_id,
+              ...(connectedEmail
+                ? {
+                    connected_email: {
+                      email_address: connectedEmail.email_address,
+                    },
+                  }
+                : {}),
+            }
+          : {}),
+      },
+      candidate: {
+        id: candidate.id,
+        name: candidate.name,
+        email: candidate.email,
+      },
+      job: {
+        id: job.id,
+        title: job.title,
+        job_code: job.job_code,
+      },
+    });
+
+    return res.json({
+      success: true,
+      communicationId: row.id,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({ error: msg });
+  }
+});
+
 // Serve Vite frontend build in production
 if (process.env.NODE_ENV === "production") {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -2419,7 +2786,31 @@ setInterval(() => {
   void runScheduledEmailSweep();
 }, 60_000);
 
+const EMAIL_SYNC_MODE = (process.env.EMAIL_SYNC_MODE || "disabled")
+  .trim()
+  .toLowerCase();
+
+async function runEmailInboxSyncTick(): Promise<void> {
+  const activeConnected = await prisma.connectedEmail.count({
+    where: { is_active: true, provider: "google" },
+  });
+  if (activeConnected === 0) return;
+  await syncAllConnectedInboxes();
+}
+
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`API listening on 0.0.0.0:${PORT}`);
   startPolling();
+
+  if (EMAIL_SYNC_MODE === "polling") {
+    console.log(
+      "📧 Email Sync: POLLING — checking connected inboxes every 60s",
+    );
+    setInterval(() => {
+      void runEmailInboxSyncTick();
+    }, 60_000);
+    void runEmailInboxSyncTick();
+  } else {
+    console.log("📧 Email Sync: DISABLED");
+  }
 });

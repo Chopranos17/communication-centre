@@ -3,6 +3,9 @@ import type { Communication, Job } from "@prisma/client";
 import { Resend } from "resend";
 import twilio from "twilio";
 import { prisma } from "../db";
+import { getConnectedEmailForUser } from "./connected-email-lookup";
+import { getValidAccessToken } from "./email-oauth";
+import { sendViaGmail } from "./gmail-sender";
 import { getSmsNumberForUser } from "./sms-number-lookup";
 
 type CommunicationWithJob = Communication & { job: Job | null };
@@ -13,6 +16,9 @@ export interface VendorSendResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  /** Set when the message was sent via a connected Gmail account */
+  connectedEmailId?: string;
+  gmailFromAddress?: string;
 }
 
 export interface SendEmailParams {
@@ -21,6 +27,10 @@ export interface SendEmailParams {
   cc?: string[];
   subject: string;
   htmlBody: string;
+  /** When set, may send via connected Gmail instead of Resend */
+  senderUserId?: string | null;
+  /** Optional RFC Message-Id for In-Reply-To / References when using Gmail */
+  replyToMessageId?: string | null;
 }
 
 export interface SendSMSParams {
@@ -102,6 +112,43 @@ export function normalizeWhatsAppTo(to: string): string {
 export async function sendEmail(
   params: SendEmailParams,
 ): Promise<VendorSendResult> {
+  const uid = params.senderUserId?.trim();
+  if (uid) {
+    const connected = await getConnectedEmailForUser(uid);
+    if (connected?.is_active) {
+      try {
+        const accessToken = await getValidAccessToken(connected);
+        const gmailRes = await sendViaGmail(
+          accessToken,
+          connected.email_address,
+          params.to,
+          params.subject,
+          params.htmlBody,
+          {
+            cc: params.cc,
+            replyToMessageId: params.replyToMessageId?.trim() || undefined,
+            fromDisplayName: connected.user_name?.trim() || undefined,
+          },
+        );
+        console.log(
+          `Email: Sent via Gmail (${connected.email_address}) for user ${uid}`,
+        );
+        return {
+          success: true,
+          messageId: gmailRes.messageId,
+          connectedEmailId: connected.id,
+          gmailFromAddress: connected.email_address,
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: msg };
+      }
+    }
+    console.log(
+      `Email: Sent via Resend (contact@darwinbox.in) — no connected email for user ${uid}`,
+    );
+  }
+
   const resend = getResend();
   if (!resend) {
     console.warn(
@@ -267,6 +314,7 @@ export async function sendMessage(
       cc,
       subject: subject ?? "(no subject)",
       htmlBody: body,
+      senderUserId: params.senderUserId,
     });
   } else if (channel === "sms") {
     const smsRes = await sendSMS({
@@ -285,9 +333,10 @@ export async function sendMessage(
 
   const fromStored =
     channel === "email"
-      ? (params.fromDisplay?.trim() ||
-          from?.trim() ||
-          DEFAULT_EMAIL_FROM)
+      ? vendor.gmailFromAddress?.trim() ||
+        params.fromDisplay?.trim() ||
+        from?.trim() ||
+        DEFAULT_EMAIL_FROM
       : channel === "sms"
         ? smsResolvedFrom ??
           process.env.TWILIO_PHONE_NUMBER?.trim() ??
@@ -321,6 +370,9 @@ export async function sendMessage(
         vendor.success && vendor.messageId ? vendor.messageId : null,
       ...(channel === "sms" && smsNumberId
         ? { sms_number_id: smsNumberId }
+        : {}),
+      ...(channel === "email" && vendor.success && vendor.connectedEmailId
+        ? { connected_email_id: vendor.connectedEmailId }
         : {}),
     },
   });
@@ -375,7 +427,10 @@ export async function deliverSingleScheduledEmailById(
       channel: "email",
       delivery_status: "scheduled",
     },
-    include: { job: true },
+    include: {
+      job: true,
+      connected_email: { select: { email_address: true } },
+    },
   });
 
   if (!row) {
@@ -389,7 +444,10 @@ export async function deliverSingleScheduledEmailById(
         delivery_status: "failed",
         scheduled_for: null,
       },
-      include: { job: true },
+      include: {
+        job: true,
+        connected_email: { select: { email_address: true } },
+      },
     });
     return { ok: true, row: failed };
   }
@@ -411,7 +469,10 @@ export async function deliverSingleScheduledEmailById(
       sent_at: new Date(),
       scheduled_for: null,
     },
-    include: { job: true },
+    include: {
+      job: true,
+      connected_email: { select: { email_address: true } },
+    },
   });
 
   return { ok: true, row: next };
@@ -429,7 +490,10 @@ export async function deliverDueScheduledCommunications() {
       delivery_status: "scheduled",
       scheduled_for: { lte: now },
     },
-    include: { job: true },
+    include: {
+      job: true,
+      connected_email: { select: { email_address: true } },
+    },
   });
 
   const updatedRows: (typeof due)[number][] = [];
@@ -445,7 +509,10 @@ export async function deliverDueScheduledCommunications() {
       });
       const failed = await prisma.communication.findUniqueOrThrow({
         where: { id: row.id },
-        include: { job: true },
+        include: {
+          job: true,
+          connected_email: { select: { email_address: true } },
+        },
       });
       updatedRows.push(failed);
       continue;
@@ -468,7 +535,10 @@ export async function deliverDueScheduledCommunications() {
         sent_at: new Date(),
         scheduled_for: null,
       },
-      include: { job: true },
+      include: {
+        job: true,
+        connected_email: { select: { email_address: true } },
+      },
     });
     updatedRows.push(next);
   }

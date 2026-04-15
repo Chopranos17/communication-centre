@@ -11,6 +11,7 @@ import {
 } from "../../utils/communicationTimeline";
 import {
   SMS_VIA_LINE_MUTED_CLASS,
+  formatEmailSendViaLabel,
   formatSmsViaLineLabel,
 } from "../../lib/activityPresentation";
 import {
@@ -605,6 +606,10 @@ export function CommunicationsJobEmailSection({
                       ch === "sms"
                         ? formatSmsViaLineLabel(latest.smsNumber ?? null)
                         : null;
+                    const emailViaLabel =
+                      ch === "email"
+                        ? formatEmailSendViaLabel(latest)
+                        : null;
 
                     const showHoverSmsWaReply =
                       (latest.channel === "sms" ||
@@ -779,6 +784,13 @@ export function CommunicationsJobEmailSection({
                           <p className="truncate text-sm text-[#4d4d4d]">
                             {bodyOneLine || "—"}
                           </p>
+                          {emailViaLabel ? (
+                            <p
+                              className={`mt-0.5 truncate ${SMS_VIA_LINE_MUTED_CLASS}`}
+                            >
+                              {emailViaLabel}
+                            </p>
+                          ) : null}
                         </>
                       ) : latest.channel === "meeting" ? (
                         <>
@@ -833,6 +845,13 @@ export function CommunicationsJobEmailSection({
                                     <p className="truncate text-sm text-[#4d4d4d]">
                                       {bodyOneLine || "—"}
                                     </p>
+                                    {emailViaLabel ? (
+                                      <p
+                                        className={`mt-0.5 truncate ${SMS_VIA_LINE_MUTED_CLASS}`}
+                                      >
+                                        {emailViaLabel}
+                                      </p>
+                                    ) : null}
                                   </button>
                                 </div>
                                 <div className="h-1.5" aria-hidden />
@@ -852,6 +871,13 @@ export function CommunicationsJobEmailSection({
                                   <p className="truncate text-sm text-[#4d4d4d]">
                                     {bodyOneLine || "—"}
                                   </p>
+                                  {emailViaLabel ? (
+                                    <p
+                                      className={`mt-0.5 truncate ${SMS_VIA_LINE_MUTED_CLASS}`}
+                                    >
+                                      {emailViaLabel}
+                                    </p>
+                                  ) : null}
                                 </button>
                                 <div
                                   className={`border-x border-[#e0e0e0]/60 bg-white ${
@@ -866,6 +892,8 @@ export function CommunicationsJobEmailSection({
                                     const childBody = stripHtml(row.body)
                                       .replace(/\s+/g, " ")
                                       .trim();
+                                    const childEmailVia =
+                                      formatEmailSendViaLabel(row);
                                     return (
                                       <div
                                         key={`${group.key}-${row.id}`}
@@ -913,6 +941,13 @@ export function CommunicationsJobEmailSection({
                                         <p className="truncate pl-[11px] text-xs text-[#aaaaaa]">
                                           {childBody || "—"}
                                         </p>
+                                        {childEmailVia ? (
+                                          <p
+                                            className={`mt-0.5 truncate pl-[11px] ${SMS_VIA_LINE_MUTED_CLASS}`}
+                                          >
+                                            {childEmailVia}
+                                          </p>
+                                        ) : null}
                                       </div>
                                     );
                                   })}

@@ -171,6 +171,10 @@ export type CurrentJobEmailRow = {
     assignedToName: string | null
     numberType: string
   } | null
+  /** Outbound email sent via a connected recruiter inbox (Gmail OAuth). */
+  connectedEmail?: {
+    emailAddress: string
+  } | null
 }
 
 export type OtherJobEmailSection = {
@@ -210,6 +214,8 @@ export type NewMessageSocketPayload = {
     scheduled_for?: string | null
     /** Set for inbound/outbound SMS tied to an {@link SmsNumber} row. */
     sms_number_id?: string | null
+    connected_email_id?: string | null
+    connected_email?: { email_address: string } | null
   }
   candidate: { id: string; name: string; email: string }
   job: { id: string; title: string; job_code: string }
@@ -270,10 +276,51 @@ export type ComposeEmailPayload = {
   cc?: string[]
   templateId?: string | null
   senderName?: string
+  /** Seed user id for optional send via recruiter connected Gmail */
+  senderUserId?: string
+  /**
+   * When `connected`, the client intends Gmail send (requires `senderUserId`).
+   * When `system`, omit `senderUserId` so the server uses Resend.
+   */
+  sendPath?: "connected" | "system"
   /** Task 13: existing thread key or root message id for follow-up / reply. */
   threadId?: string | null
   /** When set, creates a scheduled email (no immediate Resend). */
   scheduledFor?: string | null
+}
+
+export type EmailConnectionStatusResponse =
+  | { connected: false }
+  | {
+      connected: true
+      connectedEmailId: string
+      email: string
+      provider: string
+      lastSyncAt: string | null
+    }
+
+export async function fetchEmailConnectionStatus(
+  userId: string,
+): Promise<EmailConnectionStatusResponse> {
+  const q = new URLSearchParams({ userId })
+  const r = await fetch(`/api/auth/email/status?${q.toString()}`)
+  if (!r.ok) {
+    throw new Error("Failed to load email connection status")
+  }
+  return r.json() as Promise<EmailConnectionStatusResponse>
+}
+
+export async function disconnectConnectedEmail(
+  connectedEmailId: string,
+): Promise<{ success: boolean }> {
+  const r = await fetch(
+    `/api/auth/email/disconnect/${encodeURIComponent(connectedEmailId)}`,
+    { method: "DELETE" },
+  )
+  if (!r.ok) {
+    throw new Error("Failed to disconnect email")
+  }
+  return r.json() as Promise<{ success: boolean }>
 }
 
 export type ComposeEmailResult = {

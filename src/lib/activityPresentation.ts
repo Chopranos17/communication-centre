@@ -129,6 +129,18 @@ export function formatSmsViaLineLabel(
 
 export const SMS_VIA_LINE_MUTED_CLASS = 'text-[10px] text-[#aaaaaa]'
 
+/** Outbound email send path for timeline / lists (mirrors SMS “via line”). */
+export function formatEmailSendViaLabel(row: {
+  channel: string
+  direction: string
+  connectedEmail?: { emailAddress: string } | null
+}): string | null {
+  if (row.channel !== 'email' || row.direction !== 'outbound') return null
+  const addr = row.connectedEmail?.emailAddress?.trim()
+  if (addr) return `via ${addr}`
+  return null
+}
+
 /** Candidate SMS consent column (Activity Command Center). */
 export type SmsConsentColumnKey = 'granted' | 'pending' | 'revoked'
 

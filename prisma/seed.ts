@@ -20,6 +20,7 @@ function envPhone(key: string, fallback: string): string {
 async function main() {
   // === Clear all tables (order matters for FK constraints) ===
   await prisma.meeting.deleteMany();
+  await prisma.connectedEmail.deleteMany();
   await prisma.communication.deleteMany();
   await prisma.candidateJob.deleteMany();
   await prisma.candidate.deleteMany();
@@ -244,6 +245,8 @@ async function main() {
     sms_consent_status: string;        // NEW
     sms_consent_at: Date | null;       // NEW
     sms_opted_out_at: Date | null;     // NEW
+    email_consent_status: string;
+    email_unsubscribed_at: Date | null;
   };
 
   const candidateDefs: CDef[] = [
@@ -259,6 +262,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-01-10"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Arjun Mehta",
@@ -272,6 +277,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-01-12"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Sneha Iyer",
@@ -285,6 +292,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-02-01"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Vikram Singh",
@@ -298,6 +307,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-01-20"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Mayank Prabhakar",
@@ -311,6 +322,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-01-18"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Sarika Bikkani",
@@ -324,6 +337,8 @@ async function main() {
       sms_consent_status: "granted",     // PENDING — demo: consent not yet obtained
       sms_consent_at: null,
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Kavya Katterapalli",
@@ -337,6 +352,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-02-05"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Rohit Khanna",
@@ -350,6 +367,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2024-12-15"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Meera Joshi",
@@ -363,6 +382,8 @@ async function main() {
       sms_consent_status: "revoked",     // REVOKED — demo: opted out
       sms_consent_at: new Date("2025-01-05"),
       sms_opted_out_at: new Date("2025-03-01"),
+      email_consent_status: "revoked",
+      email_unsubscribed_at: new Date("2025-03-05"),
     },
     {
       name: "Akshat Chopra",
@@ -376,6 +397,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-02-10"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Vinay Rao",
@@ -389,6 +412,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-02-15"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
     {
       name: "Suresh Menon",
@@ -402,6 +427,8 @@ async function main() {
       sms_consent_status: "granted",
       sms_consent_at: new Date("2025-01-25"),
       sms_opted_out_at: null,
+      email_consent_status: "granted",
+      email_unsubscribed_at: null,
     },
   ];
 
@@ -421,6 +448,8 @@ async function main() {
           sms_consent_status: c.sms_consent_status,     // NEW
           sms_consent_at: c.sms_consent_at,             // NEW
           sms_opted_out_at: c.sms_opted_out_at,         // NEW
+          email_consent_status: c.email_consent_status,
+          email_unsubscribed_at: c.email_unsubscribed_at,
         },
       }),
     ),

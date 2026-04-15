@@ -41,6 +41,8 @@ export function communicationToTimelineRow(
     delivery_status: string;
     thread_id: string | null;
     scheduled_for?: string | Date | null;
+    connected_email_id?: string | null;
+    connected_email?: { email_address: string } | null;
   },
   meeting: MeetingTimelineMeta | null = null,
 ): CurrentJobEmailRow {
@@ -64,6 +66,7 @@ export function communicationToTimelineRow(
       : typeof row.scheduled_for === "string"
         ? row.scheduled_for
         : row.scheduled_for.toISOString();
+  const ceAddr = row.connected_email?.email_address?.trim();
   return {
     id: row.id,
     channel,
@@ -84,5 +87,9 @@ export function communicationToTimelineRow(
       channel === "meeting" && meeting
         ? meeting
         : undefined,
+    connectedEmail:
+      channel === "email" && ceAddr
+        ? { emailAddress: ceAddr }
+        : null,
   };
 }
