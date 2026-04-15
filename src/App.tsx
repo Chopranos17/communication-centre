@@ -8,6 +8,7 @@ import { CandidatesPage } from './pages/CandidatesPage'
 import { CandidateDetailPage } from './pages/CandidateDetailPage'
 import { CommunicationHubPage } from './pages/CommunicationHubPage'
 import { ActivityCommandCenterPage } from './pages/ActivityCommandCenterPage'
+import { SmsSettingsPage } from './pages/SmsSettingsPage'
 
 export default function App() {
   return (
@@ -38,6 +39,10 @@ export default function App() {
               <Route
                 path="/recruitment/communication-hub"
                 element={<CommunicationHubPage />}
+              />
+              <Route
+                path="/recruitment/settings/sms"
+                element={<SmsSettingsPage />}
               />
               <Route path="*" element={<Navigate to="/recruitment/job-openings" replace />} />
             </Route>

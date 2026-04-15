@@ -54,6 +54,11 @@ const recruitmentChildren: ModuleChild[] = [
     label: 'Communication Hub',
     path: '/recruitment/communication-hub',
   },
+  {
+    id: 'sms-settings',
+    label: 'SMS Settings',
+    path: '/recruitment/settings/sms',
+  },
   { id: 'requisitions', label: 'Requisitions', disabled: true },
   { id: 'my-interviews', label: 'My Interviews', disabled: true },
   { id: 'refer', label: 'Refer', disabled: true },

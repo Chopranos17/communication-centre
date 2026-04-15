@@ -866,11 +866,173 @@ function twilioToMatchesOurNumber(
   return digitsOnly(a) === digitsOnly(b) && digitsOnly(a).length >= 10;
 }
 
+export type IngestInboundSmsResult = { created: number };
+
+/**
+ * Shared by Twilio list poller and inbound SMS webhook.
+ * Deduplicates by `vendorMessageId` (Twilio MessageSid).
+ */
+export async function ingestInboundSmsFromTwilio(params: {
+  vendorMessageId: string;
+  fromRaw: string;
+  toRaw: string | null;
+  body: string;
+  sentAt: Date;
+}): Promise<IngestInboundSmsResult> {
+  const sid = params.vendorMessageId.trim();
+  if (!sid) {
+    return { created: 0 };
+  }
+
+  const exists = await prisma.communication.findFirst({
+    where: { vendor_message_id: sid },
+  });
+  if (exists) {
+    return { created: 0 };
+  }
+
+  const channel = "sms" as const;
+  const fromRaw = params.fromRaw;
+  const digits = normalizeInboundPhoneDigits(fromRaw, channel);
+  const chLabel = "SMS";
+  const phoneForLog = formatInboundLogPhone(digits);
+  const sentAt = params.sentAt;
+  const toStored = params.toRaw;
+
+  const matches = await findAllCandidatesByPhoneDigits(digits);
+  const routing = await resolveSmsWaInboundRouting(channel, matches);
+
+  if (routing.kind === "unmatched") {
+    console.warn(
+      `[inbound] Inbound ${chLabel} from ${phoneForLog} — no matching candidate found`,
+    );
+    const inboundOwnerUnmatched =
+      toStored != null && toStored !== ""
+        ? await resolveInboundSmsOwner("", toStored)
+        : null;
+    await prisma.communication.create({
+      data: {
+        candidate_id: null,
+        job_id: null,
+        unmatched: true,
+        channel,
+        direction: "inbound",
+        sender_type: "candidate",
+        sender_name: null,
+        thread_id: null,
+        from_address: fromRaw || null,
+        to_address: toStored ?? null,
+        subject: null,
+        body: params.body ?? "",
+        delivery_status: "delivered",
+        vendor_message_id: sid,
+        sent_at: sentAt,
+        ...(inboundOwnerUnmatched?.smsNumberId
+          ? { sms_number_id: inboundOwnerUnmatched.smsNumberId }
+          : {}),
+      },
+    });
+    return { created: 1 };
+  }
+
+  if (routing.kind === "skip") {
+    console.info(
+      `[inbound] Skip ${channel} ${sid}: ${routing.reason} (from=${fromRaw})`,
+    );
+    return { created: 0 };
+  }
+
+  const { candidate, jobId, threadId } = routing;
+
+  const inboundSmsOwner =
+    toStored != null && toStored !== ""
+      ? await resolveInboundSmsOwner(digits, toStored)
+      : null;
+
+  const row = await prisma.communication.create({
+    data: {
+      candidate_id: candidate.id,
+      job_id: jobId,
+      unmatched: false,
+      channel,
+      direction: "inbound",
+      sender_type: "candidate",
+      sender_name: null,
+      thread_id: threadId,
+      from_address: fromRaw || null,
+      to_address: toStored ?? null,
+      subject: null,
+      body: params.body ?? "",
+      delivery_status: "delivered",
+      vendor_message_id: sid,
+      sent_at: sentAt,
+      ...(inboundSmsOwner?.smsNumberId
+        ? { sms_number_id: inboundSmsOwner.smsNumberId }
+        : {}),
+    },
+  });
+
+  const finalThreadId = threadId ?? row.id;
+  if (!threadId) {
+    await prisma.communication.update({
+      where: { id: row.id },
+      data: { thread_id: row.id },
+    });
+  }
+
+  const job = await prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+  console.log(
+    `Inbound ${chLabel} from ${phoneForLog} matched to Candidate ${candidate.name} on Job ${job.title}, Thread ${finalThreadId}`,
+  );
+
+  const comm = await prisma.communication.findUniqueOrThrow({
+    where: { id: row.id },
+  });
+  emitInboundSaved(
+    comm,
+    candidate,
+    job,
+    inboundSmsOwner,
+  );
+
+  if (isSmsStopKeyword(params.body ?? "")) {
+    try {
+      const updated = await prisma.candidate.update({
+        where: { id: candidate.id },
+        data: {
+          sms_consent_status: "revoked",
+          sms_opted_out_at: new Date(),
+        },
+      });
+      emitSmsConsentUpdated({
+        candidate_id: updated.id,
+        sms_consent_status: updated.sms_consent_status,
+        sms_consent_at: updated.sms_consent_at?.toISOString() ?? null,
+        sms_opted_out_at: updated.sms_opted_out_at?.toISOString() ?? null,
+      });
+    } catch (consentErr) {
+      console.error(
+        "[inbound] SMS STOP consent update failed:",
+        consentErr,
+      );
+    }
+  }
+
+  return { created: 1 };
+}
+
 async function pollTwilioChannel(
   client: ReturnType<typeof twilio>,
   channel: "sms" | "whatsapp",
   toNumber: string,
 ): Promise<number> {
+  if (
+    channel === "sms" &&
+    process.env.SMS_INBOUND_MODE?.trim().toLowerCase() === "webhook"
+  ) {
+    return 0;
+  }
+
   let created = 0;
   const listTo = normalizeTwilioListTo(channel, toNumber);
   const since = new Date(
@@ -933,6 +1095,19 @@ async function pollTwilioChannel(
     if (msg.direction !== "inbound") continue;
     try {
       const sid = msg.sid;
+
+      if (channel === "sms") {
+        const ingested = await ingestInboundSmsFromTwilio({
+          vendorMessageId: sid,
+          fromRaw: msg.from ?? "",
+          toRaw: msg.to ?? null,
+          body: msg.body ?? "",
+          sentAt: msg.dateCreated ?? new Date(),
+        });
+        created += ingested.created;
+        continue;
+      }
+
       const exists = await prisma.communication.findFirst({
         where: { vendor_message_id: sid },
       });
@@ -940,7 +1115,7 @@ async function pollTwilioChannel(
 
       const fromRaw = msg.from ?? "";
       const digits = normalizeInboundPhoneDigits(fromRaw, channel);
-      const chLabel = channel === "whatsapp" ? "WhatsApp" : "SMS";
+      const chLabel = "WhatsApp";
       const phoneForLog = formatInboundLogPhone(digits);
 
       const sentAt = msg.dateCreated ?? new Date();
@@ -953,10 +1128,10 @@ async function pollTwilioChannel(
         console.warn(
           `[inbound-poller] Inbound ${chLabel} from ${phoneForLog} — no matching candidate found`,
         );
-        const inboundOwnerUnmatched =
-          channel === "sms" && toStored
-            ? await resolveInboundSmsOwner("", toStored)
-            : null;
+        const existsUnmatched = await prisma.communication.findFirst({
+          where: { vendor_message_id: sid },
+        });
+        if (existsUnmatched) continue;
         await prisma.communication.create({
           data: {
             candidate_id: null,
@@ -974,9 +1149,6 @@ async function pollTwilioChannel(
             delivery_status: "delivered",
             vendor_message_id: sid,
             sent_at: sentAt,
-            ...(channel === "sms" && inboundOwnerUnmatched?.smsNumberId
-              ? { sms_number_id: inboundOwnerUnmatched.smsNumberId }
-              : {}),
           },
         });
         created += 1;
@@ -991,11 +1163,6 @@ async function pollTwilioChannel(
       }
 
       const { candidate, jobId, threadId } = routing;
-
-      const inboundSmsOwner =
-        channel === "sms" && toStored
-          ? await resolveInboundSmsOwner(digits, toStored)
-          : null;
 
       const row = await prisma.communication.create({
         data: {
@@ -1014,9 +1181,6 @@ async function pollTwilioChannel(
           delivery_status: "delivered",
           vendor_message_id: sid,
           sent_at: sentAt,
-          ...(channel === "sms" && inboundSmsOwner?.smsNumberId
-            ? { sms_number_id: inboundSmsOwner.smsNumberId }
-            : {}),
         },
       });
 
@@ -1036,35 +1200,7 @@ async function pollTwilioChannel(
       const comm = await prisma.communication.findUniqueOrThrow({
         where: { id: row.id },
       });
-      emitInboundSaved(
-        comm,
-        candidate,
-        job,
-        channel === "sms" ? inboundSmsOwner : null,
-      );
-
-      if (channel === "sms" && isSmsStopKeyword(msg.body ?? "")) {
-        try {
-          const updated = await prisma.candidate.update({
-            where: { id: candidate.id },
-            data: {
-              sms_consent_status: "revoked",
-              sms_opted_out_at: new Date(),
-            },
-          });
-          emitSmsConsentUpdated({
-            candidate_id: updated.id,
-            sms_consent_status: updated.sms_consent_status,
-            sms_consent_at: updated.sms_consent_at?.toISOString() ?? null,
-            sms_opted_out_at: updated.sms_opted_out_at?.toISOString() ?? null,
-          });
-        } catch (consentErr) {
-          console.error(
-            "[inbound-poller] SMS STOP consent update failed:",
-            consentErr,
-          );
-        }
-      }
+      emitInboundSaved(comm, candidate, job, null);
 
       created += 1;
     } catch (e) {

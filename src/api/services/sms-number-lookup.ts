@@ -245,11 +245,10 @@ export async function resolveInboundSmsOwner(
 }
 
 /**
- * Get all active SMS numbers (for admin settings page).
+ * All SMS numbers for admin settings (includes inactive rows for status display).
  */
 export async function getAllSmsNumbers() {
   return prisma.smsNumber.findMany({
-    where: { is_active: true },
     orderBy: { created_at: "asc" },
   });
 }

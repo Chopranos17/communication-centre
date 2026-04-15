@@ -182,11 +182,25 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSmsResult> {
     return { success: true, smsNumberId, resolvedFrom };
   }
 
+  const smsInboundMode =
+    process.env.SMS_INBOUND_MODE?.trim().toLowerCase() || "polling";
+  const webhookBase = process.env.WEBHOOK_BASE_URL?.trim().replace(/\/$/, "");
+  const statusCallback =
+    smsInboundMode === "webhook" && webhookBase
+      ? `${webhookBase}/api/webhooks/twilio/sms/status`
+      : undefined;
+
   try {
     const msg = await client.messages.create({
       body: params.body,
       from,
       to: params.to,
+      ...(statusCallback
+        ? {
+            statusCallback,
+            statusCallbackMethod: "POST" as const,
+          }
+        : {}),
     });
     return {
       success: true,
