@@ -7,6 +7,8 @@ import { Server } from "socket.io";
 import { prisma } from "./db";
 import {
   emitMessageUpdated,
+  emitNewMessage,
+  emitSmsConsentChanged,
   emitSmsConsentUpdated,
   setSocketIo,
 } from "./socket-io";
@@ -31,6 +33,7 @@ import {
   evaluateSmsSendEligibility,
   getAllSmsNumbers,
   getSmsNumberForUser,
+  resolveInboundSmsOwner,
 } from "./services/sms-number-lookup";
 
 function normalizeSmsToE164(raw: string): string {
@@ -1929,6 +1932,275 @@ app.get("/api/v1/recruitment/comms-hub/thread", async (req, res) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     res.status(500).json({ error: msg });
+  }
+});
+
+/** Same anchors as inbound SMS threading (see inbound-poller). */
+const SIM_SMS_THREAD_ANCHOR_CHANNELS = ["email", "sms", "whatsapp"] as const;
+
+function simOutboundThreadAnchorId(row: {
+  id: string;
+  thread_id: string | null;
+}): string {
+  return row.thread_id?.trim() || row.id;
+}
+
+const SMS_SIM_STOP_KEYWORDS = new Set([
+  "stop",
+  "unsubscribe",
+  "cancel",
+  "end",
+  "quit",
+]);
+
+function isSimInboundSmsStopKeyword(body: string): boolean {
+  const t = body.trim().toLowerCase();
+  return t.length > 0 && SMS_SIM_STOP_KEYWORDS.has(t);
+}
+
+app.get("/api/dev/candidates-for-sim", async (_req, res) => {
+  try {
+    const rows = await prisma.candidate.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        sms_consent_status: true,
+        jobs: {
+          where: { is_current: true },
+          take: 1,
+          select: { job: { select: { title: true } } },
+        },
+      },
+    });
+    res.json(
+      rows.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        currentJobTitle: c.jobs[0]?.job.title ?? null,
+        sms_consent_status: c.sms_consent_status,
+      })),
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.post("/api/dev/simulate-inbound-sms", async (req, res) => {
+  const candidateId =
+    typeof req.body?.candidateId === "string"
+      ? req.body.candidateId.trim()
+      : "";
+  const bodyText = typeof req.body?.body === "string" ? req.body.body : "";
+  const jobIdFromBody =
+    typeof req.body?.jobId === "string" ? req.body.jobId.trim() : "";
+
+  if (!candidateId) {
+    return res.status(400).json({ error: "candidateId is required" });
+  }
+
+  const twilioTo = process.env.TWILIO_PHONE_NUMBER?.trim() ?? "";
+  if (!twilioTo) {
+    return res.status(400).json({ error: "TWILIO_PHONE_NUMBER is not set" });
+  }
+
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+      },
+    });
+    if (!candidate) {
+      return res.status(404).json({ error: "Candidate not found" });
+    }
+
+    const fromPhone = candidate.phone?.trim() ?? "";
+    if (!fromPhone) {
+      return res.status(400).json({ error: "Candidate has no phone number" });
+    }
+
+    let jobId: string | null = jobIdFromBody || null;
+    if (jobId) {
+      const link = await prisma.candidateJob.findUnique({
+        where: {
+          candidate_id_job_id: { candidate_id: candidateId, job_id: jobId },
+        },
+      });
+      if (!link) {
+        return res
+          .status(400)
+          .json({ error: "jobId is not linked to this candidate" });
+      }
+    } else {
+      const current = await prisma.candidateJob.findFirst({
+        where: { candidate_id: candidateId, is_current: true },
+      });
+      jobId = current?.job_id ?? null;
+    }
+    if (!jobId) {
+      return res.status(400).json({
+        error:
+          "Could not resolve job: pass jobId or set a current job (CandidateJob is_current=true)",
+      });
+    }
+
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, title: true, job_code: true },
+    });
+    if (!job) {
+      return res.status(400).json({ error: "Job not found" });
+    }
+
+    const lastOutboundSms = await prisma.communication.findFirst({
+      where: {
+        candidate_id: candidateId,
+        channel: "sms",
+        direction: "outbound",
+      },
+      orderBy: { sent_at: "desc" },
+    });
+    let threadId: string | null = null;
+    if (lastOutboundSms) {
+      threadId = simOutboundThreadAnchorId(lastOutboundSms);
+    } else {
+      const lastOutboundAny = await prisma.communication.findFirst({
+        where: {
+          candidate_id: candidateId,
+          direction: "outbound",
+          channel: { in: [...SIM_SMS_THREAD_ANCHOR_CHANNELS] },
+        },
+        orderBy: { sent_at: "desc" },
+      });
+      if (lastOutboundAny) {
+        threadId = simOutboundThreadAnchorId(lastOutboundAny);
+      }
+    }
+
+    const inboundOwner = await resolveInboundSmsOwner(fromPhone, twilioTo);
+
+    const vendorMessageId = `SIM_${Date.now()}`;
+    const sentAt = new Date();
+
+    const created = await prisma.communication.create({
+      data: {
+        candidate_id: candidateId,
+        job_id: jobId,
+        unmatched: false,
+        channel: "sms",
+        direction: "inbound",
+        sender_type: "candidate",
+        sender_name: null,
+        thread_id: threadId,
+        from_address: fromPhone,
+        to_address: twilioTo,
+        subject: null,
+        body: bodyText,
+        delivery_status: "delivered",
+        vendor_message_id: vendorMessageId,
+        sent_at: sentAt,
+        read_at: null,
+        ...(inboundOwner.smsNumberId
+          ? { sms_number_id: inboundOwner.smsNumberId }
+          : {}),
+      },
+    });
+
+    let row = created;
+    if (!threadId) {
+      row = await prisma.communication.update({
+        where: { id: created.id },
+        data: { thread_id: created.id },
+      });
+    }
+
+    if (isSimInboundSmsStopKeyword(bodyText)) {
+      const updated = await prisma.candidate.update({
+        where: { id: candidateId },
+        data: {
+          sms_consent_status: "revoked",
+          sms_opted_out_at: new Date(),
+        },
+      });
+      emitSmsConsentChanged({
+        candidateId: updated.id,
+        status: "revoked",
+      });
+      emitSmsConsentUpdated({
+        candidate_id: updated.id,
+        sms_consent_status: updated.sms_consent_status,
+        sms_consent_at: updated.sms_consent_at?.toISOString() ?? null,
+        sms_opted_out_at: updated.sms_opted_out_at?.toISOString() ?? null,
+      });
+    }
+
+    emitNewMessage({
+      communication: {
+        id: row.id,
+        candidate_id: row.candidate_id,
+        job_id: row.job_id,
+        channel: row.channel,
+        direction: row.direction,
+        sender_type: row.sender_type,
+        sender_id: row.sender_id,
+        sender_name: row.sender_name,
+        thread_id: row.thread_id,
+        from_address: row.from_address,
+        to_address: row.to_address,
+        cc_addresses: row.cc_addresses,
+        subject: row.subject,
+        body: row.body,
+        template_id: row.template_id,
+        delivery_status: row.delivery_status,
+        vendor_message_id: row.vendor_message_id,
+        sent_at: row.sent_at.toISOString(),
+        read_at: row.read_at ? row.read_at.toISOString() : null,
+        scheduled_for: row.scheduled_for?.toISOString() ?? null,
+        sms_number_id: row.sms_number_id ?? null,
+      },
+      candidate: {
+        id: candidate.id,
+        name: candidate.name,
+        email: candidate.email,
+      },
+      job: {
+        id: job.id,
+        title: job.title,
+        job_code: job.job_code,
+      },
+      smsNumberOwner: {
+        smsNumberId: inboundOwner.smsNumberId,
+        ownerId: inboundOwner.ownerId,
+        ownerName: inboundOwner.ownerName,
+        lineLabel: inboundOwner.lineLabel,
+      },
+      ...(inboundOwner.smsNumberId != null
+        ? {
+            sms_line: {
+              id: inboundOwner.smsNumberId,
+              display_label: inboundOwner.lineLabel,
+              assigned_to_id: inboundOwner.ownerId,
+              assigned_to_name: inboundOwner.ownerName,
+            },
+          }
+        : {}),
+    });
+
+    return res.json({
+      success: true,
+      communicationId: row.id,
+      routedTo: inboundOwner.ownerId,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({ error: msg });
   }
 });
 

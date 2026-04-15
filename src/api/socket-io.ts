@@ -18,3 +18,8 @@ export function emitMessageUpdated(payload: unknown): void {
 export function emitSmsConsentUpdated(payload: unknown): void {
   io?.emit("sms-consent-updated", payload);
 }
+
+/** Demo / dev helper — compact payload (listeners may also use {@link emitSmsConsentUpdated}). */
+export function emitSmsConsentChanged(payload: unknown): void {
+  io?.emit("sms-consent-changed", payload);
+}
