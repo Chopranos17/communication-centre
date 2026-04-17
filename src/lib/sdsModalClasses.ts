@@ -41,7 +41,8 @@ export const sdsModalNestedContainer =
  * SDS Panel (Drawer) — slides from the right; docs/design-system/sds/COMPONENTS.md (Panel).
  * Use with: root → backdrop button → container (pick width variant).
  */
-export const sdsSidePanelRoot = "fixed inset-0 z-50 flex justify-end";
+/** Above {@link BulkSelectionBar} (`z-[100]`) so compose / bulk-channel drawers are not covered. */
+export const sdsSidePanelRoot = "fixed inset-0 z-[110] flex justify-end";
 
 export const sdsSidePanelBackdropButton =
   "absolute inset-0 z-0 cursor-default border-0 bg-black/40 p-0";
@@ -62,4 +63,4 @@ export const sdsSidePanelContainerNarrow =
   `${sdsSidePanelShell} max-w-[min(100vw,480px)]`;
 
 /** Stacked drawer above the primary panel (e.g. email HTML preview). */
-export const sdsSidePanelNestedRoot = "fixed inset-0 z-[60] flex justify-end";
+export const sdsSidePanelNestedRoot = "fixed inset-0 z-[120] flex justify-end";

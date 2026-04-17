@@ -1,3 +1,17 @@
----
-alwaysApply: true
----
+# SDS Design System Rule
+
+When building or modifying any UI component in this project, ALWAYS 
+reference the SDS documentation in docs/design-system/sds/ before 
+writing code.
+
+Key rules:
+- Never use Tailwind default colors (gray-200, blue-500, etc.) — use SDS hex values
+- Never use rounded-lg/xl/2xl — use rounded-sds-* tokens
+- Never use shadow-sm/md/lg — use shadow-sds-* tokens
+- Page background: bg-[#F5FAFF], cards: bg-white
+- Primary text: text-[#131313], secondary: text-[#4d4d4d], disabled: text-[#aaaaaa]
+- Borders: border-[#e0e0e0]
+- Primary blue: #0183FF, hover: #0169CC
+- Font: font-darwin (Darwin Sans)
+- Refer to docs/design-system/sds/COMPONENTS.md for component specs
+- Refer to docs/design-system/sds/TOKENS.md for all token values
