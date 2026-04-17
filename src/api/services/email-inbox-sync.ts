@@ -225,19 +225,10 @@ export async function syncSingleInbox(
   auth.setCredentials({ access_token: accessToken });
   const gmail = google.gmail({ version: "v1", auth });
 
-  const distinctRows = await prisma.$queryRaw<Array<{ email: string }>>`
-    SELECT DISTINCT email FROM Candidate WHERE email IS NOT NULL
-  `;
-  const distinctEmails = distinctRows
-    .map((r) => r.email?.trim())
-    .filter((e): e is string => Boolean(e));
-  const candidates =
-    distinctEmails.length > 0
-      ? await prisma.candidate.findMany({
-          where: { email: { in: distinctEmails } },
-          select: { id: true, name: true, email: true },
-        })
-      : [];
+  const candidateRows = await prisma.candidate.findMany({
+    select: { id: true, name: true, email: true },
+  });
+  const candidates = candidateRows.filter((c) => c.email.trim().length > 0);
   const candidateLookup = buildCandidateLookup(candidates);
   if (candidates.length === 0) {
     await prisma.connectedEmail.update({
