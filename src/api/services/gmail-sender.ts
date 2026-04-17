@@ -43,7 +43,11 @@ export async function sendViaGmail(
   if (options?.cc?.length) {
     lines.push(`Cc: ${options.cc.map((c) => c.trim()).filter(Boolean).join(", ")}`);
   }
-  lines.push(`Subject: ${foldSubject(subject)}`);
+  const encodedSubject =
+    "=?UTF-8?B?" +
+    Buffer.from(foldSubject(subject), "utf-8").toString("base64") +
+    "?=";
+  lines.push(`Subject: ${encodedSubject}`);
   const replyId = options?.replyToMessageId?.trim();
   if (replyId) {
     const ref = replyId.includes("<") ? replyId : `<${replyId}>`;

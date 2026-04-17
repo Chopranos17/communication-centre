@@ -897,7 +897,7 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
           direction: "outbound",
           sender_type: "recruiter",
           sender_name: senderName,
-          thread_id: resolvedThreadId,
+          thread_id: resolvedThreadId ?? null,
           from_address: fromAddress,
           to_address: to,
           cc_addresses: cc.length ? JSON.stringify(cc) : null,
@@ -910,6 +910,13 @@ app.post("/api/candidates/:candidateId/compose-email", async (req, res) => {
           sent_at: new Date(),
         },
       });
+
+      if (!resolvedThreadId) {
+        await prisma.communication.update({
+          where: { id: row.id },
+          data: { thread_id: row.id },
+        });
+      }
 
       return res.json({
         success: true,

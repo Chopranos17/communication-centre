@@ -19,6 +19,8 @@ export interface VendorSendResult {
   /** Set when the message was sent via a connected Gmail account */
   connectedEmailId?: string;
   gmailFromAddress?: string;
+  /** Gmail API thread id from users.messages.send (not our application thread_id). */
+  gmailThreadId?: string;
 }
 
 export interface SendEmailParams {
@@ -76,6 +78,14 @@ export interface SendMessageResult extends VendorSendResult {
 }
 
 const DEFAULT_EMAIL_FROM = "onboarding@resend.dev";
+
+/** Application-level email thread key (UI grouping); matches seed pattern e.g. thr-*-contact. */
+export function defaultEmailApplicationThreadId(
+  jobId: string,
+  candidateId: string,
+): string {
+  return `thr-${jobId}-${candidateId}-contact`;
+}
 
 let warnedMissingInboundReply: boolean = false;
 
@@ -138,6 +148,7 @@ export async function sendEmail(
           messageId: gmailRes.messageId,
           connectedEmailId: connected.id,
           gmailFromAddress: connected.email_address,
+          gmailThreadId: gmailRes.threadId?.trim() || undefined,
         };
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -346,6 +357,10 @@ export async function sendMessage(
 
   const toStored = channel === "whatsapp" ? normalizeWhatsAppTo(to) : to;
 
+  /** Reply/follow-up passes threadId; new standalone emails get a per-message root after insert. */
+  const resolvedEmailThreadId =
+    channel === "email" ? params.threadId?.trim() || null : null;
+
   const row = await prisma.communication.create({
     data: {
       candidate_id: candidateId,
@@ -354,10 +369,7 @@ export async function sendMessage(
       direction: "outbound",
       sender_type: params.senderType ?? "recruiter",
       sender_name: params.senderName ?? null,
-      thread_id:
-        channel === "email" && params.threadId?.trim()
-          ? params.threadId.trim()
-          : null,
+      thread_id: resolvedEmailThreadId,
       from_address: fromStored,
       to_address: toStored,
       cc_addresses:
@@ -374,8 +386,20 @@ export async function sendMessage(
       ...(channel === "email" && vendor.success && vendor.connectedEmailId
         ? { connected_email_id: vendor.connectedEmailId }
         : {}),
+      ...(channel === "email" &&
+      vendor.success &&
+      vendor.gmailThreadId?.trim()
+        ? { gmail_thread_id: vendor.gmailThreadId.trim() }
+        : {}),
     },
   });
+
+  if (channel === "email" && !resolvedEmailThreadId) {
+    await prisma.communication.update({
+      where: { id: row.id },
+      data: { thread_id: row.id },
+    });
+  }
 
   return {
     success: vendor.success,

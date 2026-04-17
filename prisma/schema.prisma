@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url = env("DATABASE_URL")
 }
 
 // SQLite: store PRD §5 / tasks.md enum-like values as strings (see seed + app validation).
@@ -93,6 +93,8 @@ model Communication {
   /// pending | sent | delivered | failed | scheduled | cancelled
   delivery_status   String  @default("pending")
   vendor_message_id String?
+  /// Gmail API thread id (send/get); not the application-level thread_id used for UI grouping.
+  gmail_thread_id   String?
   sent_at           DateTime @default(now())
   /// When set and delivery_status is scheduled, email is sent at or after this time (see server interval).
   scheduled_for     DateTime?

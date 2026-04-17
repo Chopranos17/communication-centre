@@ -60,6 +60,18 @@ function parseSentAt(dateHeader: string | undefined): Date {
   return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
+/** Strips nested Re:/Fwd: prefixes for matching an inbound reply to its outbound. */
+function normalizeEmailSubject(s: string | null | undefined): string {
+  if (!s?.trim()) return "";
+  let t = s.trim();
+  for (let i = 0; i < 12; i++) {
+    const next = t.replace(/^(re|fw|fwd)\s*:\s*/i, "").trim();
+    if (next === t) break;
+    t = next;
+  }
+  return t.toLowerCase();
+}
+
 export function extractEmailAddress(fromHeader: string): string {
   const t = fromHeader.trim();
   const bracket = t.match(/<([^>]+@[^>]+)>/);
@@ -99,6 +111,69 @@ function collectMimeBodies(part: unknown): { html: string; plain: string } {
 
   visit(part as Record<string, unknown>);
   return { html, plain };
+}
+
+/**
+ * Removes embedded &lt;style&gt;/&lt;script&gt;/&lt;head&gt; blocks and leading CSS rule text
+ * (e.g. Outlook's `P {margin-top:0;margin-bottom:0;}`) that otherwise leak into the stored body.
+ */
+function sanitizeInboundEmailBody(raw: string): string {
+  let s = raw
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, "");
+  s = stripLeadingCssRules(s);
+  return s.trim();
+}
+
+/** Strip simple `selector { ... }` chunks at the start when they appear as plain text (malformed or stripped tags). */
+function stripLeadingCssRules(text: string): string {
+  let t = text.trimStart();
+  const simpleRule = /^[^{<]*?\{[^}]*\}\s*/;
+  let guard = 0;
+  while (simpleRule.test(t) && guard++ < 40) {
+    t = t.replace(simpleRule, "").trimStart();
+  }
+  return t;
+}
+
+function stripQuotedReply(html: string): string {
+  // Gmail pattern: <div class="gmail_quote">...</div>
+  const gmailQuoteIndex = html.indexOf('<div class="gmail_quote"');
+  if (gmailQuoteIndex !== -1) {
+    return html.substring(0, gmailQuoteIndex).trim();
+  }
+
+  // Outlook pattern: <div id="appendonsend"></div> or <div style="border-top:...">
+  // Outlook also uses <hr> before quoted content
+  const outlookPatterns = [
+    /<div id="appendonsend"><\/div>/i,
+    /<div style="border-top:\s*solid/i,
+    /<hr\s*style="display:\s*inline-block/i,
+    /<!--\s*Original\s*Message\s*-->/i,
+  ];
+  for (const pattern of outlookPatterns) {
+    const match = html.search(pattern);
+    if (match !== -1) {
+      return html.substring(0, match).trim();
+    }
+  }
+
+  // Plain text pattern: line starting with "On ... wrote:" or "From: ..."
+  const plainTextPatterns = [
+    /\n\s*On .+ wrote:\s*\n/,
+    /\n\s*From:\s+.+\n/,
+    /\n\s*-{3,}\s*Original Message\s*-{3,}/i,
+    /\n\s*_{3,}\s*\n/,
+  ];
+  for (const pattern of plainTextPatterns) {
+    const match = html.search(pattern);
+    if (match !== -1) {
+      return html.substring(0, match).trim();
+    }
+  }
+
+  return html;
 }
 
 export function decodeGmailBody(payload: unknown): string {
@@ -212,41 +287,105 @@ export async function syncSingleInbox(
       );
       if (!candidate) continue;
 
+      const lastOutbound = await prisma.communication.findFirst({
+        where: {
+          candidate_id: candidate.id,
+          channel: "email",
+          direction: "outbound",
+        },
+        orderBy: { sent_at: "desc" },
+        select: { job_id: true },
+      });
+
       const currentJob = await prisma.candidateJob.findFirst({
         where: { candidate_id: candidate.id, is_current: true },
       });
-      if (!currentJob) {
+
+      let resolvedJobId =
+        currentJob?.job_id ?? lastOutbound?.job_id ?? null;
+
+      const subject = headers["subject"] || null;
+      const rawBody = decodeGmailBody(payload);
+      const cleanBody = stripQuotedReply(sanitizeInboundEmailBody(rawBody));
+      const sentAt = parseSentAt(headers["date"]);
+
+      const gmailApiThreadId = full.data.threadId?.trim() || null;
+
+      let resolvedThreadId: string | null = null;
+
+      if (gmailApiThreadId) {
+        const gmailPeer = await prisma.communication.findFirst({
+          where: {
+            candidate_id: candidate.id,
+            gmail_thread_id: gmailApiThreadId,
+          },
+          orderBy: { sent_at: "desc" },
+          select: { thread_id: true, job_id: true, id: true },
+        });
+        if (gmailPeer) {
+          resolvedThreadId =
+            gmailPeer.thread_id?.trim() || gmailPeer.id;
+          if (gmailPeer.job_id) {
+            resolvedJobId = gmailPeer.job_id;
+          }
+        }
+      }
+
+      if (
+        !resolvedThreadId &&
+        resolvedJobId &&
+        normalizeEmailSubject(subject).length > 0
+      ) {
+        const outbounds = await prisma.communication.findMany({
+          where: {
+            candidate_id: candidate.id,
+            job_id: resolvedJobId,
+            channel: "email",
+            direction: "outbound",
+          },
+          orderBy: { sent_at: "desc" },
+          take: 80,
+          select: { id: true, thread_id: true, subject: true },
+        });
+        const subjNorm = normalizeEmailSubject(subject);
+        const subjectHit = outbounds.find(
+          (o) => normalizeEmailSubject(o.subject) === subjNorm,
+        );
+        if (subjectHit) {
+          resolvedThreadId =
+            subjectHit.thread_id?.trim() || subjectHit.id;
+        }
+      }
+
+      if (!resolvedJobId) {
         console.info(
-          `[email-inbox-sync] skip ${messageId}: candidate ${candidate.id} has no current job`,
+          `[email-inbox-sync] skip ${messageId}: candidate ${candidate.id} has no job (no current CandidateJob and no prior outbound)`,
         );
         continue;
       }
 
-      const subject = headers["subject"] || null;
-      const body = decodeGmailBody(payload);
-      const sentAt = parseSentAt(headers["date"]);
-
       const row = await prisma.communication.create({
         data: {
           candidate_id: candidate.id,
-          job_id: currentJob.job_id,
+          job_id: resolvedJobId,
           channel: "email",
           direction: "inbound",
           sender_type: "candidate",
           sender_name: candidate.name,
-          thread_id: null,
+          thread_id: resolvedThreadId,
           from_address: senderEmail,
           to_address: connectedEmail.email_address,
           subject,
-          body: body.length ? body : "(no body)",
+          body: cleanBody.length ? cleanBody : "(no body)",
           delivery_status: "delivered",
           vendor_message_id: messageId,
           sent_at: sentAt,
           connected_email_id: connectedEmail.id,
+          ...(gmailApiThreadId ? { gmail_thread_id: gmailApiThreadId } : {}),
         },
       });
 
-      if (!row.thread_id) {
+      if (!resolvedThreadId) {
         await prisma.communication.update({
           where: { id: row.id },
           data: { thread_id: row.id },
@@ -254,7 +393,7 @@ export async function syncSingleInbox(
       }
 
       const job = await prisma.job.findUniqueOrThrow({
-        where: { id: currentJob.job_id },
+        where: { id: resolvedJobId },
       });
       const comm = await prisma.communication.findUniqueOrThrow({
         where: { id: row.id },
